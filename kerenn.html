@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formatter & Merger - Kerennnn</title>
+    <style>
+        /* Reset & Base Setup */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #0f172a; 
+            color: #e2e8f0; 
+            line-height: 1.6; 
+            padding: 2rem; 
+        }
+        .wrapper { max-width: 1400px; margin: 0 auto; }
+        
+        h1 { text-align: center; margin-bottom: 2rem; color: #f8fafc; font-weight: 600; letter-spacing: 0.5px; }
+        h1 span { color: #3b82f6; }
+
+        /* Tabs Navigation */
+        .tab-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 2rem; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+        .tab-btn {
+            background: transparent;
+            color: #94a3b8;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .tab-btn:hover { color: #f8fafc; background: rgba(59, 130, 246, 0.1); }
+        .tab-btn.active { color: #fff; background: #3b82f6; }
+
+        /* Tab Content */
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Layout Grid */
+        .grid-container { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 2rem; 
+        }
+        @media (min-width: 1024px) { 
+            .grid-container { grid-template-columns: 1fr 1fr; } 
+        }
+
+        /* Card Styling */
+        .card { 
+            background: #1e293b; 
+            padding: 2rem; 
+            border-radius: 12px; 
+            border: 1px solid #334155;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
+            display: flex;
+            flex-direction: column;
+        }
+        h2 { font-size: 1.25rem; margin-bottom: 1.5rem; color: #38bdf8; display: flex; align-items: center; gap: 8px;}
+        
+        /* Form Elements */
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #94a3b8; font-weight: 500; }
+        textarea { 
+            width: 100%; 
+            background: #020617; 
+            color: #a5b4fc; 
+            border: 1px solid #334155; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 0.9rem; 
+            resize: vertical; 
+            transition: all 0.2s ease; 
+            margin-bottom: 1.5rem; 
+        }
+        textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+
+        /* Buttons */
+        .btn-primary { 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            padding: 0.875rem 1.5rem; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            width: 100%; 
+            font-size: 1rem;
+            transition: all 0.2s ease; 
+        }
+        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(1px); }
+
+        /* Output Area */
+        .output-box { position: relative; display: flex; flex-direction: column; flex-grow: 1; }
+        pre, .text-output { 
+            background: #020617; 
+            padding: 1.5rem; 
+            border-radius: 8px; 
+            border: 1px solid #334155; 
+            overflow-x: auto; 
+            font-size: 0.9rem; 
+            color: #a5b4fc; 
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            flex-grow: 1;
+        }
+        pre { min-height: 400px; }
+        .text-output { min-height: 200px; color: #fbbf24; } 
+        
+        .copy-btn { 
+            position: absolute; 
+            top: 0.5rem; 
+            right: 0.5rem; 
+            background: #475569; 
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem; 
+            font-size: 0.8rem; 
+            font-weight: bold;
+            border-radius: 6px; 
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover { background: #64748b; }
+        .copy-btn.copied { background: #10b981; color: #fff; }
+
+        /* Status Messages */
+        .status-box { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: 500; display: none; }
+        .status-box.error { display: block; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .status-box.success { display: block; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <h1>SOC <span>Toolbox</span></h1>
+
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="openTab('tab-formatter')">📝 IP Formatter</button>
+            <button class="tab-btn" onclick="openTab('tab-merger')">🔗 JSON Merger</button>
+        </div>
+
+        <div id="tab-formatter" class="tab-content active">
+            <div class="grid-container">
+                <div class="card">
+                    <h2>⚙️ Input IP Baru</h2>
+                    <label for="rawIps">Masukkan List IP (1 per baris):</label>
+                    <textarea id="rawIps" rows="12" placeholder="8.8.8.8\n10.0.0.1\n192.168.1.1"></textarea>
+                    <button class="btn-primary" onclick="processFormatter()">Format ke List</button>
+                    <div id="statusBoxFormatter" class="status-box"></div>
+                </div>
+                <div class="card">
+                    <h2>📋 Hasil Format (IP; IP)</h2>
+                    <div class="output-box">
+                        <button id="copyBtnList" class="copy-btn" onclick="copyText('outputList', 'copyBtnList')" style="display: none;">Copy List</button>
+                        <div id="outputList" class="text-output">Hasil konversi akan muncul di sini...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-merger" class="tab-content">
+            <div class="grid-container">
+                <div class="card">
+                    <h2>⚙️ Gabung JSON & IP Baru</h2>
+                    <label for="oldQuery">1. Paste JSON Query Lama:</label>
+                    <textarea id="oldQuery" rows="8" placeholder='{\n  "query": {\n    "terms": {\n      "data.real_ip": [\n        "1.1.1.1"\n      ]\n    }\n  }\n}'></textarea>
+
+                    <label for="newIpsMerger">2. Masukkan List IP Baru (1 per baris):</label>
+                    <textarea id="newIpsMerger" rows="6" placeholder="8.8.8.8\n10.0.0.1"></textarea>
+
+                    <button class="btn-primary" onclick="processMerger()">Merge JSON</button>
+                    <div id="statusBoxMerger" class="status-box"></div>
+                </div>
+                <div class="card">
+                    <h2>📋 Hasil JSON Terupdate</h2>
+                    <div class="output-box">
+                        <button id="copyBtnJson" class="copy-btn" onclick="copyText('outputJson', 'copyBtnJson')" style="display: none;">Copy JSON</button>
+                        <pre id="outputJson">{
+  // Hasil generate JSON akan muncul di sini...
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Fungsi untuk pindah Tab
+        function openTab(tabId) {
+            // Hilangkan class active dari semua tombol dan konten
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Tambahkan class active ke tab yang dipilih
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Logic Tab 1: IP Formatter
+        function processFormatter() {
+            const rawText = document.getElementById('rawIps').value;
+            const outputList = document.getElementById('outputList');
+            const copyBtnList = document.getElementById('copyBtnList');
+            const statusBox = document.getElementById('statusBoxFormatter');
+
+            statusBox.className = "status-box";
+            copyBtnList.style.display = "none";
+
+            const ips = rawText.split('\n').map(ip => ip.trim()).filter(ip => ip !== "");
+            const uniqueIps = [...new Set(ips)]; // Hilangkan duplikat
+
+            if (uniqueIps.length === 0) {
+                statusBox.textContent = "List IP tidak boleh kosong!";
+                statusBox.className = "status-box error";
+                return;
+            }
+
+            outputList.textContent = uniqueIps.join('; ');
+            copyBtnList.style.display = "block";
+            
+            const duplikat = ips.length - uniqueIps.length;
+            statusBox.textContent = `Berhasil format ${uniqueIps.length} IP (${duplikat} duplikat dihapus).`;
+            statusBox.className = "status-box success";
+        }
+
+        // Logic Tab 2: JSON Merger
+        function processMerger() {
+            const oldQueryText = document.getElementById('oldQuery').value.trim();
+            const newIpsText = document.getElementById('newIpsMerger').value.trim();
+            const outputJson = document.getElementById('outputJson');
+            const copyBtnJson = document.getElementById('copyBtnJson');
+            const statusBox = document.getElementById('statusBoxMerger');
+
+            statusBox.className = "status-box";
+            copyBtnJson.style.display = "none";
+
+            if (!oldQueryText) {
+                statusBox.textContent = "Query lama tidak boleh kosong!";
+                statusBox.className = "status-box error";
+                return;
+            }
+
+            const rawNewIps = newIpsText.split('\n').map(ip => ip.trim()).filter(ip => ip !== "");
+            const uniqueNewIps = [...new Set(rawNewIps)];
+
+            if (uniqueNewIps.length === 0) {
+                statusBox.textContent = "List IP baru tidak boleh kosong!";
+                statusBox.className = "status-box error";
+                return;
+            }
+
+            let queryObj;
+            try {
+                queryObj = JSON.parse(oldQueryText);
+            } catch (e) {
+                statusBox.textContent = "Format JSON lama tidak valid!";
+                statusBox.className = "status-box error";
+                return;
+            }
+
+            try {
+                if (!queryObj.query || !queryObj.query.terms || !queryObj.query.terms["data.real_ip"]) {
+                    statusBox.textContent = "Struktur JSON harus 'query' > 'terms' > 'data.real_ip'.";
+                    statusBox.className = "status-box error";
+                    return;
+                }
+
+                const existingIps = queryObj.query.terms["data.real_ip"];
+                const combinedIps = [...new Set([...existingIps, ...uniqueNewIps])];
+                
+                queryObj.query.terms["data.real_ip"] = combinedIps;
+                outputJson.textContent = JSON.stringify(queryObj, null, 2);
+                copyBtnJson.style.display = "block"; 
+                
+                const ditambahkan = combinedIps.length - existingIps.length;
+                statusBox.textContent = `Berhasil! ${ditambahkan} IP baru masuk ke JSON. Total IP: ${combinedIps.length}`;
+                statusBox.className = "status-box success";
+
+            } catch (e) {
+                statusBox.textContent = "Error: " + e.message;
+                statusBox.className = "status-box error";
+            }
+        }
+
+        // Global Copy Function
+        function copyText(elementId, btnId) {
+            const outputText = document.getElementById(elementId).textContent;
+            const copyBtn = document.getElementById(btnId);
+            const originalText = copyBtn.textContent;
+
+            navigator.clipboard.writeText(outputText).then(() => {
+                copyBtn.textContent = "✓ Copied!";
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                alert("Gagal copy teks: " + err);
+            });
+        }
+    </script>
+</body>
+</html>
