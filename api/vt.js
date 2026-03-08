@@ -1,5 +1,17 @@
 const https = require('https');
 
+// Load all keys: VT_API_KEY, VT_API_KEY_2, VT_API_KEY_3, ... up to 10
+function getApiKeys() {
+  const keys = [];
+  const k1 = process.env.VT_API_KEY;
+  if (k1) keys.push(k1);
+  for (let i = 2; i <= 10; i++) {
+    const k = process.env[`VT_API_KEY_${i}`];
+    if (k) keys.push(k);
+  }
+  return keys;
+}
+
 function httpsGet(url, headers) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers }, (res) => {
@@ -9,7 +21,7 @@ function httpsGet(url, headers) {
         try {
           resolve({ status: res.statusCode, data: JSON.parse(body) });
         } catch (e) {
-          reject(new Error('Failed to parse VT response: ' + body.slice(0, 100)));
+          reject(new Error('Failed to parse VT response: ' + body.slice(0, 200)));
         }
       });
     });
@@ -23,21 +35,21 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const apiKey = process.env.VT_API_KEY;
+  const apiKeys = getApiKeys();
 
   // ── Health check ──────────────────────────────
-  if (req.url.includes('/api/health') || req.query.health === '1') {
+  if (req.query.health === '1') {
     return res.status(200).json({
       ok: true,
-      keySet: !!apiKey,
-      keyPrefix: apiKey ? apiKey.slice(0, 6) + '...' : null,
+      totalKeys: apiKeys.length,
+      keys: apiKeys.map((k, i) => ({ index: i + 1, prefix: k.slice(0, 6) + '...' })),
       node: process.version,
     });
   }
 
   // ── Validation ────────────────────────────────
-  if (!apiKey) {
-    return res.status(500).json({ error: { message: 'VT_API_KEY not set in environment variables.' } });
+  if (apiKeys.length === 0) {
+    return res.status(500).json({ error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' } });
   }
 
   const { type, ioc } = req.query;
@@ -55,15 +67,40 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: { message: `Invalid type "${type}". Use hash or ip.` } });
   }
 
-  // ── Proxy to VT ──────────────────────────────
-  try {
-    const { status, data } = await httpsGet(vtUrl, {
-      'x-apikey': apiKey,
-      'Accept': 'application/json',
-      'User-Agent': 'SOC-Toolbox/1.0',
-    });
-    return res.status(status).json(data);
-  } catch (err) {
-    return res.status(500).json({ error: { message: err.message } });
+  // ── Try each key, failover on 429 ─────────────
+  let lastError = null;
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    try {
+      const { status, data } = await httpsGet(vtUrl, {
+        'x-apikey': apiKeys[i],
+        'Accept': 'application/json',
+        'User-Agent': 'SOC-Toolbox/1.0',
+      });
+
+      if (status === 429) {
+        // Rate limited — try next key
+        lastError = { status: 429, message: `Key ${i + 1} rate limited, trying next...` };
+        continue;
+      }
+
+      // Success or non-quota error — return as-is
+      // Attach which key index was used (for debugging, no sensitive info)
+      if (status === 200) {
+        res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
+      }
+      return res.status(status).json(data);
+
+    } catch (err) {
+      lastError = { status: 500, message: err.message };
+      continue;
+    }
   }
+
+  // All keys exhausted
+  return res.status(429).json({
+    error: {
+      message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.`
+    }
+  });
 };
