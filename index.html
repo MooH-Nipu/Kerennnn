@@ -343,13 +343,22 @@ function hashLabel(len) {
 }
 
 async function vtGet(type, ioc) {
-    const r = await fetch(`/api/vt?type=${encodeURIComponent(type)}&ioc=${encodeURIComponent(ioc)}`, {
-        headers: { 'Accept': 'application/json' }
-    });
-    const data = await r.json();
+    let r, data;
+    try {
+        r = await fetch(`/api/vt?type=${encodeURIComponent(type)}&ioc=${encodeURIComponent(ioc)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        data = await r.json();
+    } catch(e) {
+        const err = new Error('Network error: ' + e.message); err.status = 0; throw err;
+    }
     if (!r.ok) {
+        // Bubble up full detail so renderErr can show it
         const msg = data?.error?.message || data?.error || r.statusText;
-        const err = new Error(msg); err.status = r.status; throw err;
+        const err = new Error(`[${r.status}] ${msg}`);
+        err.status = r.status;
+        err.detail = msg;
+        throw err;
     }
     return data;
 }
@@ -480,13 +489,24 @@ function renderIP(ioc, d, collapsed=false) {
 }
 
 function renderErr(ioc, type, err, collapsed=false) {
-    const msgMap = { 401:'Invalid API key.', 404:'Not found in VirusTotal.', 429:'Rate limit exceeded — wait & retry.' };
-    const msg = msgMap[err.status] || err.message || String(err);
+    const genericMap = { 401:'Invalid API key.', 429:'Rate limit exceeded — wait & retry.' };
+    const label = err.status === 404 ? 'NOT FOUND' : 'ERROR';
+    // Show specific message always — helps debug
+    const msg = err.detail || err.message || String(err);
+    const hint = err.status === 404
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">IOC tidak ada di database VT, atau endpoint salah.</span>'
+        : err.status === 401
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Cek VT_API_KEY di Vercel env variables.</span>'
+        : err.status === 0
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Tidak bisa reach /api/vt — cek deploy Vercel.</span>'
+        : '';
     const header = `
         <span class="vt-type-badge ${type==='ip'?'badge-ip':'badge-hash'}">${type==='ip'?'IP':'HASH'}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
-        <span class="verdict verdict-unknown">● ${err.status===404?'NOT FOUND':'ERROR'}</span>`;
-    const body = `<div class="vt-error-box">⚠ ${escHtml(msg)}</div>`;
+        <span class="verdict verdict-unknown">● ${label}</span>`;
+    const body = `<div class="vt-error-box">
+        <span style="opacity:0.6;font-size:0.7rem;">[HTTP ${err.status||'?'}]</span> ${escHtml(msg)}${hint}
+    </div>`;
     return makeCard(header, body, collapsed);
 }
 
