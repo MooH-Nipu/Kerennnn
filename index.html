@@ -3,311 +3,540 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formatter & Merger - Kerennnn</title>
+    <title>SOC Toolbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Reset & Base Setup */
+        :root {
+            --bg-base:   #080d17;
+            --bg-card:   #0e1829;
+            --bg-input:  #060b14;
+            --border:    #1e304d;
+            --border-hl: #2a5298;
+            --text-pri:  #d4e4ff;
+            --text-sec:  #5a7aa8;
+            --text-code: #7eb3ff;
+            --accent:    #1d6ae5;
+            --accent-hl: #2f7ef7;
+            --green:     #0fba81;
+            --red:       #e5484d;
+            --yellow:    #f5a623;
+            --purple:    #a78bfa;
+            --cyan:      #38bdf8;
+            --orange:    #fb923c;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            background-color: #0f172a; 
-            color: #e2e8f0; 
-            line-height: 1.6; 
-            padding: 2rem; 
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-pri);
+            min-height: 100vh;
+            padding: 2rem 1.5rem 4rem;
+            background-image:
+                radial-gradient(ellipse 80% 40% at 50% -10%, rgba(29,106,229,0.12) 0%, transparent 70%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px);
         }
-        .wrapper { max-width: 1400px; margin: 0 auto; }
-        
-        h1 { text-align: center; margin-bottom: 2rem; color: #f8fafc; font-weight: 600; letter-spacing: 0.5px; }
-        h1 span { color: #3b82f6; }
+        .wrapper { max-width: 1440px; margin: 0 auto; }
 
-        /* Tabs Navigation */
-        .tab-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 2rem; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
-        .tab-btn {
-            background: transparent;
-            color: #94a3b8;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-        .tab-btn:hover { color: #f8fafc; background: rgba(59, 130, 246, 0.1); }
-        .tab-btn.active { color: #fff; background: #3b82f6; }
+        header { text-align: center; margin-bottom: 2.5rem; }
+        header h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; letter-spacing: -1px; }
+        header h1 .w1 { color: var(--text-pri); }
+        header h1 .w2 { color: var(--accent-hl); }
+        header h1 .w3 { color: var(--bg-base); background: var(--accent-hl); padding: 0 10px 2px; border-radius: 6px; display: inline-block; }
+        header p { color: var(--text-sec); font-size: 0.85rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; }
 
-        /* Tab Content */
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+        .tab-btn { background: transparent; color: var(--text-sec); border: 1px solid transparent; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; font-family: 'Syne', sans-serif; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+        .tab-btn:hover { color: var(--text-pri); border-color: var(--border); background: rgba(29,106,229,0.06); }
+        .tab-btn.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-hl)); border-color: var(--accent-hl); box-shadow: 0 0 16px rgba(47,126,247,0.3); }
+
+        .tab-content { display: none; animation: fadeUp 0.25s ease; }
         .tab-content.active { display: block; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        @media (min-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; align-items: start; } }
 
-        /* Layout Grid */
-        .grid-container { 
-            display: grid; 
-            grid-template-columns: 1fr; 
-            gap: 2rem; 
-        }
-        @media (min-width: 1024px) { 
-            .grid-container { grid-template-columns: 1fr 1fr; } 
-        }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); display: flex; align-items: center; gap: 8px; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+        .card-title .dot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); flex-shrink: 0; }
 
-        /* Card Styling */
-        .card { 
-            background: #1e293b; 
-            padding: 2rem; 
-            border-radius: 12px; 
-            border: 1px solid #334155;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
-            display: flex;
-            flex-direction: column;
-        }
-        h2 { font-size: 1.25rem; margin-bottom: 1.5rem; color: #38bdf8; display: flex; align-items: center; gap: 8px;}
-        
-        /* Form Elements */
-        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #94a3b8; font-weight: 500; }
-        textarea { 
-            width: 100%; 
-            background: #020617; 
-            color: #a5b4fc; 
-            border: 1px solid #334155; 
-            border-radius: 8px; 
-            padding: 1rem; 
-            font-family: 'Consolas', 'Courier New', monospace; 
-            font-size: 0.9rem; 
-            resize: vertical; 
-            transition: all 0.2s ease; 
-            margin-bottom: 1.5rem; 
-        }
-        textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        label { font-size: 0.75rem; font-weight: 700; color: var(--text-sec); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        textarea, input[type="text"], input[type="password"] { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
+        textarea:focus, input:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
 
-        /* Buttons */
-        .btn-primary { 
-            background: #3b82f6; 
-            color: white; 
-            border: none; 
-            padding: 0.875rem 1.5rem; 
-            border-radius: 8px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            width: 100%; 
-            font-size: 1rem;
-            transition: all 0.2s ease; 
-        }
-        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
-        .btn-primary:active { transform: translateY(1px); }
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn { flex:1; min-width: 100px; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.18s; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-hl)); color: #fff; box-shadow: 0 2px 12px rgba(29,106,229,0.3); }
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-pri); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.09); }
+        .btn:active:not(:disabled) { transform: translateY(1px); }
 
-        /* Output Area */
-        .output-box { position: relative; display: flex; flex-direction: column; flex-grow: 1; }
-        pre, .text-output { 
-            background: #020617; 
-            padding: 1.5rem; 
-            border-radius: 8px; 
-            border: 1px solid #334155; 
-            overflow-x: auto; 
-            font-size: 0.9rem; 
-            color: #a5b4fc; 
-            font-family: 'Consolas', 'Courier New', monospace;
-            white-space: pre-wrap; 
-            word-wrap: break-word;
-            flex-grow: 1;
-        }
-        pre { min-height: 400px; }
-        .text-output { min-height: 200px; color: #fbbf24; } 
-        
-        .copy-btn { 
-            position: absolute; 
-            top: 0.5rem; 
-            right: 0.5rem; 
-            background: #475569; 
-            color: white;
-            border: none;
-            padding: 0.4rem 0.8rem; 
-            font-size: 0.8rem; 
-            font-weight: bold;
-            border-radius: 6px; 
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .copy-btn:hover { background: #64748b; }
-        .copy-btn.copied { background: #10b981; color: #fff; }
+        .output-wrap { position: relative; flex-grow: 1; display: flex; flex-direction: column; }
+        .output-code { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; color: var(--text-code); white-space: pre-wrap; word-break: break-all; flex-grow: 1; min-height: 180px; overflow-y: auto; }
+        .output-code.tall { min-height: 340px; }
+        .output-code.result-yellow { color: var(--yellow); }
+        .copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.07); color: var(--text-sec); border: 1px solid var(--border); padding: 4px 10px; font-size: 0.72rem; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: 'Syne', sans-serif; }
+        .copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-pri); }
+        .copy-btn.copied { background: rgba(15,186,129,0.2); color: var(--green); border-color: var(--green); }
 
-        /* Status Messages */
-        .status-box { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: 500; display: none; }
-        .status-box.error { display: block; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
-        .status-box.success { display: block; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .status { padding: 0.65rem 1rem; border-radius: 7px; font-size: 0.82rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; display: none; }
+        .status.error   { display:block; background: rgba(229,72,77,0.1);  color: var(--red);   border: 1px solid rgba(229,72,77,0.25); }
+        .status.success { display:block; background: rgba(15,186,129,0.1); color: var(--green); border: 1px solid rgba(15,186,129,0.25); }
+        .status.loading { display:flex; align-items:center; gap:8px; background: rgba(47,126,247,0.08); color: var(--cyan); border: 1px solid rgba(47,126,247,0.2); }
+
+        /* API KEY BAR */
+        .apikey-bar { background: rgba(245,166,35,0.05); border: 1px solid rgba(245,166,35,0.2); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .apikey-bar label { color: var(--yellow); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .apikey-bar input { flex: 1; min-width: 180px; margin: 0; background: rgba(0,0,0,0.3); border-color: rgba(245,166,35,0.25); color: var(--yellow); font-size: 0.8rem; padding: 8px 10px; }
+        .apikey-bar input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(245,166,35,0.1); }
+        #apiKeySaved { font-size: 0.72rem; color: var(--green); font-family: 'JetBrains Mono', monospace; white-space: nowrap; display: none; }
+
+        /* VT RESULTS */
+        #vtResults { display: flex; flex-direction: column; gap: 12px; padding-right: 2px; }
+        .vt-card { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .vt-card-header { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .vt-type-badge { font-size: 0.67rem; font-weight: 700; letter-spacing: 1px; padding: 3px 9px; border-radius: 4px; font-family: 'Syne', sans-serif; text-transform: uppercase; flex-shrink: 0; }
+        .badge-hash { background: rgba(167,139,250,0.15); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+        .badge-ip   { background: rgba(56,189,248,0.12);  color: var(--cyan);   border: 1px solid rgba(56,189,248,0.3); }
+        .vt-ioc-val { font-family: 'JetBrains Mono', monospace; font-size: 0.77rem; color: var(--text-sec); word-break: break-all; flex: 1; }
+
+        .verdict { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; font-family: 'Syne', sans-serif; flex-shrink: 0; white-space: nowrap; }
+        .verdict-clean      { background: rgba(15,186,129,0.1);  color: var(--green);    border: 1px solid rgba(15,186,129,0.25); }
+        .verdict-malicious  { background: rgba(229,72,77,0.12);   color: var(--red);      border: 1px solid rgba(229,72,77,0.3);  }
+        .verdict-suspicious { background: rgba(245,166,35,0.1);   color: var(--yellow);   border: 1px solid rgba(245,166,35,0.25); }
+        .verdict-unknown    { background: rgba(90,122,168,0.1);   color: var(--text-sec); border: 1px solid rgba(90,122,168,0.2); }
+
+        .vt-card-body { padding: 13px 14px; display: block; border-top: 1px solid var(--border); min-height: 20px; }
+        .vt-card-body > * { margin-bottom: 10px; }
+        .vt-card-body > *:last-child { margin-bottom: 0; }
+        .vt-card-body.collapsed { display: none; }
+        .vt-card-header { cursor: pointer; user-select: none; transition: background 0.15s; }
+        .vt-card-header:hover { background: rgba(255,255,255,0.025); }
+        .vt-chevron { margin-left: auto; color: var(--text-sec); font-size: 0.65rem; transition: transform 0.2s; flex-shrink: 0; padding-left: 4px; }
+        .vt-chevron.open { transform: rotate(180deg); }
+
+        .det-bar-wrap { display: flex; flex-direction: column; gap: 4px; }
+        .det-bar-label { display: flex; justify-content: space-between; font-size: 0.74rem; font-family: 'JetBrains Mono', monospace; }
+        .det-bar-label .dl { color: var(--text-sec); }
+        .det-bar-bg { height: 5px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+        .det-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+        .fill-clean    { background: var(--green); }
+        .fill-low      { background: var(--yellow); }
+        .fill-high     { background: var(--orange); }
+        .fill-critical { background: var(--red); box-shadow: 0 0 6px rgba(229,72,77,0.4); }
+
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 7px; }
+        .meta-item { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; }
+        .meta-item .mk { font-size: 0.67rem; color: var(--text-sec); font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 2px; }
+        .meta-item .mv { font-family: 'JetBrains Mono', monospace; font-size: 0.77rem; color: var(--text-pri); word-break: break-word; }
+        .mv.green  { color: var(--green); }
+        .mv.red    { color: var(--red); }
+        .mv.yellow { color: var(--yellow); }
+        .mv.purple { color: var(--purple); }
+        .mv.cyan   { color: var(--cyan); }
+
+        .vt-open-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-hl); font-size: 0.74rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-decoration: none; padding: 5px 10px; border: 1px solid rgba(47,126,247,0.25); border-radius: 6px; background: rgba(47,126,247,0.07); transition: all 0.2s; }
+        .vt-open-link:hover { background: rgba(47,126,247,0.15); }
+
+        .vt-error-box { background: rgba(229,72,77,0.06); border: 1px solid rgba(229,72,77,0.2); border-radius: 8px; padding: 9px 12px; color: var(--red); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+        .legend-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .spinner { width: 14px; height: 14px; border: 2px solid rgba(56,189,248,0.25); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-input); }
+        ::-webkit-scrollbar-thumb { background: var(--border-hl); border-radius: 4px; }
+
+        .fg { display: flex; flex-direction: column; gap: 4px; }
+        .sg { display: flex; flex-direction: column; gap: 1rem; }
     </style>
 </head>
 <body>
+<div class="wrapper">
 
-    <div class="wrapper">
-        <h1>SOC <span>Toolbox</span></h1>
+    <header>
+        <h1><span class="w1">SOC</span> <span class="w2">Tool</span><span class="w3">box</span></h1>
+        <p>// security operations center — analyst utilities</p>
+    </header>
 
-        <div class="tab-container">
-            <button class="tab-btn active" onclick="openTab('tab-formatter')">📝 IP Formatter</button>
-            <button class="tab-btn" onclick="openTab('tab-merger')">🔗 JSON Merger</button>
-        </div>
+    <nav class="tab-nav">
+        <button class="tab-btn active" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
+        <button class="tab-btn" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
+        <button class="tab-btn" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
+    </nav>
 
-        <div id="tab-formatter" class="tab-content active">
-            <div class="grid-container">
-                <div class="card">
-                    <h2>⚙️ Input IP Baru</h2>
-                    <label for="rawIps">Masukkan List IP (1 per baris):</label>
-                    <textarea id="rawIps" rows="12" placeholder="8.8.8.8\n10.0.0.1\n192.168.1.1"></textarea>
-                    <button class="btn-primary" onclick="processFormatter()">Format ke List</button>
-                    <div id="statusBoxFormatter" class="status-box"></div>
-                </div>
-                <div class="card">
-                    <h2>📋 Hasil Format (IP; IP)</h2>
-                    <div class="output-box">
-                        <button id="copyBtnList" class="copy-btn" onclick="copyText('outputList', 'copyBtnList')" style="display: none;">Copy List</button>
-                        <div id="outputList" class="text-output">Hasil konversi akan muncul di sini...</div>
+    <!-- TAB 1: IP FORMATTER -->
+    <div id="tab-formatter" class="tab-content active">
+        <div class="grid">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Input IP Baru</div>
+                <div class="sg">
+                    <div class="fg">
+                        <label>List IP (1 per baris)</label>
+                        <textarea id="rawIps" rows="12" placeholder="8.8.8.8&#10;10.0.0.1&#10;192.168.1.1"></textarea>
                     </div>
+                    <button class="btn btn-primary" onclick="processFormatter()">Format ke List →</button>
+                    <div id="statusFormatter" class="status"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Hasil Format (IP; IP)</div>
+                <div class="output-wrap" style="flex-grow:1;">
+                    <button id="copyBtnList" class="copy-btn" style="display:none" onclick="copyText('outputList','copyBtnList')">COPY</button>
+                    <div id="outputList" class="output-code tall result-yellow">Hasil konversi akan muncul di sini...</div>
                 </div>
             </div>
         </div>
-
-        <div id="tab-merger" class="tab-content">
-            <div class="grid-container">
-                <div class="card">
-                    <h2>⚙️ Gabung JSON & IP Baru</h2>
-                    <label for="oldQuery">1. Paste JSON Query Lama:</label>
-                    <textarea id="oldQuery" rows="8" placeholder='{\n  "query": {\n    "terms": {\n      "data.real_ip": [\n        "1.1.1.1"\n      ]\n    }\n  }\n}'></textarea>
-
-                    <label for="newIpsMerger">2. Masukkan List IP Baru (1 per baris):</label>
-                    <textarea id="newIpsMerger" rows="6" placeholder="8.8.8.8\n10.0.0.1"></textarea>
-
-                    <button class="btn-primary" onclick="processMerger()">Merge JSON</button>
-                    <div id="statusBoxMerger" class="status-box"></div>
-                </div>
-                <div class="card">
-                    <h2>📋 Hasil JSON Terupdate</h2>
-                    <div class="output-box">
-                        <button id="copyBtnJson" class="copy-btn" onclick="copyText('outputJson', 'copyBtnJson')" style="display: none;">Copy JSON</button>
-                        <pre id="outputJson">{
-  // Hasil generate JSON akan muncul di sini...
-}</pre>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <script>
-        // Fungsi untuk pindah Tab
-        function openTab(tabId) {
-            // Hilangkan class active dari semua tombol dan konten
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    <!-- TAB 2: JSON MERGER -->
+    <div id="tab-merger" class="tab-content">
+        <div class="grid">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Gabung JSON & IP Baru</div>
+                <div class="sg">
+                    <div class="fg">
+                        <label>1. Paste JSON Query Lama</label>
+                        <textarea id="oldQuery" rows="8" placeholder='{"query":{"terms":{"data.real_ip":["1.1.1.1"]}}}'></textarea>
+                    </div>
+                    <div class="fg">
+                        <label>2. List IP Baru (1 per baris)</label>
+                        <textarea id="newIpsMerger" rows="5" placeholder="8.8.8.8&#10;10.0.0.1"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="processMerger()">Merge JSON →</button>
+                    <div id="statusMerger" class="status"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Hasil JSON Terupdate</div>
+                <div class="output-wrap" style="flex-grow:1;">
+                    <button id="copyBtnJson" class="copy-btn" style="display:none" onclick="copyText('outputJson','copyBtnJson')">COPY</button>
+                    <pre id="outputJson" class="output-code tall">{ // Hasil JSON akan muncul di sini... }</pre>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            // Tambahkan class active ke tab yang dipilih
-            document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+    <!-- TAB 3: VIRUSTOTAL LOOKUP -->
+    <div id="tab-vt" class="tab-content">
+        <div class="grid">
+
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> VirusTotal Lookup</div>
+                <div class="sg">
+
+                    <div class="fg">
+                        <label>Hash(es) &amp; / or IP Address(es) — 1 per baris</label>
+                        <textarea id="vtInput" rows="11" placeholder="Supports (auto-detected):&#10;&#10;  MD5      d41d8cd98f00b204e9800998ecf8427e&#10;  SHA-1    da39a3ee5e6b4b0d3255bfef95601890afd80709&#10;  SHA-256  e3b0c44298fc1c149afbf4c8996fb924...&#10;  SHA-512  cf83e1357eefb8bdf1542850d66d8007...&#10;&#10;  IPv4     203.0.113.42&#10;  IPv6     2001:db8::1"></textarea>
+                    </div>
+
+                    <div class="btn-row">
+                        <button id="vtRunBtn" class="btn btn-primary" onclick="runVTLookup()">Scan with VirusTotal →</button>
+                        <button class="btn btn-secondary" onclick="clearVT()">✕ Clear</button>
+                    </div>
+
+                    <div id="statusVT" class="status"></div>
+
+                    <div class="legend-row">
+                        <span class="verdict verdict-clean">● CLEAN</span>
+                        <span class="verdict verdict-suspicious">● SUSPICIOUS</span>
+                        <span class="verdict verdict-malicious">● MALICIOUS</span>
+                        <span class="verdict verdict-unknown">● NOT FOUND</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="align-self: flex-start; min-width: 0;">
+                <div class="card-title">
+                    <span class="dot"></span> Results
+                    <span id="vtResultCount" style="margin-left:auto;font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
+                </div>
+                <div id="vtResults">
+                    <div style="color:var(--text-sec);font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+<script>
+/* ── TABS ── */
+function openTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+}
+
+/* ── UTILS ── */
+function setStatus(id, html, type) {
+    const e = document.getElementById(id);
+    e.innerHTML = html;
+    e.className = 'status ' + type;
+}
+function clearStatus(id) { document.getElementById(id).className = 'status'; }
+function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function copyText(elId, btnId) {
+    const text = document.getElementById(elId).textContent;
+    const btn  = document.getElementById(btnId);
+    navigator.clipboard.writeText(text).then(()=>{
+        const orig = btn.textContent;
+        btn.textContent = '✓ COPIED'; btn.classList.add('copied');
+        setTimeout(()=>{ btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    }).catch(e=>alert('Copy failed: '+e));
+}
+
+/* ── TAB 1: IP FORMATTER ── */
+function processFormatter() {
+    const raw = document.getElementById('rawIps').value;
+    clearStatus('statusFormatter');
+    document.getElementById('copyBtnList').style.display = 'none';
+    const ips = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    const unique = [...new Set(ips)];
+    if (!unique.length) { setStatus('statusFormatter','⚠ List IP tidak boleh kosong!','error'); return; }
+    document.getElementById('outputList').textContent = unique.join('; ');
+    document.getElementById('copyBtnList').style.display = 'block';
+    setStatus('statusFormatter',`✓ ${unique.length} IP formatted — ${ips.length-unique.length} duplicate(s) removed.`,'success');
+}
+
+/* ── TAB 2: JSON MERGER ── */
+function processMerger() {
+    const oldText = document.getElementById('oldQuery').value.trim();
+    const newText = document.getElementById('newIpsMerger').value.trim();
+    clearStatus('statusMerger');
+    document.getElementById('copyBtnJson').style.display = 'none';
+    if (!oldText) { setStatus('statusMerger','⚠ Query lama tidak boleh kosong!','error'); return; }
+    const newIps = [...new Set(newText.split('\n').map(s=>s.trim()).filter(Boolean))];
+    if (!newIps.length) { setStatus('statusMerger','⚠ List IP baru tidak boleh kosong!','error'); return; }
+    let obj;
+    try { obj = JSON.parse(oldText); } catch(e) { setStatus('statusMerger','⚠ JSON tidak valid: '+e.message,'error'); return; }
+    if (!obj?.query?.terms?.['data.real_ip']) { setStatus('statusMerger','⚠ Struktur harus: query > terms > data.real_ip','error'); return; }
+    const existing = obj.query.terms['data.real_ip'];
+    const combined = [...new Set([...existing,...newIps])];
+    obj.query.terms['data.real_ip'] = combined;
+    document.getElementById('outputJson').textContent = JSON.stringify(obj, null, 2);
+    document.getElementById('copyBtnJson').style.display = 'block';
+    setStatus('statusMerger',`✓ ${combined.length-existing.length} IP added. Total: ${combined.length}`,'success');
+}
+
+/* ── TAB 3: VIRUSTOTAL ── */
+
+function detectType(v) {
+    const s = v.trim();
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
+    if (/^[0-9a-fA-F:]{7,39}:[0-9a-fA-F:]{1,4}$/.test(s)) return 'ip';
+    if (/^[0-9a-fA-F]+$/.test(s) && [32,40,56,64,96,128].includes(s.length)) return 'hash';
+    return null;
+}
+
+function hashLabel(len) {
+    return { 32:'MD5/NTLM', 40:'SHA-1', 56:'SHA-224', 64:'SHA-256', 96:'SHA-384', 128:'SHA-512' }[len] || `HASH-${len}`;
+}
+
+async function vtGet(type, ioc) {
+    const r = await fetch(`/api/vt?type=${encodeURIComponent(type)}&ioc=${encodeURIComponent(ioc)}`, {
+        headers: { 'Accept': 'application/json' }
+    });
+    const data = await r.json();
+    if (!r.ok) {
+        const msg = data?.error?.message || data?.error || r.statusText;
+        const err = new Error(msg); err.status = r.status; throw err;
+    }
+    return data;
+}
+
+function verdict(mal, sus, total) {
+    if (!total) return { label:'UNKNOWN',    cls:'verdict-unknown' };
+    if (mal >= 5)        return { label:'MALICIOUS',  cls:'verdict-malicious' };
+    if (mal > 0 || sus > 3) return { label:'SUSPICIOUS', cls:'verdict-suspicious' };
+    return { label:'CLEAN', cls:'verdict-clean' };
+}
+
+function fillCls(ratio) {
+    if (!ratio)      return 'fill-clean';
+    if (ratio < 0.1) return 'fill-low';
+    if (ratio < 0.3) return 'fill-high';
+    return 'fill-critical';
+}
+
+function mi(k, v, c='') {
+    return `<div class="meta-item"><div class="mk">${escHtml(k)}</div><div class="mv ${c}">${escHtml(String(v??'—'))}</div></div>`;
+}
+
+function detBar(mal, sus, total) {
+    const n = mal + sus;
+    const pct = total ? Math.round(n/total*100) : 0;
+    const fc  = fillCls(total ? n/total : 0);
+    const dc  = mal > 0 ? 'red' : sus > 0 ? 'yellow' : 'green';
+    return `<div class="det-bar-wrap">
+        <div class="det-bar-label">
+            <span class="dl">Detection ratio</span>
+            <span class="mv ${dc}" style="font-size:0.74rem">${n}/${total} &nbsp;(${pct}%)</span>
+        </div>
+        <div class="det-bar-bg"><div class="det-bar-fill ${fc}" style="width:${Math.min(pct,100)}%"></div></div>
+    </div>`;
+}
+
+function countryFlag(code) {
+    if (!code || code.length !== 2) return '';
+    return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 - 65 + c.charCodeAt(0)));
+}
+
+function toggleCard(el) {
+    const card = el.closest('.vt-card');
+    const body = card.querySelector('.vt-card-body');
+    const chev = card.querySelector('.vt-chevron');
+    const collapsed = body.classList.toggle('collapsed');
+    chev.classList.toggle('open', !collapsed);
+}
+
+let _cardIdx = 0;
+
+function makeCard(headerInner, bodyInner, collapsed) {
+    const idx = _cardIdx++;
+    const bodyClass = collapsed ? 'vt-card-body collapsed' : 'vt-card-body';
+    const chevClass = collapsed ? 'vt-chevron' : 'vt-chevron open';
+    return `<div class="vt-card">
+        <div class="vt-card-header" onclick="toggleCard(this)">
+            ${headerInner}
+            <span class="${chevClass}">▼</span>
+        </div>
+        <div class="${bodyClass}">${bodyInner}</div>
+    </div>`;
+}
+
+function renderHash(ioc, d, collapsed=false) {
+    const a = d.data?.attributes || {};
+    const s = a.last_analysis_stats || {};
+    const mal = s.malicious||0, sus = s.suspicious||0;
+    const total = Object.values(s).reduce((x,y)=>x+y,0);
+    const v = verdict(mal, sus, total);
+    const names = (a.names||[]).slice(0,3).join(', ')||'—';
+    const ftype = a.type_description||a.magic||'—';
+    const size  = a.size ? (a.size/1024).toFixed(1)+' KB' : '—';
+    const first = a.first_submission_date ? new Date(a.first_submission_date*1000).toLocaleDateString('en-GB') : '—';
+    const last  = a.last_analysis_date    ? new Date(a.last_analysis_date*1000).toLocaleDateString('en-GB')    : '—';
+    const vtUrl = `https://www.virustotal.com/gui/file/${ioc}`;
+    const header = `
+        <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
+        <span class="vt-ioc-val">${escHtml(ioc)}</span>
+        <span class="verdict ${v.cls}">● ${v.label}</span>`;
+    const body = `
+        ${detBar(mal, sus, total)}
+        <div class="meta-grid">
+            ${mi('Malicious',  mal,  mal>0?'red':'green')}
+            ${mi('Suspicious', sus,  sus>0?'yellow':'')}
+            ${mi('Undetected', s.undetected||0)}
+            ${mi('File Type',  ftype,'purple')}
+            ${mi('Size',       size)}
+            ${mi('File Names', names)}
+            ${mi('First Seen', first,'cyan')}
+            ${mi('Last Scan',  last)}
+        </div>
+        <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
+    return makeCard(header, body, collapsed);
+}
+
+function renderIP(ioc, d, collapsed=false) {
+    const a = d.data?.attributes || {};
+    const s = a.last_analysis_stats || {};
+    const mal = s.malicious||0, sus = s.suspicious||0;
+    const total = Object.values(s).reduce((x,y)=>x+y,0);
+    const v   = verdict(mal, sus, total);
+    const rep = a.reputation !== undefined ? a.reputation : '—';
+    const rc  = rep > 0 ? 'green' : rep < 0 ? 'red' : '';
+    const vtUrl = `https://www.virustotal.com/gui/ip-address/${ioc}`;
+    const flag  = countryFlag(a.country);
+    const ctry  = a.country || '—';
+    const ctryBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:5px;padding:2px 8px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--cyan);flex-shrink:0;">${flag?flag+'\u00a0':''}${escHtml(ctry)}</span>`;
+    const header = `
+        <span class="vt-type-badge badge-ip">IP ADDRESS</span>
+        <span class="vt-ioc-val">${escHtml(ioc)}</span>
+        ${ctryBadge}
+        <span class="verdict ${v.cls}">● ${v.label}</span>`;
+    const body = `
+        ${detBar(mal, sus, total)}
+        <div class="meta-grid">
+            ${mi('Malicious',  mal,  mal>0?'red':'green')}
+            ${mi('Suspicious', sus,  sus>0?'yellow':'')}
+            ${mi('Undetected', s.undetected||0)}
+            ${mi('Country',    (flag?flag+' ':'')+ctry, 'cyan')}
+            ${mi('ASN',        a.asn?'AS'+a.asn:'—', 'purple')}
+            ${mi('AS Owner',   a.as_owner||'—')}
+            ${mi('Network',    a.network||'—')}
+            ${mi('Reputation', rep, rc)}
+        </div>
+        <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
+    return makeCard(header, body, collapsed);
+}
+
+function renderErr(ioc, type, err, collapsed=false) {
+    const msgMap = { 401:'Invalid API key.', 404:'Not found in VirusTotal.', 429:'Rate limit exceeded — wait & retry.' };
+    const msg = msgMap[err.status] || err.message || String(err);
+    const header = `
+        <span class="vt-type-badge ${type==='ip'?'badge-ip':'badge-hash'}">${type==='ip'?'IP':'HASH'}</span>
+        <span class="vt-ioc-val">${escHtml(ioc)}</span>
+        <span class="verdict verdict-unknown">● ${err.status===404?'NOT FOUND':'ERROR'}</span>`;
+    const body = `<div class="vt-error-box">⚠ ${escHtml(msg)}</div>`;
+    return makeCard(header, body, collapsed);
+}
+
+async function runVTLookup() {
+    const raw = document.getElementById('vtInput').value.trim();
+    const res = document.getElementById('vtResults');
+    const btn = document.getElementById('vtRunBtn');
+    clearStatus('statusVT');
+
+    if (!raw)      { setStatus('statusVT','⚠ Input tidak boleh kosong!','error'); return; }
+
+    const lines  = [...new Set(raw.split('\n').map(s=>s.trim()).filter(Boolean))];
+    const valid  = lines.map(l=>({ ioc:l, type:detectType(l) })).filter(x=>x.type);
+    const skipped = lines.length - valid.length;
+
+    if (!valid.length) { setStatus('statusVT','⚠ Tidak ada hash / IP yang valid terdeteksi.','error'); return; }
+
+    btn.disabled = true;
+    res.innerHTML = '';
+    document.getElementById('vtResultCount').textContent = '';
+
+    const cards = [];
+    _cardIdx = 0;
+    const multi = valid.length > 1;
+    for (let i = 0; i < valid.length; i++) {
+        const { ioc, type } = valid[i];
+        setStatus('statusVT', `<span class="spinner"></span> Scanning ${i+1} / ${valid.length}...`, 'loading');
+        try {
+            const d = await vtGet(type, ioc);
+            cards.push(type === 'hash' ? renderHash(ioc, d, multi) : renderIP(ioc, d, multi));
+        } catch(e) {
+            cards.push(renderErr(ioc, type, e, multi));
         }
+        if (i < valid.length - 1) await new Promise(r=>setTimeout(r, 400));
+    }
 
-        // Logic Tab 1: IP Formatter
-        function processFormatter() {
-            const rawText = document.getElementById('rawIps').value;
-            const outputList = document.getElementById('outputList');
-            const copyBtnList = document.getElementById('copyBtnList');
-            const statusBox = document.getElementById('statusBoxFormatter');
+    res.innerHTML = cards.join('');
+    btn.disabled = false;
+    document.getElementById('vtResultCount').textContent = `${valid.length} result(s)`;
+    let msg = `✓ ${valid.length} IOC(s) scanned.`;
+    if (skipped) msg += ` ${skipped} line(s) skipped (unrecognized).`;
+    setStatus('statusVT', msg, 'success');
+}
 
-            statusBox.className = "status-box";
-            copyBtnList.style.display = "none";
-
-            const ips = rawText.split('\n').map(ip => ip.trim()).filter(ip => ip !== "");
-            const uniqueIps = [...new Set(ips)]; // Hilangkan duplikat
-
-            if (uniqueIps.length === 0) {
-                statusBox.textContent = "List IP tidak boleh kosong!";
-                statusBox.className = "status-box error";
-                return;
-            }
-
-            outputList.textContent = uniqueIps.join('; ');
-            copyBtnList.style.display = "block";
-            
-            const duplikat = ips.length - uniqueIps.length;
-            statusBox.textContent = `Berhasil format ${uniqueIps.length} IP (${duplikat} duplikat dihapus).`;
-            statusBox.className = "status-box success";
-        }
-
-        // Logic Tab 2: JSON Merger
-        function processMerger() {
-            const oldQueryText = document.getElementById('oldQuery').value.trim();
-            const newIpsText = document.getElementById('newIpsMerger').value.trim();
-            const outputJson = document.getElementById('outputJson');
-            const copyBtnJson = document.getElementById('copyBtnJson');
-            const statusBox = document.getElementById('statusBoxMerger');
-
-            statusBox.className = "status-box";
-            copyBtnJson.style.display = "none";
-
-            if (!oldQueryText) {
-                statusBox.textContent = "Query lama tidak boleh kosong!";
-                statusBox.className = "status-box error";
-                return;
-            }
-
-            const rawNewIps = newIpsText.split('\n').map(ip => ip.trim()).filter(ip => ip !== "");
-            const uniqueNewIps = [...new Set(rawNewIps)];
-
-            if (uniqueNewIps.length === 0) {
-                statusBox.textContent = "List IP baru tidak boleh kosong!";
-                statusBox.className = "status-box error";
-                return;
-            }
-
-            let queryObj;
-            try {
-                queryObj = JSON.parse(oldQueryText);
-            } catch (e) {
-                statusBox.textContent = "Format JSON lama tidak valid!";
-                statusBox.className = "status-box error";
-                return;
-            }
-
-            try {
-                if (!queryObj.query || !queryObj.query.terms || !queryObj.query.terms["data.real_ip"]) {
-                    statusBox.textContent = "Struktur JSON harus 'query' > 'terms' > 'data.real_ip'.";
-                    statusBox.className = "status-box error";
-                    return;
-                }
-
-                const existingIps = queryObj.query.terms["data.real_ip"];
-                const combinedIps = [...new Set([...existingIps, ...uniqueNewIps])];
-                
-                queryObj.query.terms["data.real_ip"] = combinedIps;
-                outputJson.textContent = JSON.stringify(queryObj, null, 2);
-                copyBtnJson.style.display = "block"; 
-                
-                const ditambahkan = combinedIps.length - existingIps.length;
-                statusBox.textContent = `Berhasil! ${ditambahkan} IP baru masuk ke JSON. Total IP: ${combinedIps.length}`;
-                statusBox.className = "status-box success";
-
-            } catch (e) {
-                statusBox.textContent = "Error: " + e.message;
-                statusBox.className = "status-box error";
-            }
-        }
-
-        // Global Copy Function
-        function copyText(elementId, btnId) {
-            const outputText = document.getElementById(elementId).textContent;
-            const copyBtn = document.getElementById(btnId);
-            const originalText = copyBtn.textContent;
-
-            navigator.clipboard.writeText(outputText).then(() => {
-                copyBtn.textContent = "✓ Copied!";
-                copyBtn.classList.add('copied');
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.classList.remove('copied');
-                }, 2000);
-            }).catch(err => {
-                alert("Gagal copy teks: " + err);
-            });
-        }
-    </script>
+function clearVT() {
+    document.getElementById('vtInput').value = '';
+    document.getElementById('vtResults').innerHTML = '<div style="color:var(--text-sec);font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>';
+    document.getElementById('vtResultCount').textContent = '';
+    clearStatus('statusVT');
+}
+</script>
 </body>
 </html>
