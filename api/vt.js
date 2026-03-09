@@ -1,6 +1,5 @@
 const https = require('https');
 
-// Load all keys: VT_API_KEY, VT_API_KEY_2, VT_API_KEY_3, ... up to 10
 function getApiKeys() {
   const keys = [];
   const k1 = process.env.VT_API_KEY;
@@ -10,6 +9,51 @@ function getApiKeys() {
     if (k) keys.push(k);
   }
   return keys;
+}
+
+// ── Strip URL → extract bare IOC ──────────────────────────────────────────
+function extractIOC(raw) {
+  let s = raw.trim();
+
+  // Remove surrounding brackets/quotes (defanged IOCs like hxxps[://]evil[.]com)
+  s = s.replace(/^\[|\]$/g, '');
+
+  // Defang: hxxp/hxxps → http/https, [.] → .
+  s = s.replace(/^hxxps?/i, 'https');
+  s = s.replace(/\[\.\]/g, '.').replace(/\(dot\)/gi, '.');
+
+  // If it looks like a URL, parse out just the hostname
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      s = u.hostname;
+    } catch {
+      // fallback: strip scheme and take up to first /
+      s = s.replace(/^https?:\/\//i, '').split('/')[0];
+    }
+  }
+
+  // Strip trailing dot (FQDN), port, path, query
+  s = s.split('/')[0].split('?')[0].split('#')[0];
+  // Remove port if present (e.g. evil.com:8080 or 1.2.3.4:443)
+  s = s.replace(/:(\d+)$/, '');
+  // Strip trailing dot
+  s = s.replace(/\.$/, '');
+
+  return s.toLowerCase();
+}
+
+// ── Detect IOC type ───────────────────────────────────────────────────────
+function detectType(s) {
+  // IPv4
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
+  // IPv6 (simplified check)
+  if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
+  // Hash (MD5/SHA-1/SHA-256/SHA-512 etc.)
+  if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
+  // Domain — must have at least one dot and valid chars
+  if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
+  return null;
 }
 
 function httpsGet(url, headers) {
@@ -52,55 +96,54 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' } });
   }
 
-  const { type, ioc } = req.query;
-  if (!type || !ioc) {
-    return res.status(400).json({ error: { message: 'Missing ?type= or ?ioc= param.' } });
+  const { ioc: rawIoc } = req.query;
+  if (!rawIoc) {
+    return res.status(400).json({ error: { message: 'Missing ?ioc= param.' } });
+  }
+
+  // ── Clean + detect ────────────────────────────
+  const ioc  = extractIOC(rawIoc);
+  const type = detectType(ioc);
+
+  if (!type) {
+    return res.status(400).json({
+      error: { message: `Cannot detect IOC type for: "${ioc}". Supports IP, domain, hash (MD5/SHA-1/SHA-256/SHA-512).` }
+    });
   }
 
   const urlMap = {
-    hash: `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
-    ip:   `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
+    hash:   `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
+    ip:     `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
+    domain: `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(ioc)}`,
   };
 
   const vtUrl = urlMap[type];
-  if (!vtUrl) {
-    return res.status(400).json({ error: { message: `Invalid type "${type}". Use hash or ip.` } });
-  }
 
   // ── Try each key, failover on 429 ─────────────
-  let lastError = null;
-
   for (let i = 0; i < apiKeys.length; i++) {
     try {
       const { status, data } = await httpsGet(vtUrl, {
         'x-apikey': apiKeys[i],
-        'Accept': 'application/json',
+        'Accept':   'application/json',
         'User-Agent': 'SOC-Toolbox/1.0',
       });
 
-      if (status === 429) {
-        // Rate limited — try next key
-        lastError = { status: 429, message: `Key ${i + 1} rate limited, trying next...` };
-        continue;
+      if (status === 429) continue; // try next key
+
+      // Inject meta so frontend knows cleaned IOC + type
+      if (status === 200 && data.data) {
+        data._meta = { type, ioc, original: rawIoc };
       }
 
-      // Success or non-quota error — return as-is
-      // Attach which key index was used (for debugging, no sensitive info)
-      if (status === 200) {
-        res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
-      }
+      if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i+1}-of-${apiKeys.length}`);
       return res.status(status).json(data);
 
     } catch (err) {
-      lastError = { status: 500, message: err.message };
       continue;
     }
   }
 
-  // All keys exhausted
   return res.status(429).json({
-    error: {
-      message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.`
-    }
+    error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` }
   });
 };
