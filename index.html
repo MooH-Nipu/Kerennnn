@@ -103,7 +103,6 @@
         .badge-hash   { background: rgba(167,139,250,0.15); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
         .badge-ip     { background: rgba(56,189,248,0.12);  color: var(--cyan);   border: 1px solid rgba(56,189,248,0.3); }
         .badge-domain { background: rgba(251,146,60,0.12);  color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
-        .badge-domain { background: rgba(251,146,60,0.12);  color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
         .vt-ioc-val { font-family: 'JetBrains Mono', monospace; font-size: 0.77rem; color: var(--text-sec); word-break: break-all; flex: 1; }
 
         .verdict { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; font-family: 'Syne', sans-serif; flex-shrink: 0; white-space: nowrap; }
@@ -111,6 +110,40 @@
         .verdict-malicious  { background: rgba(229,72,77,0.12);   color: var(--red);      border: 1px solid rgba(229,72,77,0.3);  }
         .verdict-suspicious { background: rgba(245,166,35,0.1);   color: var(--yellow);   border: 1px solid rgba(245,166,35,0.25); }
         .verdict-unknown    { background: rgba(90,122,168,0.1);   color: var(--text-sec); border: 1px solid rgba(90,122,168,0.2); }
+        /* ── Correlation panel ── */
+        .corr-panel { border-top: 1px solid var(--border); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+        .corr-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .corr-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-sec); }
+        .confidence-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; margin-left: auto; }
+        .conf-critical { background: rgba(229,72,77,0.15);  color: var(--red);      border: 1px solid rgba(229,72,77,0.3);   }
+        .conf-high     { background: rgba(251,146,60,0.15); color: var(--orange);   border: 1px solid rgba(251,146,60,0.3);  }
+        .conf-medium   { background: rgba(245,166,35,0.12); color: var(--yellow);   border: 1px solid rgba(245,166,35,0.25); }
+        .conf-low      { background: rgba(15,186,129,0.1);  color: var(--green);    border: 1px solid rgba(15,186,129,0.25); }
+        .conf-none     { background: rgba(90,122,168,0.1);  color: var(--text-sec); border: 1px solid rgba(90,122,168,0.2); }
+        .conf-bar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-top: 2px; }
+        .conf-bar-fill  { height: 100%; border-radius: 4px; transition: width 0.7s ease; }
+        .source-grid { display: flex; flex-direction: column; gap: 6px; }
+        .source-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; cursor: pointer; transition: background 0.15s; flex-direction: column; align-items: stretch; }
+        .source-row:hover { background: rgba(255,255,255,0.04); }
+        .source-row-top { display: flex; align-items: center; gap: 8px; }
+        .source-name { font-size: 0.75rem; font-weight: 700; color: var(--text-pri); font-family: 'Syne', sans-serif; flex: 1; }
+        .source-verdict { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; font-family: 'Syne', sans-serif; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }
+        .sv-malicious  { background: rgba(229,72,77,0.12);  color: var(--red);      border: 1px solid rgba(229,72,77,0.25); }
+        .sv-suspicious { background: rgba(245,166,35,0.1);  color: var(--yellow);   border: 1px solid rgba(245,166,35,0.2); }
+        .sv-clean      { background: rgba(15,186,129,0.1);  color: var(--green);    border: 1px solid rgba(15,186,129,0.2); }
+        .sv-unknown    { background: rgba(90,122,168,0.08); color: var(--text-sec); border: 1px solid rgba(90,122,168,0.15); }
+        .sv-skipped    { background: transparent; color: var(--text-sec); border: 1px dashed rgba(90,122,168,0.2); }
+        .source-chevron { font-size: 0.58rem; color: var(--text-sec); transition: transform 0.2s; }
+        .source-chevron.open { transform: rotate(180deg); }
+        .source-detail { display: none; padding-top: 8px; margin-top: 4px; border-top: 1px solid rgba(30,48,77,0.6); }
+        .source-detail.open { display: block; }
+        .source-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 5px; }
+        .sm-item { background: rgba(0,0,0,0.2); border-radius: 5px; padding: 5px 8px; }
+        .sm-key { font-size: 0.62rem; color: var(--text-sec); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+        .sm-val { font-family: 'JetBrains Mono', monospace; font-size: 0.73rem; color: var(--text-pri); word-break: break-word; margin-top: 1px; }
+        .source-link { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-hl); font-size: 0.71rem; font-family: 'JetBrains Mono', monospace; text-decoration: none; margin-top: 8px; }
+        .source-link:hover { text-decoration: underline; }
+        .corr-loading { color: var(--text-sec); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; display: flex; align-items: center; gap: 6px; }
 
         .vt-card-body { padding: 13px 14px; display: block; border-top: 1px solid var(--border); min-height: 20px; }
         .vt-card-body > * { margin-bottom: 10px; }
@@ -549,6 +582,111 @@ function renderErr(ioc, type, err, collapsed=false) {
     return makeCard(header, body, collapsed);
 }
 
+/* ── CORRELATION ─────────────────────────────────────────────────────── */
+async function fetchCorrelation(rawIoc) {
+    const r = await fetch(`/api/correlate?ioc=${encodeURIComponent(rawIoc)}`);
+    return r.json();
+}
+
+function confClass(score) {
+    if (score === null || score === undefined) return 'conf-none';
+    if (score >= 70) return 'conf-critical';
+    if (score >= 40) return 'conf-high';
+    if (score >= 15) return 'conf-medium';
+    return 'conf-low';
+}
+
+function confLabel(score) {
+    if (score === null || score === undefined) return 'NO DATA';
+    if (score >= 70) return 'HIGH RISK';
+    if (score >= 40) return 'MEDIUM RISK';
+    if (score >= 15) return 'LOW RISK';
+    return 'LIKELY CLEAN';
+}
+
+function confBarColor(score) {
+    if (!score) return 'var(--green)';
+    if (score >= 70) return 'var(--red)';
+    if (score >= 40) return 'var(--orange)';
+    if (score >= 15) return 'var(--yellow)';
+    return 'var(--green)';
+}
+
+function toggleSourceDetail(el) {
+    const row    = el.closest('.source-row');
+    const detail = row.querySelector('.source-detail');
+    const chev   = row.querySelector('.source-chevron');
+    if (!detail) return;
+    detail.classList.toggle('open');
+    chev.classList.toggle('open');
+}
+
+function renderCorrelation(data, panelEl) {
+    if (data.error) {
+        panelEl.innerHTML = `<div class="corr-loading" style="color:var(--red)">⚠ ${escHtml(data.error)}</div>`;
+        return;
+    }
+
+    const score   = data.confidence;
+    const cls     = confClass(score);
+    const label   = confLabel(score);
+    const pct     = score !== null ? score.toFixed(0) : '—';
+    const barW    = score !== null ? Math.min(score, 100) : 0;
+    const barCol  = confBarColor(score);
+
+    const sourceRows = (data.sources || []).map((s, i) => {
+        const id = `sd-${Date.now()}-${i}`;
+        if (s.skipped) {
+            return `<div class="source-row" style="cursor:default;">
+                <div class="source-row-top">
+                    <span class="source-name">${escHtml(s.source)}</span>
+                    <span class="source-verdict sv-skipped">NO KEY</span>
+                </div>
+            </div>`;
+        }
+        if (s.error) {
+            return `<div class="source-row" style="cursor:default;">
+                <div class="source-row-top">
+                    <span class="source-name">${escHtml(s.source)}</span>
+                    <span class="source-verdict sv-unknown">ERROR</span>
+                </div>
+                <div style="font-size:0.7rem;color:var(--red);margin-top:4px;font-family:'JetBrains Mono',monospace;">${escHtml(s.error)}</div>
+            </div>`;
+        }
+
+        const vc  = `sv-${s.verdict || 'unknown'}`;
+        const vl  = (s.verdict || 'unknown').toUpperCase();
+        const metaItems = Object.entries(s.meta || {}).map(([k, v]) =>
+            `<div class="sm-item"><div class="sm-key">${escHtml(k)}</div><div class="sm-val">${escHtml(String(v))}</div></div>`
+        ).join('');
+        const linkHtml = s.link
+            ? `<a class="source-link" href="${escHtml(s.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ View on ${escHtml(s.source)}</a>`
+            : '';
+
+        return `<div class="source-row" onclick="toggleSourceDetail(this)">
+            <div class="source-row-top">
+                <span class="source-name">${escHtml(s.source)}</span>
+                <span class="source-verdict ${vc}">● ${vl}</span>
+                <span class="source-chevron">▼</span>
+            </div>
+            <div class="source-detail">
+                <div class="source-meta">${metaItems}</div>
+                ${linkHtml}
+            </div>
+        </div>`;
+    }).join('');
+
+    panelEl.innerHTML = `
+        <div class="corr-header">
+            <span class="corr-title">🔗 Threat Intel Correlation</span>
+            <span class="confidence-badge ${cls}">${label} &nbsp;${pct}%</span>
+        </div>
+        <div class="conf-bar-track">
+            <div class="conf-bar-fill" style="width:${barW}%;background:${barCol};"></div>
+        </div>
+        <div class="source-grid">${sourceRows || '<span style="color:var(--text-sec);font-size:0.78rem;">No sources available for this IOC type.</span>'}</div>`;
+}
+
 async function runVTLookup() {
     const raw = document.getElementById('vtInput').value.trim();
     const res = document.getElementById('vtResults');
@@ -557,7 +695,6 @@ async function runVTLookup() {
 
     if (!raw) { setStatus('statusVT','⚠ Input tidak boleh kosong!','error'); return; }
 
-    // Dedupe lines, filter blanks — server handles all type detection & URL stripping
     const lines = [...new Set(raw.split('\n').map(s=>s.trim()).filter(looksLikeIOC))];
     if (!lines.length) { setStatus('statusVT','⚠ Tidak ada IOC yang valid.','error'); return; }
 
@@ -572,21 +709,49 @@ async function runVTLookup() {
     for (let i = 0; i < lines.length; i++) {
         const rawIoc = lines[i];
         setStatus('statusVT', `<span class="spinner"></span> Scanning ${i+1} / ${lines.length}...`, 'loading');
-        try {
-            const d = await vtGet(rawIoc);
-            // Server returns _meta.type and _meta.ioc (cleaned)
+
+        // Run VT + correlation in parallel
+        const [vtResult, corrResult] = await Promise.allSettled([
+            vtGet(rawIoc),
+            fetchCorrelation(rawIoc),
+        ]);
+
+        let cardHtml;
+        if (vtResult.status === 'fulfilled') {
+            const d    = vtResult.value;
             const type = d._meta?.type || 'hash';
             const ioc  = d._meta?.ioc  || rawIoc;
-            if (type === 'ip')          cards.push(renderIP(ioc, d, multi));
-            else if (type === 'domain') cards.push(renderDomain(ioc, d, multi));
-            else                        cards.push(renderHash(ioc, d, multi));
-        } catch(e) {
-            cards.push(renderErr(rawIoc, null, e, multi));
+            if (type === 'ip')          cardHtml = renderIP(ioc, d, multi);
+            else if (type === 'domain') cardHtml = renderDomain(ioc, d, multi);
+            else                        cardHtml = renderHash(ioc, d, multi);
+        } else {
+            cardHtml = renderErr(rawIoc, null, vtResult.reason, multi);
         }
+
+        // Inject correlation placeholder div inside card before closing
+        const corrId = `corr-${_cardIdx - 1}`;
+        cardHtml = cardHtml.replace(
+            '</div>\n    </div>',   // end of last vt-card-body
+            `</div>\n    <div class="corr-panel" id="${corrId}"><div class="corr-loading"><span class="spinner"></span> Loading threat intel...</div></div>\n    </div>`
+        );
+        cards.push({ html: cardHtml, corrId, corrResult });
+
         if (i < lines.length - 1) await new Promise(r=>setTimeout(r, 400));
     }
 
-    res.innerHTML = cards.join('');
+    res.innerHTML = cards.map(c => c.html).join('');
+
+    // Populate correlation panels
+    for (const { corrId, corrResult } of cards) {
+        const panel = document.getElementById(corrId);
+        if (!panel) continue;
+        if (corrResult.status === 'fulfilled') {
+            renderCorrelation(corrResult.value, panel);
+        } else {
+            panel.innerHTML = `<div class="corr-loading" style="color:var(--red)">⚠ Correlation failed: ${escHtml(corrResult.reason?.message || 'Unknown error')}</div>`;
+        }
+    }
+
     btn.disabled = false;
     document.getElementById('vtResultCount').textContent = `${lines.length} result(s)`;
     setStatus('statusVT', `✓ ${lines.length} IOC(s) scanned.`, 'success');
