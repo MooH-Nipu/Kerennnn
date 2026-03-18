@@ -62,12 +62,18 @@ async function checkVT(ioc, type) {
   const url = urlMap[type];
   if (!url) return { source: 'VirusTotal', skipped: true, reason: `Unsupported type: ${type}` };
 
+  let lastError = null;
+  let rateLimitedCount = 0;
+
   for (const key of keys) {
     try {
       const { status, data } = await httpGet(url, {
-        'x-apikey': key, 'Accept': 'application/json', 'User-Agent': 'SOC-Toolbox/1.0'
+        'x-apikey': key, 'Accept': 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0'
       });
-      if (status === 429) continue;
+      if (status === 429) {
+        rateLimitedCount++;
+        continue;
+      }
       if (status !== 200) return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
       const s   = data.data?.attributes?.last_analysis_stats || {};
@@ -99,10 +105,15 @@ async function checkVT(ioc, type) {
         link: vtUrlMap[type],
       };
     } catch (e) {
+      lastError = e;
       continue;
     }
   }
-  return { source: 'VirusTotal', error: 'All keys rate limited or failed' };
+
+  if (rateLimitedCount === keys.length) {
+    return { source: 'VirusTotal', error: 'All keys rate limited. Try again later.' };
+  }
+  return { source: 'VirusTotal', error: `Cannot access VirusTotal: ${lastError?.message || 'Unknown error'}` };
 }
 
 // ── Source: AbuseIPDB ─────────────────────────────────────────────────────
@@ -114,7 +125,7 @@ async function checkAbuseIPDB(ip) {
       `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
       { Key: apiKey, Accept: 'application/json' }
     );
-    if (status !== 200) return { source: 'AbuseIPDB', error: data?.errors?.[0]?.detail || `HTTP ${status}` };
+    if (status !== 200) return { source: 'AbuseIPDB', error: `AbuseIPDB: ${data?.errors?.[0]?.detail || `HTTP ${status}`}` };
     const d = data.data;
     const score = d.abuseConfidenceScore || 0;
     return {
@@ -133,7 +144,7 @@ async function checkAbuseIPDB(ip) {
       link: `https://www.abuseipdb.com/check/${ip}`,
     };
   } catch (e) {
-    return { source: 'AbuseIPDB', error: e.message };
+    return { source: 'AbuseIPDB', error: `Cannot access AbuseIPDB: ${e.message}` };
   }
 }
 
@@ -149,7 +160,7 @@ async function checkOTX(ioc, type) {
       `https://otx.alienvault.com/api/v1/indicators/${otxType}/${encodeURIComponent(ioc)}/general`,
       { 'X-OTX-API-KEY': apiKey, Accept: 'application/json' }
     );
-    if (status !== 200) return { source: 'AlienVault OTX', error: `HTTP ${status}` };
+    if (status !== 200) return { source: 'AlienVault OTX', error: `OTX: HTTP ${status}` };
     const pulseCount = data.pulse_info?.count || 0;
     const verdict    = pulseCount >= 5 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
     return {
@@ -166,7 +177,7 @@ async function checkOTX(ioc, type) {
       link: `https://otx.alienvault.com/indicator/${otxType}/${ioc}`,
     };
   } catch (e) {
-    return { source: 'AlienVault OTX', error: e.message };
+    return { source: 'AlienVault OTX', error: `Cannot access OTX: ${e.message}` };
   }
 }
 
@@ -186,7 +197,7 @@ async function checkGreyNoise(ip) {
         link: `https://viz.greynoise.io/ip/${ip}`,
       };
     }
-    if (status !== 200) return { source: 'GreyNoise', error: data?.message || `HTTP ${status}` };
+    if (status !== 200) return { source: 'GreyNoise', error: `GreyNoise: ${data?.message || `HTTP ${status}`}` };
     const cls     = data.classification || 'unknown';
     const verdict = data.riot ? 'clean' : cls === 'malicious' ? 'malicious' : cls === 'benign' ? 'clean' : 'unknown';
     return {
@@ -203,7 +214,7 @@ async function checkGreyNoise(ip) {
       link: `https://viz.greynoise.io/ip/${ip}`,
     };
   } catch (e) {
-    return { source: 'GreyNoise', error: e.message };
+    return { source: 'GreyNoise', error: `Cannot access GreyNoise: ${e.message}` };
   }
 }
 

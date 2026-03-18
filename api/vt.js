@@ -120,15 +120,21 @@ module.exports = async function handler(req, res) {
   const vtUrl = urlMap[type];
 
   // ── Try each key, failover on 429 ─────────────
+  let lastError = null;
+  let rateLimitedCount = 0;
+
   for (let i = 0; i < apiKeys.length; i++) {
     try {
       const { status, data } = await httpsGet(vtUrl, {
         'x-apikey': apiKeys[i],
         'Accept':   'application/json',
-        'User-Agent': 'SOC-Toolbox/1.0',
+        'User-Agent': 'Charlie-kerennnn/1.0',
       });
 
-      if (status === 429) continue; // try next key
+      if (status === 429) {
+        rateLimitedCount++;
+        continue; // try next key
+      }
 
       // Inject meta so frontend knows cleaned IOC + type
       if (status === 200 && data.data) {
@@ -139,11 +145,21 @@ module.exports = async function handler(req, res) {
       return res.status(status).json(data);
 
     } catch (err) {
+      lastError = err;
       continue;
     }
   }
 
-  return res.status(429).json({
-    error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` }
+  // All keys failed: distinguish rate limit vs access error
+  if (rateLimitedCount === apiKeys.length) {
+    return res.status(429).json({
+      error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` }
+    });
+  }
+
+  // Cannot access VirusTotal (network, timeout, parse error, etc.)
+  const msg = lastError?.message || 'Unknown error';
+  return res.status(503).json({
+    error: { message: `Cannot access VirusTotal: ${msg}` }
   });
 };

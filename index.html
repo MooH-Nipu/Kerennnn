@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOC Toolbox</title>
+    <title>Charlie kerennnn</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
@@ -196,7 +196,7 @@
 <div class="wrapper">
 
     <header>
-        <h1><span class="w1">SOC</span> <span class="w2">Tool</span><span class="w3">box</span></h1>
+        <h1><span class="w1">Charlie</span> <span class="w2">ker</span><span class="w3">ennnn</span></h1>
         <p>// security operations center — analyst utilities</p>
     </header>
 
@@ -238,7 +238,7 @@
                 <div class="sg">
                     <div class="fg">
                         <label>1. Paste JSON Query Lama</label>
-                        <textarea id="oldQuery" rows="8" placeholder='{"query":{"terms":{"data.real_ip":["1.1.1.1"]}}}'></textarea>
+                        <textarea id="oldQuery" rows="8" placeholder='{"query":{"terms":{"data.real_ip":["1.1.1.1"]}}} or {"query":{"terms":{"source.ip":["1.1.1.1"]}}}'></textarea>
                     </div>
                     <div class="fg">
                         <label>2. List IP Baru (1 per baris)</label>
@@ -348,6 +348,8 @@ function processFormatter() {
 }
 
 /* ── TAB 2: JSON MERGER ── */
+const IP_TERM_KEYS = ['data.real_ip', 'source.ip'];
+
 function processMerger() {
     const oldText = document.getElementById('oldQuery').value.trim();
     const newText = document.getElementById('newIpsMerger').value.trim();
@@ -358,13 +360,16 @@ function processMerger() {
     if (!newIps.length) { setStatus('statusMerger','⚠ List IP baru tidak boleh kosong!','error'); return; }
     let obj;
     try { obj = JSON.parse(oldText); } catch(e) { setStatus('statusMerger','⚠ JSON tidak valid: '+e.message,'error'); return; }
-    if (!obj?.query?.terms?.['data.real_ip']) { setStatus('statusMerger','⚠ Struktur harus: query > terms > data.real_ip','error'); return; }
-    const existing = obj.query.terms['data.real_ip'];
+    const terms = obj?.query?.terms;
+    if (!terms) { setStatus('statusMerger','⚠ Struktur harus: query > terms','error'); return; }
+    const ipKey = IP_TERM_KEYS.find(k => Array.isArray(terms[k]));
+    if (!ipKey) { setStatus('statusMerger','⚠ Struktur harus: query > terms > data.real_ip atau source.ip (array)','error'); return; }
+    const existing = terms[ipKey];
     const combined = [...new Set([...existing,...newIps])];
-    obj.query.terms['data.real_ip'] = combined;
+    terms[ipKey] = combined;
     document.getElementById('outputJson').textContent = JSON.stringify(obj, null, 2);
     document.getElementById('copyBtnJson').style.display = 'block';
-    setStatus('statusMerger',`✓ ${combined.length-existing.length} IP added. Total: ${combined.length}`,'success');
+    setStatus('statusMerger',`✓ ${combined.length-existing.length} IP added. Total: ${combined.length} (${ipKey})`,'success');
 }
 
 /* ── TAB 3: VIRUSTOTAL ── */
@@ -566,6 +571,8 @@ function renderErr(ioc, type, err, collapsed=false) {
         ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">IOC tidak ada di database VT.</span>'
         : err.status === 401
         ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Cek VT_API_KEY di Vercel env variables.</span>'
+        : err.status === 503
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Tidak bisa akses VirusTotal — cek koneksi jaringan atau firewall.</span>'
         : err.status === 0
         ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Tidak bisa reach /api/vt — cek deploy Vercel.</span>'
         : '';
