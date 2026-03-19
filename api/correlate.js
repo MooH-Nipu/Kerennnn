@@ -26,6 +26,31 @@ function httpGet(url, headers = {}) {
   });
 }
 
+function httpPost(url, postBody, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request({
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      method: 'POST',
+      headers: {
+        ...headers
+      }
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
+        catch (e) { reject(new Error('Parse error: ' + body.slice(0, 120))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(postBody);
+    req.end();
+  });
+}
+
 // ── IOC utils ────────────────────────────────────────────────────────────
 function extractIOC(raw) {
   let s = raw.trim();
@@ -47,6 +72,14 @@ function detectType(s) {
   if (/^[0-9a-f]+$/.test(s) && [32,40,56,64,96,128].includes(s.length)) return 'hash';
   if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
   return null;
+}
+
+function getTrustFactor(envKey, defaultValue = 1) {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === null || raw === '') return defaultValue;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n) || n < 0) return defaultValue;
+  return n;
 }
 
 // ── Source: VirusTotal ────────────────────────────────────────────────────
@@ -94,7 +127,7 @@ async function checkVT(ioc, type) {
         source:  'VirusTotal',
         verdict,
         score,
-        weight:  0.25,
+        weight:  0.25 * getTrustFactor('TRUST_VT'),
         meta: {
           'Malicious':  mal,
           'Suspicious': sus,
@@ -132,7 +165,7 @@ async function checkAbuseIPDB(ip) {
       source:  'AbuseIPDB',
       verdict: score >= 80 ? 'malicious' : score >= 25 ? 'suspicious' : 'clean',
       score,
-      weight:  0.30,
+      weight:  0.25 * getTrustFactor('TRUST_ABUSEIPDB'),
       meta: {
         'Abuse Score':   score + '%',
         'Total Reports': d.totalReports,
@@ -145,6 +178,69 @@ async function checkAbuseIPDB(ip) {
     };
   } catch (e) {
     return { source: 'AbuseIPDB', error: `Cannot access AbuseIPDB: ${e.message}` };
+  }
+}
+
+// ── Source: Abuse.ch (URLhaus) ─────────────────────────────────────────
+async function checkAbuseCh(ioc) {
+  // URLhaus (abuse.ch) API key is typically provided via "Auth-Key" header.
+  const apiKey = process.env.ABUSECH_API_KEY || process.env.URLHAUS_API_KEY;
+  if (!apiKey) return { source: 'Abuse.ch', skipped: true, reason: 'No API key' };
+
+  try {
+    // URLhaus "host" query uses HTTP POST with body: host=<host>
+    const postBody = `host=${encodeURIComponent(ioc)}`;
+    const { status, data } = await httpPost(
+      `https://urlhaus-api.abuse.ch/v1/host/`,
+      postBody,
+      {
+        'Auth-Key': apiKey,
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Charlie-kerennnn/1.0'
+      }
+    );
+
+    if (status !== 200) {
+      const msg = data?.errors?.[0]?.detail || data?.error || data?.message || `HTTP ${status}`;
+      return { source: 'Abuse.ch', error: `URLhaus: ${msg}` };
+    }
+
+    if (data?.query_status === 'no_results') {
+      return {
+        source: 'Abuse.ch',
+        verdict: 'clean',
+        score: 0,
+        weight: 0.25 * getTrustFactor('TRUST_ABUSECH'),
+        meta: { 'URL Count': 0, 'Online URLs': 0, 'First Seen': '—' },
+        link: `https://urlhaus.abuse.ch/host/${encodeURIComponent(ioc)}/`,
+      };
+    }
+
+    const urls = Array.isArray(data?.urls) ? data.urls : [];
+    const urlCount = data?.url_count !== undefined && data?.url_count !== null
+      ? Number(data.url_count)
+      : urls.length;
+    const onlineUrls = urls.filter(u => u?.url_status === 'online').length;
+    const firstSeen = data?.firstseen || '—';
+
+    const verdict = onlineUrls > 0 ? 'malicious' : urlCount > 0 ? 'suspicious' : 'clean';
+    const score = verdict === 'malicious' ? 80 : verdict === 'suspicious' ? 40 : 0;
+
+    return {
+      source: 'Abuse.ch',
+      verdict,
+      score,
+      weight: 0.25 * getTrustFactor('TRUST_ABUSECH'),
+      meta: {
+        'URL Count': urlCount || 0,
+        'Online URLs': onlineUrls,
+        'First Seen': firstSeen,
+      },
+      link: data?.urlhaus_reference || `https://urlhaus.abuse.ch/host/${encodeURIComponent(ioc)}/`,
+    };
+  } catch (e) {
+    return { source: 'Abuse.ch', error: `Cannot access Abuse.ch (URLhaus): ${e.message}` };
   }
 }
 
@@ -167,7 +263,7 @@ async function checkOTX(ioc, type) {
       source:  'AlienVault OTX',
       verdict,
       score:   Math.min(pulseCount * 10, 100),
-      weight:  0.25,
+      weight:  0.25 * getTrustFactor('TRUST_OTX'),
       meta: {
         'Pulse Count':      pulseCount,
         'Reputation':       data.reputation ?? '—',
@@ -250,10 +346,8 @@ module.exports = async function handler(req, res) {
 
   // Build check list based on IOC type
   const checks = [ checkVT(ioc, type) ];                          // all types
-  if (type === 'ip') {
-    checks.push(checkAbuseIPDB(ioc));                              // IP only
-    checks.push(checkGreyNoise(ioc));                              // IP only
-  }
+  if (type === 'ip') checks.push(checkAbuseIPDB(ioc));            // IP only
+  if (type === 'ip' || type === 'domain') checks.push(checkAbuseCh(ioc)); // Abuse.ch (URLhaus) host query
   checks.push(checkOTX(ioc, type));                               // all types
 
   const results    = await Promise.all(checks);

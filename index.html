@@ -665,11 +665,27 @@ function vtGetOtxPulses(item) {
     return Number.isFinite(n) ? n : '';
 }
 
+function vtGetAbuseChUrlCount(item) {
+    const s = vtGetSource(item, 'Abuse.ch');
+    const v = s?.meta?.['URL Count'];
+    if (v === null || v === undefined) return '';
+    const n = Number(v);
+    return Number.isFinite(n) ? n : '';
+}
+
+function vtGetAbuseChOnlineUrls(item) {
+    const s = vtGetSource(item, 'Abuse.ch');
+    const v = s?.meta?.['Online URLs'];
+    if (v === null || v === undefined) return '';
+    const n = Number(v);
+    return Number.isFinite(n) ? n : '';
+}
+
 function vtExportCSV() {
     const items = vtGetSelectedItems();
     if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
     const cols = [
-        'ioc','type','vt_verdict','detections','abuseipdb_percent','otx_pulses','confidence','country','as_owner','sources'
+        'ioc','type','vt_verdict','detections','abuseipdb_percent','otx_pulses','abusech_url_count','abusech_online_urls','country','as_owner','confidence','sources'
     ];
     const esc = (v) => {
         const s = String(v ?? '');
@@ -683,14 +699,18 @@ function vtExportCSV() {
         }).join(' | ');
         const abusePct = vtGetAbusePercent(x);
         const otxPulses = vtGetOtxPulses(x);
+        const abuseChUrlCount = vtGetAbuseChUrlCount(x);
+        const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
         return [
             x.ioc, x.type, x.vtVerdict,
             `${x.malicious}/${x.total || 0}`,
             abusePct === '' ? '' : (String(abusePct) + '%'),
             otxPulses,
-            x.correlation?.confidence ?? '',
+            abuseChUrlCount === '' ? '' : String(abuseChUrlCount),
+            abuseChOnlineUrls === '' ? '' : String(abuseChOnlineUrls),
             x.country || '',
             x.asOwner || '',
+            x.correlation?.confidence ?? '',
             src
         ].map(esc).join(',');
     });
@@ -719,6 +739,8 @@ function vtExportPDF() {
             const conf = x.correlation?.confidence ?? '—';
             const abusePct = vtGetAbusePercent(x);
             const otxPulses = vtGetOtxPulses(x);
+            const abuseChUrlCount = vtGetAbuseChUrlCount(x);
+            const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
             return `<tr>
                 <td>${escHtml(x.ioc)}</td>
                 <td>${escHtml(String(x.type).toUpperCase())}</td>
@@ -726,6 +748,8 @@ function vtExportPDF() {
                 <td>${escHtml(`${x.malicious}/${x.total || 0}`)}</td>
                 <td>${escHtml(abusePct === '' ? '—' : String(abusePct) + '%')}</td>
                 <td>${escHtml(otxPulses === '' ? '—' : String(otxPulses))}</td>
+                <td>${escHtml(abuseChUrlCount === '' ? '—' : String(abuseChUrlCount))}</td>
+                <td>${escHtml(abuseChOnlineUrls === '' ? '—' : String(abuseChOnlineUrls))}</td>
                 <td>${escHtml(x.country || '—')}</td>
                 <td>${escHtml(x.asOwner || '—')}</td>
                 <td>${escHtml(String(conf))}</td>
@@ -744,7 +768,7 @@ function vtExportPDF() {
             <h2>VirusTotal + Threat Intel Export</h2>
             <div class="meta">Generated: ${new Date().toLocaleString()}</div>
             <table>
-                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Country</th><th>AS Owner</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
+                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Abuse.ch URLs</th><th>Online URLs</th><th>Country</th><th>AS Owner</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
             <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
@@ -773,6 +797,8 @@ function vtExportPDF() {
         const conf = x.correlation?.confidence ?? '—';
         const abusePct = vtGetAbusePercent(x);
         const otxPulses = vtGetOtxPulses(x);
+        const abuseChUrlCount = vtGetAbuseChUrlCount(x);
+        const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
         return [
             x.ioc,
             String(x.type).toUpperCase(),
@@ -780,6 +806,8 @@ function vtExportPDF() {
             `${x.malicious}/${x.total || 0}`,
             abusePct === '' ? '—' : (String(abusePct) + '%'),
             otxPulses === '' ? '—' : String(otxPulses),
+            abuseChUrlCount === '' ? '—' : String(abuseChUrlCount),
+            abuseChOnlineUrls === '' ? '—' : String(abuseChOnlineUrls),
             x.country || '—',
             x.asOwner || '—',
             String(conf),
@@ -790,18 +818,22 @@ function vtExportPDF() {
     if (doc.autoTable) {
         doc.autoTable({
             startY: y,
-            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','COUNTRY','AS OWNER','CONF','THREAT INTEL SOURCES']],
+            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','ABUSE.CH URLS','ONLINE URLS','COUNTRY','AS OWNER','CONF','THREAT INTEL SOURCES']],
             body,
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
             headStyles: { fillColor: [14, 24, 41] },
             margin: { left: margin, right: margin },
-            columnStyles: { 0:{cellWidth:95}, 1:{cellWidth:40}, 2:{cellWidth:62}, 3:{cellWidth:55}, 4:{cellWidth:40}, 5:{cellWidth:30}, 6:{cellWidth:45}, 7:{cellWidth:75}, 8:{cellWidth:35}, 9:{cellWidth:125} }
+            columnStyles: {
+                0:{cellWidth:80}, 1:{cellWidth:40}, 2:{cellWidth:60}, 3:{cellWidth:50},
+                4:{cellWidth:38}, 5:{cellWidth:30}, 6:{cellWidth:50}, 7:{cellWidth:50},
+                8:{cellWidth:55}, 9:{cellWidth:75}, 10:{cellWidth:35}, 11:{cellWidth:150}
+            }
         });
     } else {
         // Minimal fallback if autotable missing
         doc.setFontSize(9);
         for (const row of body) {
-            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | ${row[6]} | ${row[7]} | Conf:${row[8]}`;
+            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | Abuse.ch:${row[6]}/${row[7]} | ${row[8]} | ${row[9]} | Conf:${row[10]}`;
             if (y > 780) { doc.addPage(); y = margin; }
             doc.text(line, margin, y);
             y += 12;
