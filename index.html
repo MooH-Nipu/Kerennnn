@@ -198,6 +198,12 @@
         .vt-mini-btn:hover { background: rgba(255,255,255,0.09); }
         .vt-mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .vt-toolbar-note { margin-left:auto; color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.75rem; font-weight: 700; padding: 0.65rem 0; }
+        .vt-dd { position: relative; display: inline-flex; align-items: center; }
+        .vt-dd-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 32px rgba(0,0,0,0.45); padding: 6px; display: none; z-index: 30; }
+        .vt-dd-menu.open { display: block; animation: fadeUp 0.15s ease; }
+        .vt-dd-item { width: 100%; text-align: left; padding: 10px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-pri); cursor: pointer; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.82rem; display:flex; align-items:center; gap:8px; }
+        .vt-dd-item:hover { background: rgba(255,255,255,0.06); border-color: rgba(47,126,247,0.25); }
+        .vt-dd-sub { font-size: 0.72rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; font-weight: 600; margin-left:auto; }
         .vt-select { width: 16px; height: 16px; }
         .vt-header-actions { display:inline-flex; gap:6px; align-items:center; }
         .vt-copy-ioc { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-sec); padding: 5px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; font-family: 'Syne', sans-serif; transition: all 0.18s; }
@@ -329,8 +335,13 @@
                     </div>
                     <div class="vt-toolgroup">
                         <button id="vtCopySelectedBtn" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
-                        <button id="vtCsvBtn" class="vt-mini-btn" onclick="vtExportCSV()">Export CSV</button>
-                        <button id="vtPdfBtn" class="vt-mini-btn" onclick="vtExportPDF()">Export PDF</button>
+                        <div class="vt-dd" id="vtExportDD">
+                            <button id="vtExportBtn" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
+                            <div id="vtExportMenu" class="vt-dd-menu">
+                                <button class="vt-dd-item" onclick="vtExport('csv')"><span>Export CSV</span><span class="vt-dd-sub">.csv</span></button>
+                                <button class="vt-dd-item" onclick="vtExport('pdf')"><span>Export PDF</span><span class="vt-dd-sub">.pdf</span></button>
+                            </div>
+                        </div>
                     </div>
                     <div id="vtSelectedNote" class="vt-toolbar-note">0 selected</div>
                 </div>
@@ -604,12 +615,57 @@ async function vtCopySelected() {
     setStatus('statusVT', `✓ Copied ${items.length} IOC(s).`, 'success');
 }
 
+function vtToggleExportMenu(ev) {
+    ev?.stopPropagation?.();
+    const menu = document.getElementById('vtExportMenu');
+    if (!menu) return;
+    menu.classList.toggle('open');
+}
+
+function vtCloseExportMenu() {
+    const menu = document.getElementById('vtExportMenu');
+    if (menu) menu.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('vtExportDD');
+    if (!dd) return;
+    if (!dd.contains(e.target)) vtCloseExportMenu();
+});
+
+function vtExport(kind) {
+    vtCloseExportMenu();
+    if (kind === 'csv') return vtExportCSV();
+    if (kind === 'pdf') return vtExportPDF();
+}
+
+function vtGetSource(item, sourceName) {
+    const srcs = item?.correlation?.sources || [];
+    return srcs.find(s => String(s.source || '').toLowerCase() === String(sourceName).toLowerCase());
+}
+
+function vtGetAbusePercent(item) {
+    const s = vtGetSource(item, 'AbuseIPDB');
+    const v = s?.meta?.['Abuse Score'];
+    if (v === null || v === undefined) return '';
+    const m = String(v).match(/(\d{1,3})\s*%/);
+    return m ? Number(m[1]) : '';
+}
+
+function vtGetOtxPulses(item) {
+    const s = vtGetSource(item, 'AlienVault OTX');
+    const v = s?.meta?.['Pulse Count'];
+    if (v === null || v === undefined) return '';
+    const n = Number(v);
+    return Number.isFinite(n) ? n : '';
+}
+
 function vtExportCSV() {
     const items = vtGetSelectedItems();
     if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
     const cols = [
         'ioc','type','vt_verdict','malicious','suspicious','total','reputation','country','asn','as_owner',
-        'confidence','correlation_label','sources'
+        'confidence','correlation_label','abuseipdb_percent','otx_pulses','sources'
     ];
     const esc = (v) => {
         const s = String(v ?? '');
@@ -621,12 +677,16 @@ function vtExportCSV() {
             const v = (s.verdict || (s.skipped?'skipped':s.error?'error':'unknown'));
             return `${s.source}:${v}`;
         }).join(' | ');
+        const abusePct = vtGetAbusePercent(x);
+        const otxPulses = vtGetOtxPulses(x);
         return [
             x.ioc, x.type, x.vtVerdict,
             x.malicious, x.suspicious, x.total,
             x.reputation, x.country, x.asn, x.asOwner,
             x.correlation?.confidence ?? '',
             x.correlationLabel ?? '',
+            abusePct === '' ? '' : (String(abusePct) + '%'),
+            otxPulses,
             src
         ].map(esc).join(',');
     });
@@ -653,11 +713,15 @@ function vtExportPDF() {
         const rows = items.map(x => {
             const src = (x.correlation?.sources || []).map(s => `${s.source} (${(s.verdict||'unknown').toUpperCase()})`).join(', ') || '—';
             const conf = x.correlation?.confidence ?? '—';
+            const abusePct = vtGetAbusePercent(x);
+            const otxPulses = vtGetOtxPulses(x);
             return `<tr>
                 <td>${escHtml(x.ioc)}</td>
                 <td>${escHtml(String(x.type).toUpperCase())}</td>
                 <td>${escHtml(x.vtVerdict)}</td>
                 <td>${escHtml(`${x.malicious}/${x.total || 0}`)}</td>
+                <td>${escHtml(abusePct === '' ? '—' : String(abusePct) + '%')}</td>
+                <td>${escHtml(otxPulses === '' ? '—' : String(otxPulses))}</td>
                 <td>${escHtml(String(conf))}</td>
                 <td>${escHtml(src)}</td>
             </tr>`;
@@ -674,7 +738,7 @@ function vtExportPDF() {
             <h2>VirusTotal + Threat Intel Export</h2>
             <div class="meta">Generated: ${new Date().toLocaleString()}</div>
             <table>
-                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
+                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
             <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
@@ -701,11 +765,15 @@ function vtExportPDF() {
     const body = items.map(x => {
         const src = (x.correlation?.sources || []).map(s => `${s.source}:${(s.verdict||'unknown')}`).join(' | ') || '—';
         const conf = x.correlation?.confidence ?? '—';
+        const abusePct = vtGetAbusePercent(x);
+        const otxPulses = vtGetOtxPulses(x);
         return [
             x.ioc,
             String(x.type).toUpperCase(),
             x.vtVerdict,
             `${x.malicious}/${x.total || 0}`,
+            abusePct === '' ? '—' : (String(abusePct) + '%'),
+            otxPulses === '' ? '—' : String(otxPulses),
             String(conf),
             src
         ];
@@ -714,18 +782,18 @@ function vtExportPDF() {
     if (doc.autoTable) {
         doc.autoTable({
             startY: y,
-            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','CONF','THREAT INTEL SOURCES']],
+            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','CONF','THREAT INTEL SOURCES']],
             body,
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
             headStyles: { fillColor: [14, 24, 41] },
             margin: { left: margin, right: margin },
-            columnStyles: { 0:{cellWidth:120}, 1:{cellWidth:50}, 2:{cellWidth:75}, 3:{cellWidth:70}, 4:{cellWidth:45}, 5:{cellWidth:170} }
+            columnStyles: { 0:{cellWidth:110}, 1:{cellWidth:45}, 2:{cellWidth:70}, 3:{cellWidth:60}, 4:{cellWidth:45}, 5:{cellWidth:35}, 6:{cellWidth:40}, 7:{cellWidth:155} }
         });
     } else {
         // Minimal fallback if autotable missing
         doc.setFontSize(9);
         for (const row of body) {
-            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | ${row[4]}`;
+            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | Conf:${row[6]}`;
             if (y > 780) { doc.addPage(); y = margin; }
             doc.text(line, margin, y);
             y += 12;
