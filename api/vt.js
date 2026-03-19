@@ -119,7 +119,16 @@ module.exports = async function handler(req, res) {
 
   const vtUrl = urlMap[type];
 
-  // ── Try each key, failover on 429 ─────────────
+  // Detect rate limit in response body (some APIs return 403/200 with quota message)
+  function isRateLimitResponse(status, data) {
+    if (status === 429) return true;
+    const msg = (data?.error?.message || data?.message || '').toLowerCase();
+    if (status === 403 && /quota|rate limit|too many|limit exceeded/.test(msg)) return true;
+    if (status === 200 && data?.error && /quota|rate limit|too many/.test(msg)) return true;
+    return false;
+  }
+
+  // ── Try each key in order; on 429/quota auto-switch to next key for this same request ──
   let lastError = null;
   let rateLimitedCount = 0;
 
@@ -131,9 +140,9 @@ module.exports = async function handler(req, res) {
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
 
-      if (status === 429) {
+      if (isRateLimitResponse(status, data)) {
         rateLimitedCount++;
-        continue; // try next key
+        continue; // try next key immediately for this same IOC
       }
 
       // Inject meta so frontend knows cleaned IOC + type
@@ -141,7 +150,7 @@ module.exports = async function handler(req, res) {
         data._meta = { type, ioc, original: rawIoc };
       }
 
-      if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i+1}-of-${apiKeys.length}`);
+      if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
       return res.status(status).json(data);
 
     } catch (err) {
