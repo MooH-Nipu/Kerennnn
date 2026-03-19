@@ -42,8 +42,7 @@
         header { text-align: center; margin-bottom: 2.5rem; }
         header h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; letter-spacing: -1px; }
         header h1 .w1 { color: var(--text-pri); }
-        header h1 .w2 { color: var(--accent-hl); }
-        header h1 .w3 { color: var(--bg-base); background: var(--accent-hl); padding: 0 10px 2px; border-radius: 6px; display: inline-block; }
+        header h1 .w2 { color: var(--bg-base); background: var(--accent-hl); padding: 0 10px 2px; border-radius: 6px; display: inline-block; font-weight: 800; }
         header p { color: var(--text-sec); font-size: 0.85rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; }
 
         .tab-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
@@ -196,8 +195,7 @@
 <div class="wrapper">
 
     <header>
-        <h1><span class="w1">Charlie</span> <span class="w2">ker</span><span class="w3">ennnn</span></h1>
-        <p>// security operations center — analyst utilities</p>
+        <h1><span class="w1">Charlie</span> <span class="w2">kerennnn</span></h1>
     </header>
 
     <nav class="tab-nav">
@@ -238,7 +236,7 @@
                 <div class="sg">
                     <div class="fg">
                         <label>1. Paste JSON Query Lama</label>
-                        <textarea id="oldQuery" rows="8" placeholder='{"query":{"terms":{"data.real_ip":["1.1.1.1"]}}} or {"query":{"terms":{"source.ip":["1.1.1.1"]}}}'></textarea>
+                        <textarea id="oldQuery" rows="8" placeholder='{"query":{"terms":{"your_key":["1.1.1.1"]}}}'></textarea>
                     </div>
                     <div class="fg">
                         <label>2. List IP Baru (1 per baris)</label>
@@ -348,8 +346,6 @@ function processFormatter() {
 }
 
 /* ── TAB 2: JSON MERGER ── */
-const IP_TERM_KEYS = ['data.real_ip', 'source.ip'];
-
 function processMerger() {
     const oldText = document.getElementById('oldQuery').value.trim();
     const newText = document.getElementById('newIpsMerger').value.trim();
@@ -362,14 +358,48 @@ function processMerger() {
     try { obj = JSON.parse(oldText); } catch(e) { setStatus('statusMerger','⚠ JSON tidak valid: '+e.message,'error'); return; }
     const terms = obj?.query?.terms;
     if (!terms) { setStatus('statusMerger','⚠ Struktur harus: query > terms','error'); return; }
-    const ipKey = IP_TERM_KEYS.find(k => Array.isArray(terms[k]));
-    if (!ipKey) { setStatus('statusMerger','⚠ Struktur harus: query > terms > data.real_ip atau source.ip (array)','error'); return; }
+    const arrayKeys = Object.keys(terms).filter(k => Array.isArray(terms[k]));
+    if (!arrayKeys.length) { setStatus('statusMerger','⚠ Struktur harus: query > terms > <key> (array)','error'); return; }
+
+    function looksLikeIp(s) {
+        s = String(s ?? '').trim();
+        if (!s) return false;
+        // IPv4
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return true;
+        // IPv6 (simple heuristic: hex + ":" char)
+        if (s.includes(':') && /^[0-9a-fA-F:]+$/.test(s)) return true;
+        return false;
+    }
+    function ipScore(key) {
+        const arr = terms[key];
+        let score = 0;
+        for (const item of arr.slice(0, 50)) {
+            if (looksLikeIp(item)) score++;
+        }
+        return score;
+    }
+
+    // Prefer keys yang dulu pernah didukung, tapi tetap dinamis untuk key lain.
+    const preferredKeys = ['data.real_ip', 'source.ip'];
+    const preferredKey = preferredKeys.find(k => arrayKeys.includes(k));
+    const bestKey = preferredKey || arrayKeys.reduce((best, k) => {
+        const bestScore = ipScore(best);
+        const kScore = ipScore(k);
+        if (kScore > bestScore) return k;
+        return best;
+    }, arrayKeys[0]);
+
+    // Kalau semua score 0 (nggak ketahuan IP-like), pakai key pertama.
+    const ipKey = (preferredKey || ipScore(bestKey) > 0) ? bestKey : arrayKeys[0];
+
     const existing = terms[ipKey];
     const combined = [...new Set([...existing,...newIps])];
     terms[ipKey] = combined;
     document.getElementById('outputJson').textContent = JSON.stringify(obj, null, 2);
     document.getElementById('copyBtnJson').style.display = 'block';
-    setStatus('statusMerger',`✓ ${combined.length-existing.length} IP added. Total: ${combined.length} (${ipKey})`,'success');
+    const added = combined.length - existing.length;
+    const note = arrayKeys.length > 1 ? ` (detected ${arrayKeys.length} array keys, using ${ipKey})` : '';
+    setStatus('statusMerger',`✓ ${added} IP added. Total: ${combined.length} (${ipKey})${note}`,'success');
 }
 
 /* ── TAB 3: VIRUSTOTAL ── */
