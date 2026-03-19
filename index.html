@@ -183,24 +183,25 @@
         .legend-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
         /* VT export / selection toolbar */
-        .vt-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding: 10px 14px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01); }
+        .vt-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding: 12px 14px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01); }
         .vt-toolgroup { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-        .vt-chip { display:inline-flex; align-items:center; gap:6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); cursor:pointer; user-select:none; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.6px; color: var(--text-pri); font-family: 'JetBrains Mono', monospace; }
-        .vt-chip input { accent-color: var(--accent-hl); }
-        .vt-chip.clean { border-color: rgba(15,186,129,0.35); }
-        .vt-chip.susp  { border-color: rgba(245,166,35,0.35); }
-        .vt-chip.mal   { border-color: rgba(229,72,77,0.35); }
-        .vt-chip.on.clean { background: rgba(15,186,129,0.12); }
-        .vt-chip.on.susp  { background: rgba(245,166,35,0.10); }
-        .vt-chip.on.mal   { background: rgba(229,72,77,0.10); }
-        .vt-mini-btn { border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-pri); padding: 7px 10px; border-radius: 9px; font-size: 0.75rem; font-weight: 800; font-family: 'Syne', sans-serif; cursor: pointer; transition: all 0.15s; }
-        .vt-mini-btn:hover { background: rgba(255,255,255,0.07); }
+        .vt-chip { display:inline-flex; align-items:center; gap:6px; padding: 0.65rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); cursor:pointer; user-select:none; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.4px; color: var(--text-pri); font-family: 'Syne', sans-serif; transition: all 0.18s; }
+        .vt-chip:hover { background: rgba(255,255,255,0.09); }
+        .vt-chip input { accent-color: var(--accent-hl); cursor: pointer; }
+        .vt-chip.clean { border-color: rgba(15,186,129,0.4); color: var(--green); }
+        .vt-chip.susp  { border-color: rgba(245,166,35,0.4);  color: var(--yellow); }
+        .vt-chip.mal   { border-color: rgba(229,72,77,0.4);   color: var(--red); }
+        .vt-chip.on.clean { background: rgba(15,186,129,0.1); }
+        .vt-chip.on.susp  { background: rgba(245,166,35,0.08); }
+        .vt-chip.on.mal   { background: rgba(229,72,77,0.08); }
+        .vt-mini-btn { background: rgba(255,255,255,0.05); color: var(--text-pri); border: 1px solid var(--border); padding: 0.65rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.82rem; cursor: pointer; transition: all 0.18s; }
+        .vt-mini-btn:hover { background: rgba(255,255,255,0.09); }
         .vt-mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .vt-toolbar-note { margin-left:auto; color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.72rem; }
+        .vt-toolbar-note { margin-left:auto; color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.75rem; font-weight: 700; padding: 0.65rem 0; }
         .vt-select { width: 16px; height: 16px; }
         .vt-header-actions { display:inline-flex; gap:6px; align-items:center; }
-        .vt-copy-ioc { border: 1px solid rgba(90,122,168,0.25); background: rgba(255,255,255,0.03); color: var(--text-sec); padding: 4px 8px; border-radius: 8px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.8px; cursor: pointer; font-family:'JetBrains Mono', monospace; }
-        .vt-copy-ioc:hover { color: var(--text-pri); border-color: rgba(47,126,247,0.35); background: rgba(47,126,247,0.08); }
+        .vt-copy-ioc { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-sec); padding: 5px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; font-family: 'Syne', sans-serif; transition: all 0.18s; }
+        .vt-copy-ioc:hover { color: var(--text-pri); border-color: rgba(47,126,247,0.4); background: rgba(47,126,247,0.1); }
 
         .spinner { width: 14px; height: 14px; border: 2px solid rgba(56,189,248,0.25); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -762,7 +763,7 @@ function renderHash(ioc, d, collapsed=false) {
     const vtUrl = `https://www.virustotal.com/gui/file/${ioc}`;
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
-            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
             <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
@@ -812,7 +813,7 @@ function renderIP(ioc, d, collapsed=false) {
     const ctryBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:5px;padding:2px 8px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--cyan);flex-shrink:0;">${flag?flag+'\u00a0':''}${escHtml(ctry)}</span>`;
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
-            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
             <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IP.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
@@ -866,7 +867,7 @@ function renderDomain(ioc, d, collapsed=false) {
     const vtUrl = `https://www.virustotal.com/gui/domain/${ioc}`;
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
-            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
             <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied domain.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
@@ -919,7 +920,7 @@ function renderErr(ioc, type, err, collapsed=false) {
     const badgeLbl  = badgeType.toUpperCase();
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
-            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
             <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
