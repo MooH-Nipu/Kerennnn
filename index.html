@@ -979,18 +979,28 @@ function renderDomain(ioc, d, collapsed=false) {
     return html;
 }
 
-function renderErr(ioc, type, err, collapsed=false) {
-    const label = err.status === 404 ? 'NOT FOUND' : 'ERROR';
+function renderErr(ioc, type, err, collapsed=false, correlationData=null) {
+    const is429 = err && (err.status === 429 || (String(err.message || '').toLowerCase().includes('rate limit') || String(err.message || '').toLowerCase().includes('quota')));
+    const vtLabel = err.status === 404 ? 'NOT FOUND' : is429 ? 'VT: RATE LIMITED' : 'VT: ERROR';
     const msg = err.detail || err.message || String(err);
+
+    // Use threat intel as indicator when VT fails
+    const hasCorr = correlationData && !correlationData.error && (correlationData.sources || []).length > 0;
+    const conf = hasCorr ? correlationData.confidence : null;
+    const riskLabel = hasCorr ? confLabel(conf) : null;
+    const riskCls = hasCorr ? confClass(conf).replace('conf-', 'verdict-') : ''; // conf-low -> verdict-low etc, but we use conf-low/conf-high for badges
+    const verdictCls = hasCorr ? (conf >= 70 ? 'verdict-malicious' : conf >= 40 ? 'verdict-suspicious' : conf >= 15 ? 'verdict-suspicious' : 'verdict-clean') : 'verdict-unknown';
+    const displayVerdict = hasCorr ? riskLabel : vtLabel;
     const hint = err.status === 404
         ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">IOC tidak ada di database VT.</span>'
         : err.status === 401
         ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Cek VT_API_KEY di Vercel env variables.</span>'
-        : err.status === 503
-        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Tidak bisa akses VirusTotal — cek koneksi jaringan atau firewall.</span>'
-        : err.status === 0
-        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Tidak bisa reach /api/vt — cek deploy Vercel.</span>'
-        : '';
+        : err.status === 503 || err.status === 0
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">VT tidak bisa diakses. Gunakan threat intel di bawah sebagai indikator.</span>'
+        : is429
+        ? '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">VT quota/rate limit. Gunakan threat intel di bawah (AbuseIPDB, OTX, dll) sebagai indikator.</span>'
+        : '<span style="color:var(--text-sec);font-size:0.72rem;display:block;margin-top:4px;">Gunakan threat intel di bawah sebagai indikator.</span>';
+
     const badgeType = type || 'unknown';
     const badgeCls  = badgeType === 'ip' ? 'badge-ip' : badgeType === 'domain' ? 'badge-domain' : badgeType === 'hash' ? 'badge-hash' : 'badge-hash';
     const badgeLbl  = badgeType.toUpperCase();
@@ -1001,22 +1011,22 @@ function renderErr(ioc, type, err, collapsed=false) {
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
-        <span class="verdict verdict-unknown">● ${label}</span>`;
+        <span class="verdict ${verdictCls}">● ${escHtml(displayVerdict)}</span>`;
     const body = `<div class="vt-error-box">
-        <span style="opacity:0.6;font-size:0.7rem;">[HTTP ${err.status||'?'}]</span> ${escHtml(msg)}${hint}
+        <span style="opacity:0.6;font-size:0.7rem;">[VT ${err.status||'?'}]</span> ${escHtml(msg)}${hint}
     </div>`;
     const html = makeCard(header, body, collapsed);
     _vtState.items.push({
         id: _cardIdx - 1,
         ioc, type: badgeType || 'unknown',
-        vtVerdict: label,
-        verdictKey: 'unknown',
+        vtVerdict: hasCorr ? displayVerdict : vtLabel,
+        verdictKey: hasCorr ? (conf >= 70 ? 'malicious' : conf >= 40 || conf >= 15 ? 'suspicious' : 'clean') : 'unknown',
         malicious: '', suspicious: '', total: '',
         reputation: '', country: '', asn: '', asOwner: '',
         vtUrl: '',
         selected: false,
-        correlation: null,
-        correlationLabel: ''
+        correlation: correlationData || null,
+        correlationLabel: hasCorr ? riskLabel : ''
     });
     return html;
 }
@@ -1166,7 +1176,8 @@ async function runVTLookup() {
             else if (type === 'domain') cardHtml = renderDomain(ioc, d, multi);
             else                        cardHtml = renderHash(ioc, d, multi);
         } else {
-            cardHtml = renderErr(rawIoc, null, vtResult.reason, multi);
+            const corrData = corrResult.status === 'fulfilled' ? corrResult.value : null;
+            cardHtml = renderErr(rawIoc, null, vtResult.reason, multi, corrData);
         }
 
         // Inject correlation placeholder div inside card before closing
