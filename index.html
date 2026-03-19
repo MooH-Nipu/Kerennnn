@@ -198,6 +198,9 @@
         .vt-mini-btn:hover { background: rgba(255,255,255,0.09); }
         .vt-mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .vt-toolbar-note { margin-left:auto; color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.75rem; font-weight: 700; padding: 0.65rem 0; }
+        .vt-subbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding: 10px 14px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.12); }
+        .vt-sub-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-left:auto; }
+        .vt-sub-note { color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.75rem; font-weight: 700; }
         .vt-dd { position: relative; display: inline-flex; align-items: center; }
         .vt-dd-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 180px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 32px rgba(0,0,0,0.45); padding: 6px; display: none; z-index: 30; }
         .vt-dd-menu.open { display: block; animation: fadeUp 0.15s ease; }
@@ -330,11 +333,6 @@
                         <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="vtF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>
                     </div>
                     <div class="vt-toolgroup">
-                        <button class="vt-mini-btn" onclick="vtSelectVisible(true)">Select visible</button>
-                        <button class="vt-mini-btn" onclick="vtSelectVisible(false)">Unselect visible</button>
-                    </div>
-                    <div class="vt-toolgroup">
-                        <button id="vtCopySelectedBtn" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
                         <div class="vt-dd" id="vtExportDD">
                             <button id="vtExportBtn" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
                             <div id="vtExportMenu" class="vt-dd-menu">
@@ -343,7 +341,14 @@
                             </div>
                         </div>
                     </div>
-                    <div id="vtSelectedNote" class="vt-toolbar-note">0 selected</div>
+                </div>
+                <div class="vt-subbar">
+                    <div id="vtSelectedNote" class="vt-sub-note">0 selected</div>
+                    <div class="vt-sub-actions">
+                        <button class="vt-mini-btn" onclick="vtSelectVisible(true)">Select visible</button>
+                        <button class="vt-mini-btn" onclick="vtSelectVisible(false)">Unselect visible</button>
+                        <button id="vtCopySelectedBtn" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
+                    </div>
                 </div>
                 <div id="vtResults">
                     <div style="color:var(--text-sec);font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>
@@ -664,8 +669,7 @@ function vtExportCSV() {
     const items = vtGetSelectedItems();
     if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
     const cols = [
-        'ioc','type','vt_verdict','malicious','suspicious','total','reputation','country','asn','as_owner',
-        'confidence','correlation_label','abuseipdb_percent','otx_pulses','sources'
+        'ioc','type','vt_verdict','detections','abuseipdb_percent','otx_pulses','confidence','country','as_owner','sources'
     ];
     const esc = (v) => {
         const s = String(v ?? '');
@@ -681,12 +685,12 @@ function vtExportCSV() {
         const otxPulses = vtGetOtxPulses(x);
         return [
             x.ioc, x.type, x.vtVerdict,
-            x.malicious, x.suspicious, x.total,
-            x.reputation, x.country, x.asn, x.asOwner,
-            x.correlation?.confidence ?? '',
-            x.correlationLabel ?? '',
+            `${x.malicious}/${x.total || 0}`,
             abusePct === '' ? '' : (String(abusePct) + '%'),
             otxPulses,
+            x.correlation?.confidence ?? '',
+            x.country || '',
+            x.asOwner || '',
             src
         ].map(esc).join(',');
     });
@@ -722,6 +726,8 @@ function vtExportPDF() {
                 <td>${escHtml(`${x.malicious}/${x.total || 0}`)}</td>
                 <td>${escHtml(abusePct === '' ? '—' : String(abusePct) + '%')}</td>
                 <td>${escHtml(otxPulses === '' ? '—' : String(otxPulses))}</td>
+                <td>${escHtml(x.country || '—')}</td>
+                <td>${escHtml(x.asOwner || '—')}</td>
                 <td>${escHtml(String(conf))}</td>
                 <td>${escHtml(src)}</td>
             </tr>`;
@@ -738,7 +744,7 @@ function vtExportPDF() {
             <h2>VirusTotal + Threat Intel Export</h2>
             <div class="meta">Generated: ${new Date().toLocaleString()}</div>
             <table>
-                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
+                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Country</th><th>AS Owner</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
             <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
@@ -774,6 +780,8 @@ function vtExportPDF() {
             `${x.malicious}/${x.total || 0}`,
             abusePct === '' ? '—' : (String(abusePct) + '%'),
             otxPulses === '' ? '—' : String(otxPulses),
+            x.country || '—',
+            x.asOwner || '—',
             String(conf),
             src
         ];
@@ -782,18 +790,18 @@ function vtExportPDF() {
     if (doc.autoTable) {
         doc.autoTable({
             startY: y,
-            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','CONF','THREAT INTEL SOURCES']],
+            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','COUNTRY','AS OWNER','CONF','THREAT INTEL SOURCES']],
             body,
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
             headStyles: { fillColor: [14, 24, 41] },
             margin: { left: margin, right: margin },
-            columnStyles: { 0:{cellWidth:110}, 1:{cellWidth:45}, 2:{cellWidth:70}, 3:{cellWidth:60}, 4:{cellWidth:45}, 5:{cellWidth:35}, 6:{cellWidth:40}, 7:{cellWidth:155} }
+            columnStyles: { 0:{cellWidth:95}, 1:{cellWidth:40}, 2:{cellWidth:62}, 3:{cellWidth:55}, 4:{cellWidth:40}, 5:{cellWidth:30}, 6:{cellWidth:45}, 7:{cellWidth:75}, 8:{cellWidth:35}, 9:{cellWidth:125} }
         });
     } else {
         // Minimal fallback if autotable missing
         doc.setFontSize(9);
         for (const row of body) {
-            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | Conf:${row[6]}`;
+            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | ${row[6]} | ${row[7]} | Conf:${row[8]}`;
             if (y > 780) { doc.addPage(); y = margin; }
             doc.text(line, margin, y);
             y += 12;
