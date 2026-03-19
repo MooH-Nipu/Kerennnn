@@ -6,6 +6,8 @@
     <title>Charlie kerennnn</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --bg-base:   #080d17;
@@ -180,6 +182,26 @@
 
         .legend-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
+        /* VT export / selection toolbar */
+        .vt-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding: 10px 14px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01); }
+        .vt-toolgroup { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+        .vt-chip { display:inline-flex; align-items:center; gap:6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); cursor:pointer; user-select:none; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.6px; color: var(--text-pri); font-family: 'JetBrains Mono', monospace; }
+        .vt-chip input { accent-color: var(--accent-hl); }
+        .vt-chip.clean { border-color: rgba(15,186,129,0.35); }
+        .vt-chip.susp  { border-color: rgba(245,166,35,0.35); }
+        .vt-chip.mal   { border-color: rgba(229,72,77,0.35); }
+        .vt-chip.on.clean { background: rgba(15,186,129,0.12); }
+        .vt-chip.on.susp  { background: rgba(245,166,35,0.10); }
+        .vt-chip.on.mal   { background: rgba(229,72,77,0.10); }
+        .vt-mini-btn { border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-pri); padding: 7px 10px; border-radius: 9px; font-size: 0.75rem; font-weight: 800; font-family: 'Syne', sans-serif; cursor: pointer; transition: all 0.15s; }
+        .vt-mini-btn:hover { background: rgba(255,255,255,0.07); }
+        .vt-mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .vt-toolbar-note { margin-left:auto; color: var(--text-sec); font-family:'JetBrains Mono', monospace; font-size:0.72rem; }
+        .vt-select { width: 16px; height: 16px; }
+        .vt-header-actions { display:inline-flex; gap:6px; align-items:center; }
+        .vt-copy-ioc { border: 1px solid rgba(90,122,168,0.25); background: rgba(255,255,255,0.03); color: var(--text-sec); padding: 4px 8px; border-radius: 8px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.8px; cursor: pointer; font-family:'JetBrains Mono', monospace; }
+        .vt-copy-ioc:hover { color: var(--text-pri); border-color: rgba(47,126,247,0.35); background: rgba(47,126,247,0.08); }
+
         .spinner { width: 14px; height: 14px; border: 2px solid rgba(56,189,248,0.25); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -293,6 +315,23 @@
                 <div class="card-title">
                     <span class="dot"></span> Results
                     <span id="vtResultCount" style="margin-left:auto;font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
+                </div>
+                <div class="vt-toolbar">
+                    <div class="vt-toolgroup" style="gap:8px;">
+                        <span class="vt-chip clean on" onclick="vtToggleFilter('clean', this)"><input id="vtF_clean" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('clean', this.parentElement)"/> CLEAN</span>
+                        <span class="vt-chip susp on" onclick="vtToggleFilter('suspicious', this)"><input id="vtF_suspicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('suspicious', this.parentElement)"/> SUSPICIOUS</span>
+                        <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="vtF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>
+                    </div>
+                    <div class="vt-toolgroup">
+                        <button class="vt-mini-btn" onclick="vtSelectVisible(true)">Select visible</button>
+                        <button class="vt-mini-btn" onclick="vtSelectVisible(false)">Unselect visible</button>
+                    </div>
+                    <div class="vt-toolgroup">
+                        <button id="vtCopySelectedBtn" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
+                        <button id="vtCsvBtn" class="vt-mini-btn" onclick="vtExportCSV()">Export CSV</button>
+                        <button id="vtPdfBtn" class="vt-mini-btn" onclick="vtExportPDF()">Export PDF</button>
+                    </div>
+                    <div id="vtSelectedNote" class="vt-toolbar-note">0 selected</div>
                 </div>
                 <div id="vtResults">
                     <div style="color:var(--text-sec);font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>
@@ -482,6 +521,219 @@ function toggleCard(el) {
 }
 
 let _cardIdx = 0;
+let _vtState = { items: [], filters: { clean:true, suspicious:true, malicious:true } };
+
+function vtVerdictKeyFromClass(cls) {
+    if (cls === 'verdict-clean') return 'clean';
+    if (cls === 'verdict-suspicious') return 'suspicious';
+    if (cls === 'verdict-malicious') return 'malicious';
+    return 'unknown';
+}
+
+function vtUpdateSelectedNote() {
+    const n = _vtState.items.filter(x => x.selected).length;
+    const el = document.getElementById('vtSelectedNote');
+    if (el) el.textContent = `${n} selected`;
+}
+
+function vtGetSelectedItems() {
+    return _vtState.items.filter(x => x.selected);
+}
+
+function vtApplyFilters() {
+    const res = document.getElementById('vtResults');
+    if (!res) return;
+    const cards = [...res.querySelectorAll('.vt-card')];
+    for (const c of cards) {
+        const verdictKey = c.getAttribute('data-verdict') || 'unknown';
+        const show = verdictKey === 'unknown' ? true : !!_vtState.filters[verdictKey];
+        c.style.display = show ? '' : 'none';
+    }
+}
+
+function vtToggleFilter(key, chipEl) {
+    const cb = chipEl?.querySelector('input[type="checkbox"]');
+    const next = cb ? !cb.checked : !_vtState.filters[key];
+    _vtState.filters[key] = next;
+    if (cb) cb.checked = next;
+    chipEl?.classList.toggle('on', next);
+    vtApplyFilters();
+}
+
+function vtSelectVisible(on) {
+    const res = document.getElementById('vtResults');
+    if (!res) return;
+    const visibleCards = [...res.querySelectorAll('.vt-card')].filter(c => c.style.display !== 'none');
+    for (const card of visibleCards) {
+        const id = card.getAttribute('data-id');
+        const item = _vtState.items.find(x => String(x.id) === String(id));
+        if (!item) continue;
+        item.selected = !!on;
+        const cb = card.querySelector('input.vt-select');
+        if (cb) cb.checked = item.selected;
+    }
+    vtUpdateSelectedNote();
+}
+
+function vtSetSelected(id, checked) {
+    const item = _vtState.items.find(x => String(x.id) === String(id));
+    if (item) item.selected = !!checked;
+    vtUpdateSelectedNote();
+}
+
+async function vtCopyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } finally { ta.remove(); }
+        return true;
+    }
+}
+
+async function vtCopySelected() {
+    const items = vtGetSelectedItems();
+    if (!items.length) { setStatus('statusVT', '⚠ Tidak ada item yang dipilih.', 'error'); return; }
+    const txt = items.map(x => x.ioc).join('\n');
+    await vtCopyToClipboard(txt);
+    setStatus('statusVT', `✓ Copied ${items.length} IOC(s).`, 'success');
+}
+
+function vtExportCSV() {
+    const items = vtGetSelectedItems();
+    if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
+    const cols = [
+        'ioc','type','vt_verdict','malicious','suspicious','total','reputation','country','asn','as_owner',
+        'confidence','correlation_label','sources'
+    ];
+    const esc = (v) => {
+        const s = String(v ?? '');
+        if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+        return s;
+    };
+    const rows = items.map(x => {
+        const src = (x.correlation?.sources || []).map(s => {
+            const v = (s.verdict || (s.skipped?'skipped':s.error?'error':'unknown'));
+            return `${s.source}:${v}`;
+        }).join(' | ');
+        return [
+            x.ioc, x.type, x.vtVerdict,
+            x.malicious, x.suspicious, x.total,
+            x.reputation, x.country, x.asn, x.asOwner,
+            x.correlation?.confidence ?? '',
+            x.correlationLabel ?? '',
+            src
+        ].map(esc).join(',');
+    });
+    const csv = [cols.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `vt-results-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setStatus('statusVT', `✓ CSV exported (${items.length} row(s)).`, 'success');
+}
+
+function vtExportPDF() {
+    const items = vtGetSelectedItems();
+    if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
+
+    // Prefer jsPDF if available; otherwise fallback to print-friendly HTML.
+    const hasJsPDF = !!(window.jspdf && window.jspdf.jsPDF);
+    if (!hasJsPDF) {
+        const win = window.open('', '_blank');
+        if (!win) { setStatus('statusVT', '⚠ Popup blocked: tidak bisa generate PDF window.', 'error'); return; }
+        const rows = items.map(x => {
+            const src = (x.correlation?.sources || []).map(s => `${s.source} (${(s.verdict||'unknown').toUpperCase()})`).join(', ') || '—';
+            const conf = x.correlation?.confidence ?? '—';
+            return `<tr>
+                <td>${escHtml(x.ioc)}</td>
+                <td>${escHtml(String(x.type).toUpperCase())}</td>
+                <td>${escHtml(x.vtVerdict)}</td>
+                <td>${escHtml(`${x.malicious}/${x.total || 0}`)}</td>
+                <td>${escHtml(String(conf))}</td>
+                <td>${escHtml(src)}</td>
+            </tr>`;
+        }).join('');
+        win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>VT Export</title>
+            <style>
+                body{font-family:Arial, sans-serif; padding:20px;}
+                h2{margin:0 0 10px;}
+                .meta{color:#555; font-size:12px; margin-bottom:14px;}
+                table{width:100%; border-collapse:collapse; font-size:12px;}
+                th,td{border:1px solid #ddd; padding:8px; vertical-align:top;}
+                th{background:#f5f5f5; text-align:left;}
+            </style></head><body>
+            <h2>VirusTotal + Threat Intel Export</h2>
+            <div class="meta">Generated: ${new Date().toLocaleString()}</div>
+            <table>
+                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
+            <script>window.onload=()=>{window.print();}<\/script>
+            </body></html>`);
+        win.document.close();
+        setStatus('statusVT', `✓ Opened print view for PDF (${items.length} item(s)).`, 'success');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const margin = 40;
+    let y = margin;
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('VirusTotal + Threat Intel Export', margin, y);
+    y += 18;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
+    y += 14;
+    doc.text(`Items: ${items.length}`, margin, y);
+    y += 18;
+
+    const body = items.map(x => {
+        const src = (x.correlation?.sources || []).map(s => `${s.source}:${(s.verdict||'unknown')}`).join(' | ') || '—';
+        const conf = x.correlation?.confidence ?? '—';
+        return [
+            x.ioc,
+            String(x.type).toUpperCase(),
+            x.vtVerdict,
+            `${x.malicious}/${x.total || 0}`,
+            String(conf),
+            src
+        ];
+    });
+
+    if (doc.autoTable) {
+        doc.autoTable({
+            startY: y,
+            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','CONF','THREAT INTEL SOURCES']],
+            body,
+            styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+            headStyles: { fillColor: [14, 24, 41] },
+            margin: { left: margin, right: margin },
+            columnStyles: { 0:{cellWidth:120}, 1:{cellWidth:50}, 2:{cellWidth:75}, 3:{cellWidth:70}, 4:{cellWidth:45}, 5:{cellWidth:170} }
+        });
+    } else {
+        // Minimal fallback if autotable missing
+        doc.setFontSize(9);
+        for (const row of body) {
+            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | ${row[4]}`;
+            if (y > 780) { doc.addPage(); y = margin; }
+            doc.text(line, margin, y);
+            y += 12;
+        }
+    }
+
+    doc.save(`vt-results-${new Date().toISOString().slice(0,10)}.pdf`);
+    setStatus('statusVT', `✓ PDF exported (${items.length} item(s)).`, 'success');
+}
 
 function makeCard(headerInner, bodyInner, collapsed) {
     const idx = _cardIdx++;
@@ -509,6 +761,10 @@ function renderHash(ioc, d, collapsed=false) {
     const last  = a.last_analysis_date    ? new Date(a.last_analysis_date*1000).toLocaleDateString('en-GB')    : '—';
     const vtUrl = `https://www.virustotal.com/gui/file/${ioc}`;
     const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
+        </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
         <span class="verdict ${v.cls}">● ${v.label}</span>`;
@@ -525,7 +781,21 @@ function renderHash(ioc, d, collapsed=false) {
             ${mi('Last Scan',  last)}
         </div>
         <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
-    return makeCard(header, body, collapsed);
+    const html = makeCard(header, body, collapsed);
+    // Track item for export/filter
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc, type: 'hash',
+        vtVerdict: v.label,
+        verdictKey: vtVerdictKeyFromClass(v.cls),
+        malicious: mal, suspicious: sus, total,
+        reputation: '', country: '', asn: '', asOwner: '',
+        vtUrl,
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
 }
 
 function renderIP(ioc, d, collapsed=false) {
@@ -541,6 +811,10 @@ function renderIP(ioc, d, collapsed=false) {
     const ctry  = a.country || '—';
     const ctryBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:5px;padding:2px 8px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--cyan);flex-shrink:0;">${flag?flag+'\u00a0':''}${escHtml(ctry)}</span>`;
     const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IP.','success');">COPY</button>
+        </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
         ${ctryBadge}
@@ -558,7 +832,23 @@ function renderIP(ioc, d, collapsed=false) {
             ${mi('Reputation', rep, rc)}
         </div>
         <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
-    return makeCard(header, body, collapsed);
+    const html = makeCard(header, body, collapsed);
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc, type: 'ip',
+        vtVerdict: v.label,
+        verdictKey: vtVerdictKeyFromClass(v.cls),
+        malicious: mal, suspicious: sus, total,
+        reputation: rep,
+        country: ctry,
+        asn: a.asn ? 'AS' + a.asn : '',
+        asOwner: a.as_owner || '',
+        vtUrl,
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
 }
 
 function renderDomain(ioc, d, collapsed=false) {
@@ -575,6 +865,10 @@ function renderDomain(ioc, d, collapsed=false) {
     const cats  = Object.values(a.categories||{}).slice(0,2).join(', ') || '—';
     const vtUrl = `https://www.virustotal.com/gui/domain/${ioc}`;
     const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied domain.','success');">COPY</button>
+        </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
         <span class="verdict ${v.cls}">● ${v.label}</span>`;
@@ -591,7 +885,21 @@ function renderDomain(ioc, d, collapsed=false) {
             ${mi('Reputation', rep, rc)}
         </div>
         <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
-    return makeCard(header, body, collapsed);
+    const html = makeCard(header, body, collapsed);
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc, type: 'domain',
+        vtVerdict: v.label,
+        verdictKey: vtVerdictKeyFromClass(v.cls),
+        malicious: mal, suspicious: sus, total,
+        reputation: rep,
+        country: '', asn: '', asOwner: '',
+        vtUrl,
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
 }
 
 function renderErr(ioc, type, err, collapsed=false) {
@@ -610,13 +918,30 @@ function renderErr(ioc, type, err, collapsed=false) {
     const badgeCls  = badgeType === 'ip' ? 'badge-ip' : badgeType === 'domain' ? 'badge-domain' : badgeType === 'hash' ? 'badge-hash' : 'badge-hash';
     const badgeLbl  = badgeType.toUpperCase();
     const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx - 1}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
+        </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
         <span class="verdict verdict-unknown">● ${label}</span>`;
     const body = `<div class="vt-error-box">
         <span style="opacity:0.6;font-size:0.7rem;">[HTTP ${err.status||'?'}]</span> ${escHtml(msg)}${hint}
     </div>`;
-    return makeCard(header, body, collapsed);
+    const html = makeCard(header, body, collapsed);
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc, type: badgeType || 'unknown',
+        vtVerdict: label,
+        verdictKey: 'unknown',
+        malicious: '', suspicious: '', total: '',
+        reputation: '', country: '', asn: '', asOwner: '',
+        vtUrl: '',
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
 }
 
 /* ── CORRELATION ─────────────────────────────────────────────────────── */
@@ -738,6 +1063,8 @@ async function runVTLookup() {
     btn.disabled = true;
     res.innerHTML = '';
     document.getElementById('vtResultCount').textContent = '';
+    _vtState.items = [];
+    vtUpdateSelectedNote();
 
     const cards = [];
     _cardIdx = 0;
@@ -777,6 +1104,14 @@ async function runVTLookup() {
     }
 
     res.innerHTML = cards.map(c => c.html).join('');
+    // Set data attributes for filtering + export
+    [...res.querySelectorAll('.vt-card')].forEach((card, idx) => {
+        const item = _vtState.items[idx];
+        if (!item) return;
+        card.setAttribute('data-id', String(item.id));
+        card.setAttribute('data-verdict', item.verdictKey || 'unknown');
+    });
+    vtApplyFilters();
 
     // Populate correlation panels
     for (const { corrId, corrResult } of cards) {
@@ -784,6 +1119,18 @@ async function runVTLookup() {
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
+            // attach correlation data to state
+            const idNum = Number(String(corrId).replace('corr-',''));
+            const it = _vtState.items.find(x => x.id === idNum);
+            if (it) {
+                it.correlation = corrResult.value;
+                const sc = it.correlation?.confidence;
+                it.correlationLabel = sc === null || sc === undefined ? 'NO DATA'
+                    : sc >= 70 ? 'HIGH RISK'
+                    : sc >= 40 ? 'MEDIUM RISK'
+                    : sc >= 15 ? 'LOW RISK'
+                    : 'LIKELY CLEAN';
+            }
         } else {
             panel.innerHTML = `<div class="corr-loading" style="color:var(--red)">⚠ Correlation failed: ${escHtml(corrResult.reason?.message || 'Unknown error')}</div>`;
         }
