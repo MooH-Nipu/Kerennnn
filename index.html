@@ -494,7 +494,7 @@ async function vtGet(ioc) {
 
 function verdict(mal, sus, total) {
     if (!total) return { label:'UNKNOWN',    cls:'verdict-unknown' };
-    if (mal >= 5)            return { label:'MALICIOUS',  cls:'verdict-malicious' };
+    if (mal > 3)             return { label:'MALICIOUS',  cls:'verdict-malicious' };
     if (mal > 0 || sus > 3) return { label:'SUSPICIOUS', cls:'verdict-suspicious' };
     return { label:'CLEAN', cls:'verdict-clean' };
 }

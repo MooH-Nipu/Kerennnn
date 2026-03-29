@@ -115,7 +115,8 @@ async function checkVT(ioc, type) {
       const total = Object.values(s).reduce((a, b) => a + b, 0);
       const ratio = total > 0 ? (mal + sus) / total : 0;
       const score = Math.round(ratio * 100);
-      const verdict = mal >= 5 ? 'malicious' : (mal > 0 || sus > 3) ? 'suspicious' : total === 0 ? 'unknown' : 'clean';
+      // Malicious: VT malicious engines > 3; else suspicious/clean/unknown
+      const verdict = mal > 3 ? 'malicious' : (mal > 0 || sus > 3) ? 'suspicious' : total === 0 ? 'unknown' : 'clean';
 
       const vtUrlMap = {
         hash: `https://www.virustotal.com/gui/file/${ioc}`,
@@ -163,7 +164,7 @@ async function checkAbuseIPDB(ip) {
     const score = d.abuseConfidenceScore || 0;
     return {
       source:  'AbuseIPDB',
-      verdict: score >= 80 ? 'malicious' : score >= 25 ? 'suspicious' : 'clean',
+      verdict: score >= 50 ? 'malicious' : score >= 25 ? 'suspicious' : 'clean',
       score,
       weight:  0.25 * getTrustFactor('TRUST_ABUSEIPDB'),
       meta: {
@@ -258,7 +259,7 @@ async function checkOTX(ioc, type) {
     );
     if (status !== 200) return { source: 'AlienVault OTX', error: `OTX: HTTP ${status}` };
     const pulseCount = data.pulse_info?.count || 0;
-    const verdict    = pulseCount >= 5 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
+    const verdict    = pulseCount >= 10 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
     return {
       source:  'AlienVault OTX',
       verdict,
