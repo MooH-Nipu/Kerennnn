@@ -413,7 +413,6 @@
                 <div class="history-head" style="margin-bottom:10px;">
                     <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat setelah scan</label>
                 </div>
-                <button type="button" class="btn btn-secondary" style="padding:8px 14px;font-size:0.8rem;width:100%;margin-bottom:10px;" onclick="historyClearAll()">Hapus semua riwayat</button>
                 <div id="historyList" class="history-list"><span class="history-empty">Belum ada riwayat.</span></div>
             </div>
 
@@ -774,30 +773,6 @@ function historyDeleteEntry(id) {
     const list = loadHistoryEntries().filter(x => x.id !== id);
     saveHistoryEntries(list);
     renderHistoryListDOM();
-}
-function historyClearAll() {
-    let ok = true;
-    try { ok = window.confirm('Hapus semua riwayat scan dari perangkat ini?'); }
-    catch { ok = null; }
-    // Some embedded browsers/webviews may block `confirm()`. In that case, proceed.
-    if (ok === false) return;
-    if (ok === null) vtNotify('⚠ Konfirmasi tidak didukung di browser ini — riwayat akan dihapus.', 'loading');
-    saveHistoryEntries([]);
-    _historyViewingVtInput = '';
-    renderHistoryListDOM();
-    const ph = document.getElementById('historyScanPlaceholder');
-    const surf = document.getElementById('historyScanSurface');
-    const hr = document.getElementById('historyScanResults');
-    const hc = document.getElementById('historyResultCount');
-    if (ph) ph.style.display = '';
-    if (surf) surf.style.display = 'none';
-    if (hr) hr.innerHTML = '';
-    if (hc) hc.textContent = '';
-    _vtStateHistory.items.length = 0;
-    Object.assign(_vtStateHistory.filters, { clean: true, suspicious: true, malicious: true });
-    clearStatus('statusHistory');
-    vtSyncFilterUIs();
-    if (ok === null) vtNotify('✓ Riwayat dihapus.', 'success');
 }
 
 function renderHistoryListDOM() {
