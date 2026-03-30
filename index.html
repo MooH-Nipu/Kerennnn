@@ -221,6 +221,28 @@
 
         .fg { display: flex; flex-direction: column; gap: 4px; }
         .sg { display: flex; flex-direction: column; gap: 1rem; }
+
+        /* History */
+        .history-block { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+        .history-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; }
+        .history-head label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; text-transform: none; letter-spacing: 0; font-size: 0.78rem; color: var(--text-pri); }
+        .history-head input[type="checkbox"] { accent-color: var(--accent-hl); cursor: pointer; }
+        .history-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+        .history-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 0.76rem; font-family: 'JetBrains Mono', monospace; }
+        .history-row .h-meta { color: var(--text-sec); flex: 1; min-width: 140px; }
+        .history-row .h-actions { display: flex; gap: 6px; margin-left: auto; }
+        .history-mini { font-size: 0.68rem; color: var(--cyan); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .history-empty { font-size: 0.74rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; }
+
+        /* Export preset */
+        .vt-export-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.08); }
+        .vt-export-row label { margin: 0; font-size: 0.72rem; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.6px; }
+        .vt-preset-select { background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; max-width: 220px; }
+        .vt-col-chips { display: none; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+        .vt-col-chips.open { display: flex; }
+        .vt-col-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); font-size: 0.72rem; font-family: 'Syne', sans-serif; color: var(--text-sec); cursor: pointer; user-select: none; }
+        .vt-col-chip.on { border-color: rgba(47,126,247,0.45); color: var(--text-pri); background: rgba(47,126,247,0.08); }
+        .vt-col-chip input { accent-color: var(--accent-hl); cursor: pointer; }
     </style>
 </head>
 <body>
@@ -231,9 +253,9 @@
     </header>
 
     <nav class="tab-nav">
-        <button class="tab-btn active" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
-        <button class="tab-btn" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
-        <button class="tab-btn" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
+        <button type="button" class="tab-btn active" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
+        <button type="button" class="tab-btn" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
+        <button type="button" class="tab-btn" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
     </nav>
 
     <!-- TAB 1: IP FORMATTER -->
@@ -318,6 +340,14 @@
                         <span class="verdict verdict-malicious">● MALICIOUS</span>
                         <span class="verdict verdict-unknown">● NOT FOUND</span>
                     </div>
+
+                    <div class="history-block">
+                        <div class="history-head">
+                            <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat scan (lokal)</label>
+                            <button type="button" class="btn btn-secondary" style="padding:6px 12px;font-size:0.75rem;min-width:auto;flex:0" onclick="historyClearAll()">Hapus semua riwayat</button>
+                        </div>
+                        <div id="historyList" class="history-list"><span class="history-empty">Belum ada riwayat.</span></div>
+                    </div>
                 </div>
             </div>
 
@@ -334,14 +364,24 @@
                     </div>
                     <div class="vt-toolgroup">
                         <div class="vt-dd" id="vtExportDD">
-                            <button id="vtExportBtn" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
+                            <button type="button" id="vtExportBtn" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
                             <div id="vtExportMenu" class="vt-dd-menu">
-                                <button class="vt-dd-item" onclick="vtExport('csv')"><span>Export CSV</span><span class="vt-dd-sub">.csv</span></button>
-                                <button class="vt-dd-item" onclick="vtExport('pdf')"><span>Export PDF</span><span class="vt-dd-sub">.pdf</span></button>
+                                <button type="button" class="vt-dd-item" onclick="vtExport('csv')"><span>Export CSV</span><span class="vt-dd-sub">.csv</span></button>
+                                <button type="button" class="vt-dd-item" onclick="vtExport('pdf')"><span>Export PDF</span><span class="vt-dd-sub">.pdf</span></button>
                             </div>
                         </div>
                     </div>
                 </div>
+                <div class="vt-export-row">
+                    <label for="vtExportPreset">Preset kolom</label>
+                    <select id="vtExportPreset" class="vt-preset-select" onchange="vtOnExportPresetChange()">
+                        <option value="full">Lengkap (semua kolom)</option>
+                        <option value="minimal">Minimal (IOC, VT, confidence)</option>
+                        <option value="siem">SIEM (IOC, type, VT, detections, confidence, sources)</option>
+                        <option value="custom">Kustom…</option>
+                    </select>
+                </div>
+                <div id="vtExportColChips" class="vt-export-row vt-col-chips" aria-label="Pilih kolom export"></div>
                 <div class="vt-subbar">
                     <div id="vtSelectedNote" class="vt-sub-note">0 selected</div>
                     <div class="vt-sub-actions">
@@ -361,11 +401,13 @@
 </div>
 <script>
 /* ── TABS ── */
+const LS_TAB = 'socToolboxActiveTab';
 function openTab(id, btn) {
     document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
+    try { localStorage.setItem(LS_TAB, id); } catch (e) {}
 }
 
 /* ── UTILS ── */
@@ -540,6 +582,241 @@ function toggleCard(el) {
 let _cardIdx = 0;
 let _vtState = { items: [], filters: { clean:true, suspicious:true, malicious:true } };
 
+/* ── LOCAL HISTORY + EXPORT PRESETS ── */
+const LS_HISTORY = 'socToolboxScanHistory';
+const LS_HISTORY_SAVE = 'socToolboxSaveHistory';
+const LS_EXPORT_PRESET = 'socToolboxExportPreset';
+const LS_EXPORT_CUSTOM = 'socToolboxExportCustomCols';
+const HISTORY_MAX = 20;
+
+const VT_EXPORT_ALL_KEYS = ['ioc','type','vt_verdict','detections','abuseipdb_percent','otx_pulses','abusech_url_count','abusech_online_urls','country','as_owner','confidence','sources'];
+const VT_EXPORT_LABELS = {
+    ioc: 'IOC', type: 'Type', vt_verdict: 'VT Verdict', detections: 'Detections',
+    abuseipdb_percent: 'AbuseIPDB', otx_pulses: 'OTX Pulses', abusech_url_count: 'Abuse.ch URLs',
+    abusech_online_urls: 'Online URLs', country: 'Country', as_owner: 'AS Owner',
+    confidence: 'Confidence', sources: 'Threat Intel Sources'
+};
+const VT_EXPORT_PRESETS = {
+    full: VT_EXPORT_ALL_KEYS.slice(),
+    minimal: ['ioc','vt_verdict','confidence'],
+    siem: ['ioc','type','vt_verdict','detections','confidence','sources']
+};
+
+function errToObj(e) {
+    if (!e) return { message: 'Unknown error' };
+    return {
+        message: e.message || String(e),
+        status: e.status,
+        detail: e.detail
+    };
+}
+function objToErr(o) {
+    const e = new Error(o?.message || 'Error');
+    if (o && o.status !== undefined) e.status = o.status;
+    if (o && o.detail !== undefined) e.detail = o.detail;
+    return e;
+}
+
+function historySaveEnabled() {
+    const el = document.getElementById('historySaveToggle');
+    if (!el) return true;
+    return !!el.checked;
+}
+function historyPersistSavePref() {
+    try { localStorage.setItem(LS_HISTORY_SAVE, historySaveEnabled() ? '1' : '0'); } catch (e) {}
+}
+
+function loadHistoryEntries() {
+    try {
+        const raw = localStorage.getItem(LS_HISTORY);
+        const a = raw ? JSON.parse(raw) : [];
+        return Array.isArray(a) ? a : [];
+    } catch (e) { return []; }
+}
+function saveHistoryEntries(arr) {
+    try { localStorage.setItem(LS_HISTORY, JSON.stringify(arr)); } catch (e) {}
+}
+
+function pushHistoryFromLineResults(vtInput, lineResults) {
+    const entry = {
+        id: 'h-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9),
+        ts: new Date().toISOString(),
+        vtInput,
+        results: lineResults.map(r => ({
+            rawIoc: r.rawIoc,
+            vt: r.vtResult.status === 'fulfilled' ? r.vtResult.value : null,
+            vtErr: r.vtResult.status === 'rejected' ? errToObj(r.vtResult.reason) : null,
+            corr: r.corrResult.status === 'fulfilled' ? r.corrResult.value : null,
+            corrErr: r.corrResult.status === 'rejected' ? (r.corrResult.reason?.message || String(r.corrResult.reason)) : null
+        }))
+    };
+    let list = loadHistoryEntries();
+    list.unshift(entry);
+    if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
+    saveHistoryEntries(list);
+}
+
+function historyDeleteEntry(id) {
+    const list = loadHistoryEntries().filter(x => x.id !== id);
+    saveHistoryEntries(list);
+    renderHistoryListDOM();
+}
+function historyClearAll() {
+    if (!confirm('Hapus semua riwayat scan dari perangkat ini?')) return;
+    saveHistoryEntries([]);
+    renderHistoryListDOM();
+}
+
+function renderHistoryListDOM() {
+    const host = document.getElementById('historyList');
+    if (!host) return;
+    const list = loadHistoryEntries();
+    if (!list.length) {
+        host.innerHTML = '<span class="history-empty">Belum ada riwayat.</span>';
+        return;
+    }
+    host.innerHTML = list.map(ent => {
+        const d = new Date(ent.ts);
+        const when = isNaN(d.getTime()) ? ent.ts : d.toLocaleString();
+        const n = (ent.results && ent.results.length) || 0;
+        const preview = String(ent.vtInput || '').split('\n').filter(Boolean)[0] || '—';
+        const idJs = JSON.stringify(ent.id);
+        return `<div class="history-row">
+            <div class="h-meta">
+                <div>${escHtml(when)} · ${n} IOC</div>
+                <div class="history-mini" title="${escHtml(preview)}">${escHtml(preview.length > 64 ? preview.slice(0,64)+'…' : preview)}</div>
+            </div>
+            <div class="h-actions">
+                <button type="button" class="vt-mini-btn" onclick="historyRestoreEntry(${idJs})">Buka</button>
+                <button type="button" class="vt-mini-btn" onclick="historyDeleteEntry(${idJs})">Hapus</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function historyRestoreEntry(id) {
+    const ent = loadHistoryEntries().find(x => x.id === id);
+    if (!ent || !ent.results || !ent.results.length) return;
+    document.getElementById('vtInput').value = ent.vtInput || '';
+    const lineResults = ent.results.map(r => ({
+        rawIoc: r.rawIoc,
+        vtResult: r.vt ? { status: 'fulfilled', value: r.vt } : { status: 'rejected', reason: objToErr(r.vtErr || { message: 'VT error' }) },
+        corrResult: r.corr ? { status: 'fulfilled', value: r.corr } : { status: 'rejected', reason: { message: r.corrErr || 'Correlation failed' } }
+    }));
+    const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
+    if (tabBtn) openTab('tab-vt', tabBtn);
+    const btn = document.getElementById('vtRunBtn');
+    if (btn) btn.disabled = true;
+    setStatus('statusVT', '<span class="spinner"></span> Memuat riwayat…', 'loading');
+    await renderScanBatch(lineResults);
+    if (btn) btn.disabled = false;
+    clearStatus('statusVT');
+    setStatus('statusVT', '✓ Riwayat dimuat (tanpa request API baru).', 'success');
+}
+
+function vtGetExportColumnKeys() {
+    const sel = document.getElementById('vtExportPreset');
+    const preset = sel ? sel.value : 'full';
+    if (preset === 'custom') {
+        try {
+            const raw = localStorage.getItem(LS_EXPORT_CUSTOM);
+            const a = raw ? JSON.parse(raw) : null;
+            if (Array.isArray(a) && a.length) return a.filter(k => VT_EXPORT_ALL_KEYS.includes(k));
+        } catch (e) {}
+        return VT_EXPORT_PRESETS.full;
+    }
+    return VT_EXPORT_PRESETS[preset] ? VT_EXPORT_PRESETS[preset].slice() : VT_EXPORT_PRESETS.full;
+}
+
+function vtExportCellValue(item, key) {
+    const srcLine = (item.correlation?.sources || []).map(s => {
+        const v = (s.verdict || (s.skipped ? 'skipped' : s.error ? 'error' : 'unknown'));
+        return `${s.source}:${v}`;
+    }).join(' | ');
+    switch (key) {
+        case 'ioc': return item.ioc;
+        case 'type': return String(item.type || '').toUpperCase();
+        case 'vt_verdict': return item.vtVerdict;
+        case 'detections': return `${item.malicious}/${item.total || 0}`;
+        case 'abuseipdb_percent': {
+            const p = vtGetAbusePercent(item);
+            return p === '' ? '' : (String(p) + '%');
+        }
+        case 'otx_pulses': return vtGetOtxPulses(item);
+        case 'abusech_url_count': return vtGetAbuseChUrlCount(item);
+        case 'abusech_online_urls': return vtGetAbuseChOnlineUrls(item);
+        case 'country': return item.country || '';
+        case 'as_owner': return item.asOwner || '';
+        case 'confidence': return item.correlation?.confidence ?? '';
+        case 'sources': return srcLine;
+        default: return '';
+    }
+}
+
+function vtExportPdfCellDisplay(item, key) {
+    const v = vtExportCellValue(item, key);
+    if (v === '' || v === null || v === undefined) return '—';
+    return v;
+}
+
+function vtOnExportPresetChange() {
+    const sel = document.getElementById('vtExportPreset');
+    const chips = document.getElementById('vtExportColChips');
+    if (!sel || !chips) return;
+    const v = sel.value;
+    try { localStorage.setItem(LS_EXPORT_PRESET, v); } catch (e) {}
+    if (v === 'custom') {
+        chips.classList.add('open');
+        vtRenderExportColChips();
+    } else {
+        chips.classList.remove('open');
+    }
+}
+
+function vtRenderExportColChips() {
+    const chips = document.getElementById('vtExportColChips');
+    if (!chips) return;
+    let selected = [];
+    try {
+        const raw = localStorage.getItem(LS_EXPORT_CUSTOM);
+        const a = raw ? JSON.parse(raw) : null;
+        selected = Array.isArray(a) && a.length ? a : VT_EXPORT_ALL_KEYS.slice();
+    } catch (e) { selected = VT_EXPORT_ALL_KEYS.slice(); }
+
+    chips.innerHTML = VT_EXPORT_ALL_KEYS.map(k => {
+        const on = selected.includes(k) ? ' on' : '';
+        const lab = VT_EXPORT_LABELS[k] || k;
+        return `<span class="vt-col-chip${on}" data-key="${escHtml(k)}" onclick="vtToggleExportColChip(this)"><input type="checkbox" ${selected.includes(k)?'checked':''} onclick="event.stopPropagation();vtToggleExportColChip(this.parentElement)"/> ${escHtml(lab)}</span>`;
+    }).join('');
+}
+
+function vtToggleExportColChip(el) {
+    const k = el.getAttribute('data-key');
+    if (!k) return;
+    let selected = [];
+    try {
+        const raw = localStorage.getItem(LS_EXPORT_CUSTOM);
+        const a = raw ? JSON.parse(raw) : VT_EXPORT_ALL_KEYS;
+        selected = Array.isArray(a) && a.length ? a.slice() : VT_EXPORT_ALL_KEYS.slice();
+    } catch (e) { selected = VT_EXPORT_ALL_KEYS.slice(); }
+    const i = selected.indexOf(k);
+    if (i >= 0) selected.splice(i, 1);
+    else selected.push(k);
+    if (!selected.length) selected = ['ioc'];
+    try { localStorage.setItem(LS_EXPORT_CUSTOM, JSON.stringify(selected)); } catch (e) {}
+    vtRenderExportColChips();
+}
+
+function vtInitExportPresetUI() {
+    const sel = document.getElementById('vtExportPreset');
+    if (!sel) return;
+    try {
+        const s = localStorage.getItem(LS_EXPORT_PRESET);
+        if (s && ['full','minimal','siem','custom'].includes(s)) sel.value = s;
+    } catch (e) {}
+    vtOnExportPresetChange();
+}
+
 function vtVerdictKeyFromClass(cls) {
     if (cls === 'verdict-clean') return 'clean';
     if (cls === 'verdict-suspicious') return 'suspicious';
@@ -684,36 +961,14 @@ function vtGetAbuseChOnlineUrls(item) {
 function vtExportCSV() {
     const items = vtGetSelectedItems();
     if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
-    const cols = [
-        'ioc','type','vt_verdict','detections','abuseipdb_percent','otx_pulses','abusech_url_count','abusech_online_urls','country','as_owner','confidence','sources'
-    ];
+    const colKeys = vtGetExportColumnKeys();
+    const cols = colKeys.map(k => VT_EXPORT_LABELS[k] || k);
     const esc = (v) => {
         const s = String(v ?? '');
         if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
         return s;
     };
-    const rows = items.map(x => {
-        const src = (x.correlation?.sources || []).map(s => {
-            const v = (s.verdict || (s.skipped?'skipped':s.error?'error':'unknown'));
-            return `${s.source}:${v}`;
-        }).join(' | ');
-        const abusePct = vtGetAbusePercent(x);
-        const otxPulses = vtGetOtxPulses(x);
-        const abuseChUrlCount = vtGetAbuseChUrlCount(x);
-        const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
-        return [
-            x.ioc, x.type, x.vtVerdict,
-            `${x.malicious}/${x.total || 0}`,
-            abusePct === '' ? '' : (String(abusePct) + '%'),
-            otxPulses,
-            abuseChUrlCount === '' ? '' : String(abuseChUrlCount),
-            abuseChOnlineUrls === '' ? '' : String(abuseChOnlineUrls),
-            x.country || '',
-            x.asOwner || '',
-            x.correlation?.confidence ?? '',
-            src
-        ].map(esc).join(',');
-    });
+    const rows = items.map(x => colKeys.map(k => esc(vtExportCellValue(x, k))).join(','));
     const csv = [cols.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
@@ -729,32 +984,18 @@ function vtExportPDF() {
     const items = vtGetSelectedItems();
     if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
 
+    const colKeys = vtGetExportColumnKeys();
+    const headLabels = colKeys.map(k => (VT_EXPORT_LABELS[k] || k).toUpperCase());
+
     // Prefer jsPDF if available; otherwise fallback to print-friendly HTML.
     const hasJsPDF = !!(window.jspdf && window.jspdf.jsPDF);
     if (!hasJsPDF) {
         const win = window.open('', '_blank');
         if (!win) { setStatus('statusVT', '⚠ Popup blocked: tidak bisa generate PDF window.', 'error'); return; }
+        const th = headLabels.map(h => `<th>${escHtml(h)}</th>`).join('');
         const rows = items.map(x => {
-            const src = (x.correlation?.sources || []).map(s => `${s.source} (${(s.verdict||'unknown').toUpperCase()})`).join(', ') || '—';
-            const conf = x.correlation?.confidence ?? '—';
-            const abusePct = vtGetAbusePercent(x);
-            const otxPulses = vtGetOtxPulses(x);
-            const abuseChUrlCount = vtGetAbuseChUrlCount(x);
-            const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
-            return `<tr>
-                <td>${escHtml(x.ioc)}</td>
-                <td>${escHtml(String(x.type).toUpperCase())}</td>
-                <td>${escHtml(x.vtVerdict)}</td>
-                <td>${escHtml(`${x.malicious}/${x.total || 0}`)}</td>
-                <td>${escHtml(abusePct === '' ? '—' : String(abusePct) + '%')}</td>
-                <td>${escHtml(otxPulses === '' ? '—' : String(otxPulses))}</td>
-                <td>${escHtml(abuseChUrlCount === '' ? '—' : String(abuseChUrlCount))}</td>
-                <td>${escHtml(abuseChOnlineUrls === '' ? '—' : String(abuseChOnlineUrls))}</td>
-                <td>${escHtml(x.country || '—')}</td>
-                <td>${escHtml(x.asOwner || '—')}</td>
-                <td>${escHtml(String(conf))}</td>
-                <td>${escHtml(src)}</td>
-            </tr>`;
+            const tds = colKeys.map(k => `<td>${escHtml(String(vtExportPdfCellDisplay(x, k)))}</td>`).join('');
+            return `<tr>${tds}</tr>`;
         }).join('');
         win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>VT Export</title>
             <style>
@@ -768,7 +1009,7 @@ function vtExportPDF() {
             <h2>VirusTotal + Threat Intel Export</h2>
             <div class="meta">Generated: ${new Date().toLocaleString()}</div>
             <table>
-                <thead><tr><th>IOC</th><th>Type</th><th>VT Verdict</th><th>Detections</th><th>AbuseIPDB</th><th>OTX Pulses</th><th>Abuse.ch URLs</th><th>Online URLs</th><th>Country</th><th>AS Owner</th><th>Confidence</th><th>Threat Intel Sources</th></tr></thead>
+                <thead><tr>${th}</tr></thead>
                 <tbody>${rows}</tbody>
             </table>
             <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
@@ -792,48 +1033,21 @@ function vtExportPDF() {
     doc.text(`Items: ${items.length}`, margin, y);
     y += 18;
 
-    const body = items.map(x => {
-        const src = (x.correlation?.sources || []).map(s => `${s.source}:${(s.verdict||'unknown')}`).join(' | ') || '—';
-        const conf = x.correlation?.confidence ?? '—';
-        const abusePct = vtGetAbusePercent(x);
-        const otxPulses = vtGetOtxPulses(x);
-        const abuseChUrlCount = vtGetAbuseChUrlCount(x);
-        const abuseChOnlineUrls = vtGetAbuseChOnlineUrls(x);
-        return [
-            x.ioc,
-            String(x.type).toUpperCase(),
-            x.vtVerdict,
-            `${x.malicious}/${x.total || 0}`,
-            abusePct === '' ? '—' : (String(abusePct) + '%'),
-            otxPulses === '' ? '—' : String(otxPulses),
-            abuseChUrlCount === '' ? '—' : String(abuseChUrlCount),
-            abuseChOnlineUrls === '' ? '—' : String(abuseChOnlineUrls),
-            x.country || '—',
-            x.asOwner || '—',
-            String(conf),
-            src
-        ];
-    });
+    const body = items.map(x => colKeys.map(k => String(vtExportPdfCellDisplay(x, k))));
 
     if (doc.autoTable) {
         doc.autoTable({
             startY: y,
-            head: [['IOC','TYPE','VT VERDICT','DETECTIONS','ABUSE','OTX','ABUSE.CH URLS','ONLINE URLS','COUNTRY','AS OWNER','CONF','THREAT INTEL SOURCES']],
+            head: [headLabels],
             body,
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
             headStyles: { fillColor: [14, 24, 41] },
-            margin: { left: margin, right: margin },
-            columnStyles: {
-                0:{cellWidth:80}, 1:{cellWidth:40}, 2:{cellWidth:60}, 3:{cellWidth:50},
-                4:{cellWidth:38}, 5:{cellWidth:30}, 6:{cellWidth:50}, 7:{cellWidth:50},
-                8:{cellWidth:55}, 9:{cellWidth:75}, 10:{cellWidth:35}, 11:{cellWidth:150}
-            }
+            margin: { left: margin, right: margin }
         });
     } else {
-        // Minimal fallback if autotable missing
         doc.setFontSize(9);
         for (const row of body) {
-            const line = `${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | Abuse:${row[4]} | OTX:${row[5]} | Abuse.ch:${row[6]}/${row[7]} | ${row[8]} | ${row[9]} | Conf:${row[10]}`;
+            const line = row.join(' | ');
             if (y > 780) { doc.addPage(); y = margin; }
             doc.text(line, margin, y);
             y += 12;
@@ -1168,18 +1382,10 @@ function renderCorrelation(data, panelEl) {
         <div class="source-grid">${sourceRows || '<span style="color:var(--text-sec);font-size:0.78rem;">No sources available for this IOC type.</span>'}</div>`;
 }
 
-async function runVTLookup() {
-    const raw = document.getElementById('vtInput').value.trim();
+async function renderScanBatch(lineResults) {
     const res = document.getElementById('vtResults');
-    const btn = document.getElementById('vtRunBtn');
-    clearStatus('statusVT');
+    if (!res) return;
 
-    if (!raw) { setStatus('statusVT','⚠ Input tidak boleh kosong!','error'); return; }
-
-    const lines = [...new Set(raw.split('\n').map(s=>s.trim()).filter(looksLikeIOC))];
-    if (!lines.length) { setStatus('statusVT','⚠ Tidak ada IOC yang valid.','error'); return; }
-
-    btn.disabled = true;
     res.innerHTML = '';
     document.getElementById('vtResultCount').textContent = '';
     _vtState.items = [];
@@ -1187,17 +1393,10 @@ async function runVTLookup() {
 
     const cards = [];
     _cardIdx = 0;
-    const multi = lines.length > 1;
+    const multi = lineResults.length > 1;
 
-    for (let i = 0; i < lines.length; i++) {
-        const rawIoc = lines[i];
-        setStatus('statusVT', `<span class="spinner"></span> Scanning ${i+1} / ${lines.length}...`, 'loading');
-
-        // Run VT + correlation in parallel
-        const [vtResult, corrResult] = await Promise.allSettled([
-            vtGet(rawIoc),
-            fetchCorrelation(rawIoc),
-        ]);
+    for (let i = 0; i < lineResults.length; i++) {
+        const { rawIoc, vtResult, corrResult } = lineResults[i];
 
         let cardHtml;
         if (vtResult.status === 'fulfilled') {
@@ -1212,19 +1411,15 @@ async function runVTLookup() {
             cardHtml = renderErr(rawIoc, null, vtResult.reason, multi, corrData);
         }
 
-        // Inject correlation placeholder div inside card before closing
         const corrId = `corr-${_cardIdx - 1}`;
         cardHtml = cardHtml.replace(
-            '</div>\n    </div>',   // end of last vt-card-body
+            '</div>\n    </div>',
             `</div>\n    <div class="corr-panel" id="${corrId}"><div class="corr-loading"><span class="spinner"></span> Loading threat intel...</div></div>\n    </div>`
         );
         cards.push({ html: cardHtml, corrId, corrResult });
-
-        if (i < lines.length - 1) await new Promise(r=>setTimeout(r, 400));
     }
 
     res.innerHTML = cards.map(c => c.html).join('');
-    // Set data attributes for filtering + export
     [...res.querySelectorAll('.vt-card')].forEach((card, idx) => {
         const item = _vtState.items[idx];
         if (!item) return;
@@ -1233,13 +1428,11 @@ async function runVTLookup() {
     });
     vtApplyFilters();
 
-    // Populate correlation panels
     for (const { corrId, corrResult } of cards) {
         const panel = document.getElementById(corrId);
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
-            // attach correlation data to state
             const idNum = Number(String(corrId).replace('corr-',''));
             const it = _vtState.items.find(x => x.id === idNum);
             if (it) {
@@ -1256,17 +1449,75 @@ async function runVTLookup() {
         }
     }
 
+    document.getElementById('vtResultCount').textContent = `${lineResults.length} result(s)`;
+}
+
+async function runVTLookup() {
+    const raw = document.getElementById('vtInput').value.trim();
+    const btn = document.getElementById('vtRunBtn');
+    clearStatus('statusVT');
+
+    if (!raw) { setStatus('statusVT','⚠ Input tidak boleh kosong!','error'); return; }
+
+    const lines = [...new Set(raw.split('\n').map(s=>s.trim()).filter(looksLikeIOC))];
+    if (!lines.length) { setStatus('statusVT','⚠ Tidak ada IOC yang valid.','error'); return; }
+
+    btn.disabled = true;
+    const lineResults = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawIoc = lines[i];
+        setStatus('statusVT', `<span class="spinner"></span> Scanning ${i+1} / ${lines.length}...`, 'loading');
+
+        const [vtResult, corrResult] = await Promise.allSettled([
+            vtGet(rawIoc),
+            fetchCorrelation(rawIoc),
+        ]);
+        lineResults.push({ rawIoc, vtResult, corrResult });
+
+        if (i < lines.length - 1) await new Promise(r => setTimeout(r, 400));
+    }
+
+    await renderScanBatch(lineResults);
+
     btn.disabled = false;
-    document.getElementById('vtResultCount').textContent = `${lines.length} result(s)`;
     setStatus('statusVT', `✓ ${lines.length} IOC(s) scanned.`, 'success');
+
+    if (historySaveEnabled()) {
+        try { pushHistoryFromLineResults(raw, lineResults); } catch (e) {}
+    }
+    renderHistoryListDOM();
 }
 
 function clearVT() {
     document.getElementById('vtInput').value = '';
     document.getElementById('vtResults').innerHTML = '<div style="color:var(--text-sec);font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>';
     document.getElementById('vtResultCount').textContent = '';
+    _vtState.items = [];
+    vtUpdateSelectedNote();
     clearStatus('statusVT');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const id = localStorage.getItem(LS_TAB);
+        if (id && document.getElementById(id)) {
+            const btn = document.querySelector('.tab-btn[data-tab="' + id + '"]');
+            if (btn) openTab(id, btn);
+        }
+    } catch (e) {}
+
+    const ht = document.getElementById('historySaveToggle');
+    if (ht) {
+        try {
+            const s = localStorage.getItem(LS_HISTORY_SAVE);
+            if (s === '0') ht.checked = false;
+        } catch (e) {}
+        ht.addEventListener('change', historyPersistSavePref);
+    }
+    renderHistoryListDOM();
+    vtInitExportPresetUI();
+});
 </script>
 </body>
 </html>
