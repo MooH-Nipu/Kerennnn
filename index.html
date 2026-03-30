@@ -687,8 +687,8 @@ function renderHistoryListDOM() {
                 <div class="history-mini" title="${escHtml(preview)}">${escHtml(preview.length > 64 ? preview.slice(0,64)+'…' : preview)}</div>
             </div>
             <div class="h-actions">
-                <button type="button" class="vt-mini-btn" onclick="historyRestoreEntry(${idJs})">Buka</button>
-                <button type="button" class="vt-mini-btn" onclick="historyDeleteEntry(${idJs})">Hapus</button>
+                <button type="button" class="vt-mini-btn" onclick='historyRestoreEntry(${idJs})'>Buka</button>
+                <button type="button" class="vt-mini-btn" onclick='historyDeleteEntry(${idJs})'>Hapus</button>
             </div>
         </div>`;
     }).join('');
