@@ -243,6 +243,17 @@
         .vt-col-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); font-size: 0.72rem; font-family: 'Syne', sans-serif; color: var(--text-sec); cursor: pointer; user-select: none; }
         .vt-col-chip.on { border-color: rgba(47,126,247,0.45); color: var(--text-pri); background: rgba(47,126,247,0.08); }
         .vt-col-chip input { accent-color: var(--accent-hl); cursor: pointer; }
+
+        /* Tab Riwayat: daftar + hasil snapshot */
+        .history-layout { display: flex; flex-direction: column; gap: 1.5rem; }
+        @media (min-width: 1100px) {
+            .history-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; align-items: start; }
+        }
+        .history-hint { font-size: 0.8rem; color: var(--text-sec); line-height: 1.45; margin-bottom: 0.75rem; }
+        #historyScanSurface { margin-top: 0.5rem; }
+        #historyScanSurface .vt-toolbar { border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; }
+        #historyScanSurface .vt-subbar { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+        #historyScanResults { border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; min-height: 120px; padding-right: 2px; }
     </style>
 </head>
 <body>
@@ -256,6 +267,7 @@
         <button type="button" class="tab-btn active" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button type="button" class="tab-btn" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
         <button type="button" class="tab-btn" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
+        <button type="button" class="tab-btn" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
 
     <!-- TAB 1: IP FORMATTER -->
@@ -341,13 +353,7 @@
                         <span class="verdict verdict-unknown">● NOT FOUND</span>
                     </div>
 
-                    <div class="history-block">
-                        <div class="history-head">
-                            <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat scan (lokal)</label>
-                            <button type="button" class="btn btn-secondary" style="padding:6px 12px;font-size:0.75rem;min-width:auto;flex:0" onclick="historyClearAll()">Hapus semua riwayat</button>
-                        </div>
-                        <div id="historyList" class="history-list"><span class="history-empty">Belum ada riwayat.</span></div>
-                    </div>
+                    <p class="history-hint" style="margin:0;">Riwayat hasil scan (offline) ada di tab <strong>📜 Riwayat Scan</strong>. Untuk scan ulang, tempel IOC di sini lalu jalankan lookup.</p>
                 </div>
             </div>
 
@@ -398,6 +404,62 @@
         </div>
     </div>
 
+    <!-- TAB: RIWAYAT SCAN (snapshot hasil, tanpa scan ulang) -->
+    <div id="tab-history" class="tab-content">
+        <div class="history-layout">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Riwayat tersimpan</div>
+                <p class="history-hint">Setiap scan di tab Lookup dapat disimpan lokal (IOC + hasil VT + korelasi). Klik <strong>Lihat hasil</strong> untuk menampilkan kartu di panel kanan — tanpa request API baru.</p>
+                <div class="history-head" style="margin-bottom:10px;">
+                    <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat setelah scan</label>
+                </div>
+                <button type="button" class="btn btn-secondary" style="padding:8px 14px;font-size:0.8rem;width:100%;margin-bottom:10px;" onclick="historyClearAll()">Hapus semua riwayat</button>
+                <div id="historyList" class="history-list"><span class="history-empty">Belum ada riwayat.</span></div>
+            </div>
+
+            <div class="card" style="min-width:0;">
+                <div class="card-title"><span class="dot"></span> Hasil tersimpan</div>
+                <p class="history-hint" style="margin-top:0;">Preset kolom CSV/PDF mengikuti pengaturan di tab <strong>VirusTotal Lookup</strong>.</p>
+                <div id="statusHistory" class="status"></div>
+                <div id="historyScanPlaceholder" class="history-empty" style="padding:1.25rem;border:1px dashed var(--border);border-radius:10px;">
+                    Pilih entri riwayat di kiri untuk memuat snapshot hasil IOC di sini.
+                </div>
+                <div id="historyScanSurface" style="display:none;">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                        <span style="font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sec);">Snapshot</span>
+                        <span id="historyResultCount" style="font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
+                        <button type="button" class="vt-mini-btn" style="margin-left:auto;" onclick="historySendIocToLookup()" title="Isi textarea Lookup dengan IOC entri ini">Scan ulang di Lookup →</button>
+                    </div>
+                    <div class="vt-toolbar">
+                        <div class="vt-toolgroup" style="gap:8px;">
+                            <span class="vt-chip clean on" onclick="vtToggleFilter('clean', this)"><input id="hVtF_clean" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('clean', this.parentElement)"/> CLEAN</span>
+                            <span class="vt-chip susp on" onclick="vtToggleFilter('suspicious', this)"><input id="hVtF_suspicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('suspicious', this.parentElement)"/> SUSPICIOUS</span>
+                            <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="hVtF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>
+                        </div>
+                        <div class="vt-toolgroup">
+                            <div class="vt-dd" id="historyExportDD">
+                                <button type="button" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
+                                <div class="vt-dd-menu">
+                                    <button type="button" class="vt-dd-item" onclick="vtExport('csv')"><span>Export CSV</span><span class="vt-dd-sub">.csv</span></button>
+                                    <button type="button" class="vt-dd-item" onclick="vtExport('pdf')"><span>Export PDF</span><span class="vt-dd-sub">.pdf</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vt-subbar">
+                        <div id="historySelectedNote" class="vt-sub-note">0 selected</div>
+                        <div class="vt-sub-actions">
+                            <button type="button" class="vt-mini-btn" onclick="vtSelectVisible(true)">Select visible</button>
+                            <button type="button" class="vt-mini-btn" onclick="vtSelectVisible(false)">Unselect visible</button>
+                            <button type="button" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
+                        </div>
+                    </div>
+                    <div id="historyScanResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 <script>
 /* ── TABS ── */
@@ -408,6 +470,19 @@ function openTab(id, btn) {
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
     try { localStorage.setItem(LS_TAB, id); } catch (e) {}
+
+    if (id === 'tab-vt') {
+        _vtState = _vtStateLookup;
+        _vtActiveResultsId = 'vtResults';
+        _vtActiveNoteId = 'vtSelectedNote';
+        _vtStatusMsgId = 'statusVT';
+    } else if (id === 'tab-history') {
+        _vtState = _vtStateHistory;
+        _vtActiveResultsId = 'historyScanResults';
+        _vtActiveNoteId = 'historySelectedNote';
+        _vtStatusMsgId = 'statusHistory';
+    }
+    if (id === 'tab-vt' || id === 'tab-history') vtSyncFilterUIs();
 }
 
 /* ── UTILS ── */
@@ -580,7 +655,46 @@ function toggleCard(el) {
 }
 
 let _cardIdx = 0;
-let _vtState = { items: [], filters: { clean:true, suspicious:true, malicious:true } };
+function makeVtState() {
+    return { items: [], filters: { clean: true, suspicious: true, malicious: true } };
+}
+let _vtStateLookup = makeVtState();
+let _vtStateHistory = makeVtState();
+let _vtState = _vtStateLookup;
+
+/** Target DOM untuk kartu hasil: Lookup (#vtResults) atau Riwayat (#historyScanResults) */
+let _vtActiveResultsId = 'vtResults';
+let _vtActiveNoteId = 'vtSelectedNote';
+let _vtStatusMsgId = 'statusVT';
+/** IOC text dari entri riwayat yang sedang ditampilkan (untuk "Scan ulang di Lookup") */
+let _historyViewingVtInput = '';
+
+function vtNotify(msg, type) {
+    const id = _vtStatusMsgId || 'statusVT';
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = msg;
+    el.className = 'status ' + type;
+}
+function vtQuickStatus(msg) { vtNotify(msg, 'success'); }
+
+const VT_FILTER_IDS = {
+    lookup:  { clean: 'vtF_clean', suspicious: 'vtF_suspicious', malicious: 'vtF_malicious' },
+    history: { clean: 'hVtF_clean', suspicious: 'hVtF_suspicious', malicious: 'hVtF_malicious' }
+};
+function vtSyncFilterUIs() {
+    function apply(state, idMap) {
+        ['clean', 'suspicious', 'malicious'].forEach(k => {
+            const cb = document.getElementById(idMap[k]);
+            const chip = cb?.closest('.vt-chip');
+            const on = !!state.filters[k];
+            if (cb) cb.checked = on;
+            chip?.classList.toggle('on', on);
+        });
+    }
+    apply(_vtStateLookup, VT_FILTER_IDS.lookup);
+    apply(_vtStateHistory, VT_FILTER_IDS.history);
+}
 
 /* ── LOCAL HISTORY + EXPORT PRESETS ── */
 const LS_HISTORY = 'socToolboxScanHistory';
@@ -664,7 +778,20 @@ function historyDeleteEntry(id) {
 function historyClearAll() {
     if (!confirm('Hapus semua riwayat scan dari perangkat ini?')) return;
     saveHistoryEntries([]);
+    _historyViewingVtInput = '';
     renderHistoryListDOM();
+    const ph = document.getElementById('historyScanPlaceholder');
+    const surf = document.getElementById('historyScanSurface');
+    const hr = document.getElementById('historyScanResults');
+    const hc = document.getElementById('historyResultCount');
+    if (ph) ph.style.display = '';
+    if (surf) surf.style.display = 'none';
+    if (hr) hr.innerHTML = '';
+    if (hc) hc.textContent = '';
+    _vtStateHistory.items.length = 0;
+    Object.assign(_vtStateHistory.filters, { clean: true, suspicious: true, malicious: true });
+    clearStatus('statusHistory');
+    vtSyncFilterUIs();
 }
 
 function renderHistoryListDOM() {
@@ -687,7 +814,7 @@ function renderHistoryListDOM() {
                 <div class="history-mini" title="${escHtml(preview)}">${escHtml(preview.length > 64 ? preview.slice(0,64)+'…' : preview)}</div>
             </div>
             <div class="h-actions">
-                <button type="button" class="vt-mini-btn" onclick='historyRestoreEntry(${idJs})'>Buka</button>
+                <button type="button" class="vt-mini-btn" onclick='historyRestoreEntry(${idJs})'>Lihat hasil</button>
                 <button type="button" class="vt-mini-btn" onclick='historyDeleteEntry(${idJs})'>Hapus</button>
             </div>
         </div>`;
@@ -697,21 +824,32 @@ function renderHistoryListDOM() {
 async function historyRestoreEntry(id) {
     const ent = loadHistoryEntries().find(x => x.id === id);
     if (!ent || !ent.results || !ent.results.length) return;
-    document.getElementById('vtInput').value = ent.vtInput || '';
+    _historyViewingVtInput = ent.vtInput || '';
+
     const lineResults = ent.results.map(r => ({
         rawIoc: r.rawIoc,
         vtResult: r.vt ? { status: 'fulfilled', value: r.vt } : { status: 'rejected', reason: objToErr(r.vtErr || { message: 'VT error' }) },
         corrResult: r.corr ? { status: 'fulfilled', value: r.corr } : { status: 'rejected', reason: { message: r.corrErr || 'Correlation failed' } }
     }));
+
+    const tabBtn = document.querySelector('.tab-btn[data-tab="tab-history"]');
+    if (tabBtn) openTab('tab-history', tabBtn);
+
+    vtNotify('<span class="spinner"></span> Memuat snapshot hasil…', 'loading');
+    await renderScanBatch(lineResults, { mode: 'history' });
+    vtNotify('✓ Snapshot dimuat (data lokal, tanpa API).', 'success');
+}
+
+function historySendIocToLookup() {
+    const txt = _historyViewingVtInput || '';
+    if (!txt.trim()) {
+        setStatus('statusHistory', '⚠ Tidak ada IOC tersimpan untuk entri ini.', 'error');
+        return;
+    }
+    document.getElementById('vtInput').value = txt;
     const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
     if (tabBtn) openTab('tab-vt', tabBtn);
-    const btn = document.getElementById('vtRunBtn');
-    if (btn) btn.disabled = true;
-    setStatus('statusVT', '<span class="spinner"></span> Memuat riwayat…', 'loading');
-    await renderScanBatch(lineResults);
-    if (btn) btn.disabled = false;
-    clearStatus('statusVT');
-    setStatus('statusVT', '✓ Riwayat dimuat (tanpa request API baru).', 'success');
+    setStatus('statusVT', '✓ IOC dari riwayat ditempelkan — jalankan <strong>Scan with VirusTotal</strong> bila ingin scan ulang.', 'success');
 }
 
 function vtGetExportColumnKeys() {
@@ -826,7 +964,7 @@ function vtVerdictKeyFromClass(cls) {
 
 function vtUpdateSelectedNote() {
     const n = _vtState.items.filter(x => x.selected).length;
-    const el = document.getElementById('vtSelectedNote');
+    const el = document.getElementById(_vtActiveNoteId || 'vtSelectedNote');
     if (el) el.textContent = `${n} selected`;
 }
 
@@ -835,7 +973,7 @@ function vtGetSelectedItems() {
 }
 
 function vtApplyFilters() {
-    const res = document.getElementById('vtResults');
+    const res = document.getElementById(_vtActiveResultsId || 'vtResults');
     if (!res) return;
     const cards = [...res.querySelectorAll('.vt-card')];
     for (const c of cards) {
@@ -855,7 +993,7 @@ function vtToggleFilter(key, chipEl) {
 }
 
 function vtSelectVisible(on) {
-    const res = document.getElementById('vtResults');
+    const res = document.getElementById(_vtActiveResultsId || 'vtResults');
     if (!res) return;
     const visibleCards = [...res.querySelectorAll('.vt-card')].filter(c => c.style.display !== 'none');
     for (const card of visibleCards) {
@@ -891,28 +1029,29 @@ async function vtCopyToClipboard(text) {
 
 async function vtCopySelected() {
     const items = vtGetSelectedItems();
-    if (!items.length) { setStatus('statusVT', '⚠ Tidak ada item yang dipilih.', 'error'); return; }
+    if (!items.length) { vtNotify('⚠ Tidak ada item yang dipilih.', 'error'); return; }
     const txt = items.map(x => x.ioc).join('\n');
     await vtCopyToClipboard(txt);
-    setStatus('statusVT', `✓ Copied ${items.length} IOC(s).`, 'success');
+    vtNotify(`✓ Copied ${items.length} IOC(s).`, 'success');
 }
 
 function vtToggleExportMenu(ev) {
     ev?.stopPropagation?.();
-    const menu = document.getElementById('vtExportMenu');
+    const btn = ev?.currentTarget;
+    const dd = btn?.closest?.('.vt-dd');
+    const menu = dd?.querySelector?.('.vt-dd-menu');
     if (!menu) return;
+    document.querySelectorAll('.vt-dd-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
     menu.classList.toggle('open');
 }
 
 function vtCloseExportMenu() {
-    const menu = document.getElementById('vtExportMenu');
-    if (menu) menu.classList.remove('open');
+    document.querySelectorAll('.vt-dd-menu.open').forEach(m => m.classList.remove('open'));
 }
 
 document.addEventListener('click', (e) => {
-    const dd = document.getElementById('vtExportDD');
-    if (!dd) return;
-    if (!dd.contains(e.target)) vtCloseExportMenu();
+    if (e.target.closest('.vt-dd')) return;
+    vtCloseExportMenu();
 });
 
 function vtExport(kind) {
@@ -960,7 +1099,7 @@ function vtGetAbuseChOnlineUrls(item) {
 
 function vtExportCSV() {
     const items = vtGetSelectedItems();
-    if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
+    if (!items.length) { vtNotify('⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
     const colKeys = vtGetExportColumnKeys();
     const cols = colKeys.map(k => VT_EXPORT_LABELS[k] || k);
     const esc = (v) => {
@@ -977,12 +1116,12 @@ function vtExportCSV() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setStatus('statusVT', `✓ CSV exported (${items.length} row(s)).`, 'success');
+    vtNotify(`✓ CSV exported (${items.length} row(s)).`, 'success');
 }
 
 function vtExportPDF() {
     const items = vtGetSelectedItems();
-    if (!items.length) { setStatus('statusVT', '⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
+    if (!items.length) { vtNotify('⚠ Pilih dulu item yang mau di-export.', 'error'); return; }
 
     const colKeys = vtGetExportColumnKeys();
     const headLabels = colKeys.map(k => (VT_EXPORT_LABELS[k] || k).toUpperCase());
@@ -991,32 +1130,32 @@ function vtExportPDF() {
     const hasJsPDF = !!(window.jspdf && window.jspdf.jsPDF);
     if (!hasJsPDF) {
         const win = window.open('', '_blank');
-        if (!win) { setStatus('statusVT', '⚠ Popup blocked: tidak bisa generate PDF window.', 'error'); return; }
+        if (!win) { vtNotify('⚠ Popup blocked: tidak bisa generate PDF window.', 'error'); return; }
         const th = headLabels.map(h => `<th>${escHtml(h)}</th>`).join('');
         const rows = items.map(x => {
             const tds = colKeys.map(k => `<td>${escHtml(String(vtExportPdfCellDisplay(x, k)))}</td>`).join('');
             return `<tr>${tds}</tr>`;
         }).join('');
-        win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>VT Export</title>
-            <style>
-                body{font-family:Arial, sans-serif; padding:20px;}
-                h2{margin:0 0 10px;}
-                .meta{color:#555; font-size:12px; margin-bottom:14px;}
-                table{width:100%; border-collapse:collapse; font-size:12px;}
-                th,td{border:1px solid #ddd; padding:8px; vertical-align:top;}
-                th{background:#f5f5f5; text-align:left;}
-            </style></head><body>
-            <h2>VirusTotal + Threat Intel Export</h2>
-            <div class="meta">Generated: ${new Date().toLocaleString()}</div>
-            <table>
-                <thead><tr>${th}</tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-            <div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>
-            <script>window.onload=()=>{window.print();}<\/script>
-            </body></html>`);
+        // Jangan mengetik tag penutup skrip literal di file HTML — pecah dengan konkatenasi (lihat printHtml di bawah).
+        // Kalau tidak, parser HTML memutus blok skrip dan sisa JS bisa jadi teks/HTML rusak di halaman.
+        const printHtml = '<!doctype html><html><head><meta charset="utf-8"><title>VT Export</title>' +
+            '<style>' +
+            'body{font-family:Arial, sans-serif; padding:20px;}' +
+            'h2{margin:0 0 10px;}' +
+            '.meta{color:#555; font-size:12px; margin-bottom:14px;}' +
+            'table{width:100%; border-collapse:collapse; font-size:12px;}' +
+            'th,td{border:1px solid #ddd; padding:8px; vertical-align:top;}' +
+            'th{background:#f5f5f5; text-align:left;}' +
+            '</style></head><body>' +
+            '<h2>VirusTotal + Threat Intel Export</h2>' +
+            '<div class="meta">Generated: ' + escHtml(new Date().toLocaleString()) + '</div>' +
+            '<table><thead><tr>' + th + '</tr></thead><tbody>' + rows + '</tbody></table>' +
+            '<div class="meta" style="margin-top:12px;">Tip: pilih “Save as PDF” di dialog print.</div>' +
+            '<scr' + 'ipt>window.onload=function(){window.print()}<' + '/scr' + 'ipt>' +
+            '</body></html>';
+        win.document.write(printHtml);
         win.document.close();
-        setStatus('statusVT', `✓ Opened print view for PDF (${items.length} item(s)).`, 'success');
+        vtNotify(`✓ Opened print view for PDF (${items.length} item(s)).`, 'success');
         return;
     }
 
@@ -1055,7 +1194,7 @@ function vtExportPDF() {
     }
 
     doc.save(`vt-results-${new Date().toISOString().slice(0,10)}.pdf`);
-    setStatus('statusVT', `✓ PDF exported (${items.length} item(s)).`, 'success');
+    vtNotify(`✓ PDF exported (${items.length} item(s)).`, 'success');
 }
 
 function makeCard(headerInner, bodyInner, collapsed) {
@@ -1086,7 +1225,7 @@ function renderHash(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IOC.');">COPY</button>
         </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1136,7 +1275,7 @@ function renderIP(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IP.','success');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IP.');">COPY</button>
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1190,7 +1329,7 @@ function renderDomain(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied domain.','success');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied domain.');">COPY</button>
         </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1253,7 +1392,7 @@ function renderErr(ioc, type, err, collapsed=false, correlationData=null) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');setStatus('statusVT','✓ Copied IOC.','success');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IOC.');">COPY</button>
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1382,12 +1521,30 @@ function renderCorrelation(data, panelEl) {
         <div class="source-grid">${sourceRows || '<span style="color:var(--text-sec);font-size:0.78rem;">No sources available for this IOC type.</span>'}</div>`;
 }
 
-async function renderScanBatch(lineResults) {
-    const res = document.getElementById('vtResults');
+async function renderScanBatch(lineResults, opts = {}) {
+    const mode = opts.mode || 'lookup';
+    const isHistory = mode === 'history';
+    const resId = isHistory ? 'historyScanResults' : 'vtResults';
+    const countId = isHistory ? 'historyResultCount' : 'vtResultCount';
+
+    _vtState = isHistory ? _vtStateHistory : _vtStateLookup;
+    _vtActiveResultsId = resId;
+    _vtActiveNoteId = isHistory ? 'historySelectedNote' : 'vtSelectedNote';
+    _vtStatusMsgId = isHistory ? 'statusHistory' : 'statusVT';
+
+    if (isHistory) {
+        const ph = document.getElementById('historyScanPlaceholder');
+        const surf = document.getElementById('historyScanSurface');
+        if (ph) ph.style.display = 'none';
+        if (surf) surf.style.display = '';
+    }
+
+    const res = document.getElementById(resId);
     if (!res) return;
 
     res.innerHTML = '';
-    document.getElementById('vtResultCount').textContent = '';
+    const countEl = document.getElementById(countId);
+    if (countEl) countEl.textContent = '';
     _vtState.items = [];
     vtUpdateSelectedNote();
 
@@ -1411,7 +1568,8 @@ async function renderScanBatch(lineResults) {
             cardHtml = renderErr(rawIoc, null, vtResult.reason, multi, corrData);
         }
 
-        const corrId = `corr-${_cardIdx - 1}`;
+        const corrPrefix = isHistory ? 'hcorr-' : 'corr-';
+        const corrId = `${corrPrefix}${_cardIdx - 1}`;
         cardHtml = cardHtml.replace(
             '</div>\n    </div>',
             `</div>\n    <div class="corr-panel" id="${corrId}"><div class="corr-loading"><span class="spinner"></span> Loading threat intel...</div></div>\n    </div>`
@@ -1427,13 +1585,14 @@ async function renderScanBatch(lineResults) {
         card.setAttribute('data-verdict', item.verdictKey || 'unknown');
     });
     vtApplyFilters();
+    vtSyncFilterUIs();
 
     for (const { corrId, corrResult } of cards) {
         const panel = document.getElementById(corrId);
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
-            const idNum = Number(String(corrId).replace('corr-',''));
+            const idNum = Number(String(corrId).replace(/^h?corr-/, ''));
             const it = _vtState.items.find(x => x.id === idNum);
             if (it) {
                 it.correlation = corrResult.value;
@@ -1449,10 +1608,15 @@ async function renderScanBatch(lineResults) {
         }
     }
 
-    document.getElementById('vtResultCount').textContent = `${lineResults.length} result(s)`;
+    if (countEl) countEl.textContent = `${lineResults.length} result(s)`;
 }
 
 async function runVTLookup() {
+    _vtState = _vtStateLookup;
+    _vtActiveResultsId = 'vtResults';
+    _vtActiveNoteId = 'vtSelectedNote';
+    _vtStatusMsgId = 'statusVT';
+
     const raw = document.getElementById('vtInput').value.trim();
     const btn = document.getElementById('vtRunBtn');
     clearStatus('statusVT');
@@ -1493,8 +1657,10 @@ function clearVT() {
     document.getElementById('vtInput').value = '';
     document.getElementById('vtResults').innerHTML = '<div style="color:var(--text-sec);font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>';
     document.getElementById('vtResultCount').textContent = '';
-    _vtState.items = [];
-    vtUpdateSelectedNote();
+    _vtStateLookup.items.length = 0;
+    Object.assign(_vtStateLookup.filters, { clean: true, suspicious: true, malicious: true });
+    if (_vtState === _vtStateLookup) vtUpdateSelectedNote();
+    vtSyncFilterUIs();
     clearStatus('statusVT');
 }
 
@@ -1517,6 +1683,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     renderHistoryListDOM();
     vtInitExportPresetUI();
+    vtSyncFilterUIs();
 });
 </script>
 </body>
