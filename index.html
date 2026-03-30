@@ -776,7 +776,12 @@ function historyDeleteEntry(id) {
     renderHistoryListDOM();
 }
 function historyClearAll() {
-    if (!confirm('Hapus semua riwayat scan dari perangkat ini?')) return;
+    let ok = true;
+    try { ok = window.confirm('Hapus semua riwayat scan dari perangkat ini?'); }
+    catch { ok = null; }
+    // Some embedded browsers/webviews may block `confirm()`. In that case, proceed.
+    if (ok === false) return;
+    if (ok === null) vtNotify('⚠ Konfirmasi tidak didukung di browser ini — riwayat akan dihapus.', 'loading');
     saveHistoryEntries([]);
     _historyViewingVtInput = '';
     renderHistoryListDOM();
@@ -792,6 +797,7 @@ function historyClearAll() {
     Object.assign(_vtStateHistory.filters, { clean: true, suspicious: true, malicious: true });
     clearStatus('statusHistory');
     vtSyncFilterUIs();
+    if (ok === null) vtNotify('✓ Riwayat dihapus.', 'success');
 }
 
 function renderHistoryListDOM() {
