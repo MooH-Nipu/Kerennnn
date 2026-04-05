@@ -478,14 +478,14 @@
             <div class="grid">
                 <div class="card">
                     <div class="card-title"><span class="dot"></span> Blocklist firewall (DB)</div>
-                    <p class="history-hint">IP yang sudah diblokir tidak di-scan lagi di YCCA Scan (hemat quota VT).</p>
+                    <p class="history-hint">IP yang sudah diblokir tidak di-scan lagi di YCCA Scan (hemat quota VT). Upload banyak IP dipecah otomatis per batch (~40 baris); tidak ada batas keras jumlah baris. Daftar di bawah memuat <strong>semua</strong> IP di DB (pagination di server).</p>
                     <div class="sg">
                         <div class="fg">
                             <label>Tambah IP (1 per baris)</label>
                             <textarea id="yccaBlockInput" rows="6" placeholder="203.0.113.10&#10;2001:db8::1"></textarea>
                         </div>
                         <div class="btn-row">
-                            <button type="button" class="btn btn-primary" onclick="yccaAddBlocklist()">Tambah ke DB</button>
+                            <button type="button" id="yccaAddBlockBtn" class="btn btn-primary" onclick="yccaAddBlocklist()">Tambah ke DB</button>
                             <button type="button" class="btn btn-secondary" onclick="yccaRefreshBlocklist()">Refresh</button>
                             <button type="button" class="btn btn-secondary" onclick="yccaLogout()">Keluar</button>
                         </div>
@@ -494,6 +494,12 @@
                             <input type="text" id="yccaBlockSearch" placeholder="Filter IP…" oninput="yccaRenderBlocklistTable()" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-pri);font-family:'JetBrains Mono',monospace;font-size:0.85rem;" />
                         </div>
                         <div id="statusYccaBlock" class="status"></div>
+                        <div id="yccaUploadProgressWrap" style="display:none;margin-top:10px;">
+                            <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                                <div id="yccaUploadProgressFill" style="height:100%;width:0%;background:var(--accent);transition:width 0.2s ease;"></div>
+                            </div>
+                            <div id="yccaUploadProgressLabel" style="font-size:0.75rem;color:var(--text-sec);margin-top:6px;font-family:'JetBrains Mono',monospace;"></div>
+                        </div>
                         <div id="yccaBlocklistMeta" style="font-size:0.75rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></div>
                         <div id="yccaBlocklistTable" class="history-list" style="max-height:220px;overflow:auto;margin-top:8px;"><span class="history-empty">Memuat…</span></div>
                     </div>
@@ -594,6 +600,28 @@ function setStatus(id, html, type) {
     e.className = 'status ' + type;
 }
 function clearStatus(id) { document.getElementById(id).className = 'status'; }
+/** API error may be string or nested object — avoid "[object Object]" in UI */
+function formatApiError(err) {
+    if (err == null || err === '') return '';
+    if (typeof err === 'string') return err;
+    if (typeof err === 'number' || typeof err === 'boolean') return String(err);
+    if (Array.isArray(err)) return err.map(formatApiError).filter(Boolean).join('; ');
+    if (typeof err === 'object') {
+        if (err.message) return String(err.message);
+        if (err.error) return formatApiError(err.error);
+        try { return JSON.stringify(err); } catch (e) { return String(err); }
+    }
+    return String(err);
+}
+async function readFetchJson(r) {
+    const text = await r.text();
+    if (!text) return { data: {}, text: '' };
+    try {
+        return { data: JSON.parse(text), text };
+    } catch (e) {
+        return { data: null, text, parseError: e };
+    }
+}
 function escHtml(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1833,7 +1861,7 @@ async function yccaUnlock() {
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) {
-            setStatus('statusYccaAuth', '⚠ ' + (data.error || 'Login gagal'), 'error');
+            setStatus('statusYccaAuth', '⚠ ' + (formatApiError(data.error) || 'Login gagal'), 'error');
             return;
         }
         try {
@@ -1873,14 +1901,20 @@ async function yccaRefreshBlocklist() {
     if (meta) meta.textContent = 'Memuat…';
     try {
         const r = await fetch('/api/ycca-blocklist', { headers: yccaAuthHeaders() });
-        const data = await r.json();
-        if (!r.ok) {
-            setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error');
+        const { data, text, parseError } = await readFetchJson(r);
+        if (parseError) {
+            setStatus('statusYccaBlock', '⚠ Respon bukan JSON (HTTP ' + r.status + '). ' + escHtml((text || '').slice(0, 240)), 'error');
             if (meta) meta.textContent = '';
             if (tbl) tbl.innerHTML = '<span class="history-empty">Gagal memuat.</span>';
             return;
         }
-        _yccaBlocklistItems = Array.isArray(data.items) ? data.items : [];
+        if (!r.ok) {
+            setStatus('statusYccaBlock', '⚠ ' + escHtml(formatApiError(data && data.error) || (text || '').slice(0, 240) || r.statusText), 'error');
+            if (meta) meta.textContent = '';
+            if (tbl) tbl.innerHTML = '<span class="history-empty">Gagal memuat.</span>';
+            return;
+        }
+        _yccaBlocklistItems = (data && Array.isArray(data.items)) ? data.items : [];
         if (meta) meta.textContent = _yccaBlocklistItems.length + ' IP di DB';
         yccaRenderBlocklistTable();
     } catch (e) {
@@ -1917,8 +1951,9 @@ async function yccaDeleteOne(ip) {
             headers: { ...yccaAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ ips: [ip] })
         });
-        const data = await r.json();
-        if (!r.ok) { setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error'); return; }
+        const { data, text, parseError } = await readFetchJson(r);
+        if (parseError) { setStatus('statusYccaBlock', '⚠ Respon tidak valid (HTTP ' + r.status + ').', 'error'); return; }
+        if (!r.ok) { setStatus('statusYccaBlock', '⚠ ' + escHtml(formatApiError(data && data.error) || (text || '').slice(0, 240) || r.statusText), 'error'); return; }
         await yccaRefreshBlocklist();
         setStatus('statusYccaBlock', '✓ IP dihapus.', 'success');
     } catch (e) {
@@ -1926,28 +1961,76 @@ async function yccaDeleteOne(ip) {
     }
 }
 
+/** Smaller batches = shorter Supabase filter URLs + steadier serverless work (fewer timeouts). */
+const YCCA_UPLOAD_CHUNK = 40;
+
 async function yccaAddBlocklist() {
     const ta = document.getElementById('yccaBlockInput');
+    const btn = document.getElementById('yccaAddBlockBtn');
+    const wrap = document.getElementById('yccaUploadProgressWrap');
+    const fill = document.getElementById('yccaUploadProgressFill');
+    const progLabel = document.getElementById('yccaUploadProgressLabel');
     const raw = (ta && ta.value) ? ta.value : '';
     const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
     clearStatus('statusYccaBlock');
     if (!lines.length) { setStatus('statusYccaBlock', '⚠ Isi minimal satu baris IP.', 'error'); return; }
+
+    const chunks = [];
+    for (let i = 0; i < lines.length; i += YCCA_UPLOAD_CHUNK) {
+        chunks.push(lines.slice(i, i + YCCA_UPLOAD_CHUNK));
+    }
+
+    if (btn) btn.disabled = true;
+    if (wrap) wrap.style.display = 'block';
+    if (fill) fill.style.width = '0%';
+    if (progLabel) progLabel.textContent = '';
+
+    let sumInserted = 0;
+    let sumAlreadyInDb = 0;
+    let sumSkippedNonIp = 0;
+
     try {
-        const r = await fetch('/api/ycca-blocklist', {
-            method: 'POST',
-            headers: { ...yccaAuthHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ips: lines })
-        });
-        const data = await r.json();
-        if (!r.ok) { setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error'); return; }
-        const extra = (data.skippedNonIp && data.skippedNonIp.length)
-            ? ' — ' + data.skippedNonIp.length + ' baris bukan IP dilewati.'
+        for (let c = 0; c < chunks.length; c++) {
+            if (c > 0) await new Promise(function (resolve) { setTimeout(resolve, 35); });
+            if (progLabel) progLabel.textContent = 'Mengunggah batch ' + (c + 1) + ' / ' + chunks.length + '…';
+
+            const r = await fetch('/api/ycca-blocklist', {
+                method: 'POST',
+                headers: { ...yccaAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ips: chunks[c] })
+            });
+            const { data, text, parseError } = await readFetchJson(r);
+            if (parseError) {
+                setStatus('statusYccaBlock', '⚠ Respon bukan JSON (HTTP ' + r.status + ' batch ' + (c + 1) + '). ' + escHtml((text || '').slice(0, 200)), 'error');
+                return;
+            }
+            if (!r.ok) {
+                setStatus('statusYccaBlock', '⚠ Batch ' + (c + 1) + '/' + chunks.length + ': ' + escHtml(formatApiError(data && data.error) || (text || '').slice(0, 240) || r.statusText), 'error');
+                return;
+            }
+            sumInserted += Number(data.inserted) || 0;
+            const already = data.alreadyInDb !== undefined ? data.alreadyInDb : (Number(data.duplicate) || 0);
+            sumAlreadyInDb += already;
+            if (Array.isArray(data.skippedNonIp)) sumSkippedNonIp += data.skippedNonIp.length;
+
+            const pct = Math.round(((c + 1) / chunks.length) * 100);
+            if (fill) fill.style.width = pct + '%';
+        }
+
+        const extra = sumSkippedNonIp
+            ? ' — ' + sumSkippedNonIp + ' baris bukan IP dilewati.'
             : '';
-        setStatus('statusYccaBlock', `✓ Ditambahkan: ${data.inserted}, duplikat: ${data.duplicate}.${extra}`, 'success');
+        setStatus('statusYccaBlock', '✓ Ditambahkan: ' + sumInserted + ', sudah ada di DB (tidak di-upload): ' + sumAlreadyInDb + '.' + extra, 'success');
         if (ta) ta.value = '';
         await yccaRefreshBlocklist();
     } catch (e) {
-        setStatus('statusYccaBlock', '⚠ ' + (e.message || 'Network error'), 'error');
+        const msg = (e && e.message) ? e.message : formatApiError(e) || String(e);
+        setStatus('statusYccaBlock', '⚠ ' + escHtml(msg), 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+        if (wrap) wrap.style.display = 'none';
+        if (fill) fill.style.width = '0%';
+        if (progLabel) progLabel.textContent = '';
     }
 }
 

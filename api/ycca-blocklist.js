@@ -38,6 +38,48 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+/** Split array into fixed-size chunks (Supabase `.in()` URL limits). */
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function fetchExistingIps(supabase, ips) {
+  const existing = new Set();
+  // Keep chunks small: long IPv6 + PostgREST `.in()` in query string can exceed proxy URL limits.
+  for (const part of chunkArray(ips, 50)) {
+    const { data, error } = await supabase.from('ycca_blocked_ips').select('ip').in('ip', part);
+    if (error) throw new Error(error.message || JSON.stringify(error));
+    for (const row of data || []) {
+      if (row && row.ip) existing.add(row.ip);
+    }
+  }
+  return existing;
+}
+
+async function insertIpsBatched(supabase, ips) {
+  let inserted = 0;
+  let duplicateFromRace = 0;
+  for (const part of chunkArray(ips, 100)) {
+    const rows = part.map((ip) => ({ ip }));
+    const { error } = await supabase.from('ycca_blocked_ips').insert(rows);
+    if (!error) {
+      inserted += part.length;
+      continue;
+    }
+    for (const ip of part) {
+      const { error: e2 } = await supabase.from('ycca_blocked_ips').insert({ ip });
+      if (e2) {
+        const msg = `${e2.code || ''} ${e2.message || ''} ${e2.details || ''}`;
+        if (e2.code === '23505' || /duplicate|unique|already exists/i.test(msg)) duplicateFromRace++;
+        else throw new Error(e2.message);
+      } else inserted++;
+    }
+  }
+  return { inserted, duplicateFromRace };
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -56,13 +98,23 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('ycca_blocked_ips')
-      .select('ip, created_at')
-      .order('ip', { ascending: true });
+    const pageSize = 1000;
+    const items = [];
+    let from = 0;
+    for (;;) {
+      const { data, error } = await supabase
+        .from('ycca_blocked_ips')
+        .select('ip, created_at')
+        .order('ip', { ascending: true })
+        .range(from, from + pageSize - 1);
 
-    if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json({ items: data || [] });
+      if (error) return res.status(500).json({ error: error.message || String(error) });
+      const rows = data || [];
+      items.push(...rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return res.status(200).json({ items });
   }
 
   if (req.method === 'POST') {
@@ -85,22 +137,30 @@ module.exports = async function handler(req, res) {
 
     const unique = [...new Set(valid)];
     let inserted = 0;
-    let duplicate = 0;
+    let alreadyInDb = 0;
+    let duplicateFromRace = 0;
 
-    for (const ip of unique) {
-      const { error } = await supabase.from('ycca_blocked_ips').insert({ ip });
-      if (error) {
-        const msg = `${error.code || ''} ${error.message || ''} ${error.details || ''}`;
-        if (error.code === '23505' || /duplicate|unique|already exists/i.test(msg)) duplicate++;
-        else return res.status(500).json({ error: error.message });
-      } else {
-        inserted++;
+    try {
+      const existing = await fetchExistingIps(supabase, unique);
+      const toInsert = unique.filter((ip) => !existing.has(ip));
+      alreadyInDb = unique.length - toInsert.length;
+
+      if (toInsert.length) {
+        const ins = await insertIpsBatched(supabase, toInsert);
+        inserted = ins.inserted;
+        duplicateFromRace = ins.duplicateFromRace;
       }
+    } catch (e) {
+      const msg = (e && e.message) || (typeof e === 'string' ? e : JSON.stringify(e));
+      return res.status(500).json({ error: msg || String(e) });
     }
 
     return res.status(200).json({
       inserted,
-      duplicate,
+      alreadyInDb,
+      /** @deprecated same as alreadyInDb; kept for older clients */
+      duplicate: alreadyInDb + duplicateFromRace,
+      duplicateFromRace,
       skippedNonIp: skipped,
       totalRequested: rawList.length,
     });
