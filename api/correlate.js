@@ -1,4 +1,5 @@
 const https = require('https');
+const { extractIOC, detectType } = require('./_ioc');
 
 function getVTKeys() {
   const keys = [];
@@ -49,29 +50,6 @@ function httpPost(url, postBody, headers = {}) {
     req.write(postBody);
     req.end();
   });
-}
-
-// ── IOC utils ────────────────────────────────────────────────────────────
-function extractIOC(raw) {
-  let s = raw.trim();
-  s = s.replace(/^\[|\]$/g, '');
-  s = s.replace(/^hxxps?/i, 'https');
-  s = s.replace(/\[\.\]/g, '.').replace(/\(dot\)/gi, '.');
-  if (/^https?:\/\//i.test(s)) {
-    try { s = new URL(s).hostname; }
-    catch { s = s.replace(/^https?:\/\//i, '').split('/')[0]; }
-  }
-  s = s.split('/')[0].split('?')[0].split('#')[0];
-  s = s.replace(/:(\d+)$/, '').replace(/\.$/, '');
-  return s.toLowerCase();
-}
-
-function detectType(s) {
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
-  if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
-  if (/^[0-9a-f]+$/.test(s) && [32,40,56,64,96,128].includes(s.length)) return 'hash';
-  if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
-  return null;
 }
 
 function getTrustFactor(envKey, defaultValue = 1) {

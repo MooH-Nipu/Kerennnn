@@ -1,4 +1,5 @@
 const https = require('https');
+const { extractIOC, detectType } = require('./_ioc');
 
 function getApiKeys() {
   const keys = [];
@@ -9,51 +10,6 @@ function getApiKeys() {
     if (k) keys.push(k);
   }
   return keys;
-}
-
-// ── Strip URL → extract bare IOC ──────────────────────────────────────────
-function extractIOC(raw) {
-  let s = raw.trim();
-
-  // Remove surrounding brackets/quotes (defanged IOCs like hxxps[://]evil[.]com)
-  s = s.replace(/^\[|\]$/g, '');
-
-  // Defang: hxxp/hxxps → http/https, [.] → .
-  s = s.replace(/^hxxps?/i, 'https');
-  s = s.replace(/\[\.\]/g, '.').replace(/\(dot\)/gi, '.');
-
-  // If it looks like a URL, parse out just the hostname
-  if (/^https?:\/\//i.test(s)) {
-    try {
-      const u = new URL(s);
-      s = u.hostname;
-    } catch {
-      // fallback: strip scheme and take up to first /
-      s = s.replace(/^https?:\/\//i, '').split('/')[0];
-    }
-  }
-
-  // Strip trailing dot (FQDN), port, path, query
-  s = s.split('/')[0].split('?')[0].split('#')[0];
-  // Remove port if present (e.g. evil.com:8080 or 1.2.3.4:443)
-  s = s.replace(/:(\d+)$/, '');
-  // Strip trailing dot
-  s = s.replace(/\.$/, '');
-
-  return s.toLowerCase();
-}
-
-// ── Detect IOC type ───────────────────────────────────────────────────────
-function detectType(s) {
-  // IPv4
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
-  // IPv6 (simplified check)
-  if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
-  // Hash (MD5/SHA-1/SHA-256/SHA-512 etc.)
-  if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
-  // Domain — must have at least one dot and valid chars
-  if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
-  return null;
 }
 
 function httpsGet(url, headers) {

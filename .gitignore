@@ -1,0 +1,6 @@
+.vercel
+
+# Environment (secrets) — keep .env.example as the template
+.env
+.env.*
+!.env.example
