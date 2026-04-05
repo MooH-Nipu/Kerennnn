@@ -126,6 +126,44 @@ module.exports = async function handler(req, res) {
     }
 
     const rawList = Array.isArray(body.ips) ? body.ips : [];
+
+    /** Hanya cek keberadaan IP di DB (tanpa insert). */
+    if (body.checkOnly === true || body.action === 'check') {
+      const validNorm = [];
+      for (const line of rawList) {
+        const ip = normalizeIpLine(String(line ?? ''));
+        if (ip) validNorm.push(ip);
+      }
+      const unique = [...new Set(validNorm)];
+      let existing;
+      try {
+        existing = await fetchExistingIps(supabase, unique);
+      } catch (e) {
+        const msg = (e && e.message) || (typeof e === 'string' ? e : JSON.stringify(e));
+        return res.status(500).json({ error: msg || String(e) });
+      }
+
+      const results = [];
+      const skippedNonIp = [];
+      for (const line of rawList) {
+        const s = String(line ?? '').trim();
+        if (!s) continue;
+        const ip = normalizeIpLine(s);
+        if (!ip) {
+          skippedNonIp.push(s);
+          results.push({ line: s, valid: false, exists: null });
+        } else {
+          results.push({ ip, line: s, valid: true, exists: existing.has(ip) });
+        }
+      }
+
+      return res.status(200).json({
+        results,
+        skippedNonIp,
+        totalLines: rawList.filter((x) => String(x ?? '').trim()).length,
+      });
+    }
+
     const valid = [];
     const skipped = [];
 

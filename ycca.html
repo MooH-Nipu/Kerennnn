@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YCCA — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base:   #080d17;
+            --bg-card:   #0e1829;
+            --bg-input:  #060b14;
+            --border:    #1e304d;
+            --text-pri:  #d4e4ff;
+            --text-sec:  #5a7aa8;
+            --text-code: #7eb3ff;
+            --accent:    #1d6ae5;
+            --accent-hl: #2f7ef7;
+            --green:     #0fba81;
+            --red:       #e5484d;
+            --cyan:      #38bdf8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-pri);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image:
+                radial-gradient(ellipse 80% 40% at 50% -10%, rgba(29,106,229,0.12) 0%, transparent 70%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px);
+        }
+        .wrap { width: 100%; max-width: 480px; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); display: flex; align-items: center; gap: 8px; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+        .card-title .dot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); }
+        .hint { font-size: 0.8rem; color: var(--text-sec); line-height: 1.45; margin-bottom: 1rem; }
+        label { font-size: 0.75rem; font-weight: 700; color: var(--text-sec); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        input[type="password"] { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+        input:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
+        .btn { width: 100%; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.85rem; cursor: pointer; margin-top: 1rem; transition: all 0.18s; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-hl)); color: #fff; box-shadow: 0 2px 12px rgba(29,106,229,0.3); }
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+        .back { text-align: center; margin-top: 1.25rem; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; }
+        .back a { color: var(--accent-hl); font-weight: 700; text-decoration: none; }
+        .back a:hover { text-decoration: underline; }
+        .status { padding: 0.65rem 1rem; border-radius: 7px; font-size: 0.82rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; display: none; margin-top: 0.75rem; }
+        .status.error   { display:block; background: rgba(229,72,77,0.1);  color: var(--red);   border: 1px solid rgba(229,72,77,0.25); }
+        .status.success { display:block; background: rgba(15,186,129,0.1); color: var(--green); border: 1px solid rgba(15,186,129,0.25); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="card-title"><span class="dot"></span> YCCA — akses</div>
+        <p class="hint">Password diatur di env server (<code>YCCA_PASSWORD</code>). Setelah login, Anda diarahkan ke halaman Blocklist &amp; Scan. Session berlaku sampai tab/browser ditutup.</p>
+        <label for="yccaPwInput">Password</label>
+        <input type="password" id="yccaPwInput" autocomplete="current-password" />
+        <button type="button" class="btn btn-primary" id="yccaUnlockBtn">Masuk ke YCCA</button>
+        <div id="statusYccaAuth" class="status"></div>
+    </div>
+    <p class="back"><a href="index.html">← Kembali ke Charlie kerennnn</a></p>
+</div>
+<script>
+(function () {
+    try {
+        if (sessionStorage.getItem('ycca_unlocked') === '1' && sessionStorage.getItem('ycca_pw')) {
+            location.replace('ycca-app.html');
+        }
+    } catch (e) {}
+})();
+
+function formatApiError(err) {
+    if (err == null || err === '') return '';
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object' && err.message) return String(err.message);
+    if (typeof err === 'object' && err.error) return formatApiError(err.error);
+    try { return JSON.stringify(err); } catch (e) { return String(err); }
+}
+function setStatus(id, html, type) {
+    const e = document.getElementById(id);
+    e.innerHTML = html;
+    e.className = 'status ' + type;
+}
+function clearStatus(id) { document.getElementById(id).className = 'status'; }
+
+const SS_YCCA_OK = 'ycca_unlocked';
+const SS_YCCA_PW = 'ycca_pw';
+
+document.getElementById('yccaUnlockBtn').addEventListener('click', async function yccaUnlock() {
+    const inp = document.getElementById('yccaPwInput');
+    const pw = (inp && inp.value) ? inp.value.trim() : '';
+    clearStatus('statusYccaAuth');
+    if (!pw) { setStatus('statusYccaAuth', '⚠ Password tidak boleh kosong.', 'error'); return; }
+    const btn = document.getElementById('yccaUnlockBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/ycca-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ password: pw })
+        });
+        const data = await r.json().catch(function () { return {}; });
+        if (!r.ok) {
+            setStatus('statusYccaAuth', '⚠ ' + (formatApiError(data.error) || 'Login gagal'), 'error');
+            return;
+        }
+        try {
+            sessionStorage.setItem(SS_YCCA_OK, '1');
+            sessionStorage.setItem(SS_YCCA_PW, pw);
+        } catch (e) {}
+        setStatus('statusYccaAuth', '✓ Mengalihkan…', 'success');
+        location.href = 'ycca-app.html';
+    } catch (e) {
+        setStatus('statusYccaAuth', '⚠ ' + (e.message || 'Network error'), 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+});
+
+document.getElementById('yccaPwInput').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') document.getElementById('yccaUnlockBtn').click();
+});
+</script>
+</body>
+</html>
