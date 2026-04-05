@@ -269,8 +269,22 @@
 <body>
 <script>
 (function () {
+    var YCCA_SESSION_MS = 8 * 60 * 60 * 1000;
     try {
         if (sessionStorage.getItem('ycca_unlocked') !== '1' || !sessionStorage.getItem('ycca_pw')) {
+            location.replace('ycca.html');
+            return;
+        }
+        var ts = sessionStorage.getItem('ycca_session_ts');
+        if (ts == null || ts === '') {
+            sessionStorage.setItem('ycca_session_ts', String(Date.now()));
+            return;
+        }
+        var t = Number(ts);
+        if (!isFinite(t) || (Date.now() - t > YCCA_SESSION_MS)) {
+            sessionStorage.removeItem('ycca_unlocked');
+            sessionStorage.removeItem('ycca_pw');
+            sessionStorage.removeItem('ycca_session_ts');
             location.replace('ycca.html');
         }
     } catch (e) {
@@ -1639,8 +1653,10 @@ async function renderScanBatch(lineResults, opts = {}) {
 }
 
 /* ── YCCA (blocklist + scan) — mirrors api/_ioc.js ─────────────────────── */
+const YCCA_SESSION_MS = 8 * 60 * 60 * 1000;
 const SS_YCCA_OK = 'ycca_unlocked';
 const SS_YCCA_PW = 'ycca_pw';
+const SS_YCCA_TS = 'ycca_session_ts';
 
 function yccaExtractIoc(raw) {
     let s = String(raw ?? '').trim();
@@ -1670,7 +1686,24 @@ function yccaNormalizeIp(raw) {
 }
 
 function yccaGetPw() {
-    try { return sessionStorage.getItem(SS_YCCA_PW) || ''; } catch (e) { return ''; }
+    try {
+        const pw = sessionStorage.getItem(SS_YCCA_PW) || '';
+        if (!pw) return '';
+        let ts = sessionStorage.getItem(SS_YCCA_TS);
+        if (ts == null || ts === '') {
+            sessionStorage.setItem(SS_YCCA_TS, String(Date.now()));
+            return pw;
+        }
+        const t = Number(ts);
+        if (!Number.isFinite(t) || (Date.now() - t > YCCA_SESSION_MS)) {
+            sessionStorage.removeItem(SS_YCCA_OK);
+            sessionStorage.removeItem(SS_YCCA_PW);
+            sessionStorage.removeItem(SS_YCCA_TS);
+            location.replace('ycca.html');
+            return '';
+        }
+        return pw;
+    } catch (e) { return ''; }
 }
 function yccaAuthHeaders() {
     const pw = yccaGetPw();
@@ -1689,6 +1722,7 @@ function yccaLogout() {
     try {
         sessionStorage.removeItem(SS_YCCA_OK);
         sessionStorage.removeItem(SS_YCCA_PW);
+        sessionStorage.removeItem(SS_YCCA_TS);
     } catch (e) {}
     clearStatus('statusYccaBlock');
     clearStatus('statusYcca');

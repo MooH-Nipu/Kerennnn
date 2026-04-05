@@ -60,7 +60,7 @@
 <div class="wrap">
     <div class="card">
         <div class="card-title"><span class="dot"></span> YCCA — akses</div>
-        <p class="hint">Password diatur di env server (<code>YCCA_PASSWORD</code>). Setelah login, Anda diarahkan ke halaman Blocklist &amp; Scan. Session berlaku sampai tab/browser ditutup.</p>
+        <p class="hint">Password diatur di env server (<code>YCCA_PASSWORD</code>). Setelah login, Anda diarahkan ke halaman Blocklist &amp; Scan. Session berlaku <strong>8 jam</strong> (per tab).</p>
         <label for="yccaPwInput">Password</label>
         <input type="password" id="yccaPwInput" autocomplete="current-password" />
         <button type="button" class="btn btn-primary" id="yccaUnlockBtn">Masuk ke YCCA</button>
@@ -70,10 +70,23 @@
 </div>
 <script>
 (function () {
+    var YCCA_SESSION_MS = 8 * 60 * 60 * 1000;
     try {
-        if (sessionStorage.getItem('ycca_unlocked') === '1' && sessionStorage.getItem('ycca_pw')) {
+        if (sessionStorage.getItem('ycca_unlocked') !== '1' || !sessionStorage.getItem('ycca_pw')) return;
+        var ts = sessionStorage.getItem('ycca_session_ts');
+        if (ts == null || ts === '') {
+            sessionStorage.setItem('ycca_session_ts', String(Date.now()));
             location.replace('ycca-app.html');
+            return;
         }
+        var t = Number(ts);
+        if (!isFinite(t) || (Date.now() - t > YCCA_SESSION_MS)) {
+            sessionStorage.removeItem('ycca_unlocked');
+            sessionStorage.removeItem('ycca_pw');
+            sessionStorage.removeItem('ycca_session_ts');
+            return;
+        }
+        location.replace('ycca-app.html');
     } catch (e) {}
 })();
 
@@ -93,6 +106,7 @@ function clearStatus(id) { document.getElementById(id).className = 'status'; }
 
 const SS_YCCA_OK = 'ycca_unlocked';
 const SS_YCCA_PW = 'ycca_pw';
+const SS_YCCA_TS = 'ycca_session_ts';
 
 document.getElementById('yccaUnlockBtn').addEventListener('click', async function yccaUnlock() {
     const inp = document.getElementById('yccaPwInput');
@@ -115,6 +129,7 @@ document.getElementById('yccaUnlockBtn').addEventListener('click', async functio
         try {
             sessionStorage.setItem(SS_YCCA_OK, '1');
             sessionStorage.setItem(SS_YCCA_PW, pw);
+            sessionStorage.setItem(SS_YCCA_TS, String(Date.now()));
         } catch (e) {}
         setStatus('statusYccaAuth', '✓ Mengalihkan…', 'success');
         location.href = 'ycca-app.html';
