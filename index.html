@@ -268,6 +268,7 @@
         <button type="button" class="tab-btn" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
         <button type="button" class="tab-btn" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
         <button type="button" class="tab-btn" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
+        <button type="button" class="tab-btn" data-tab="tab-ycca" onclick="openTab('tab-ycca',this)">YCCA</button>
     </nav>
 
     <!-- TAB 1: IP FORMATTER -->
@@ -459,6 +460,102 @@
         </div>
     </div>
 
+    <!-- TAB: YCCA (blocklist Supabase + smart scan) -->
+    <div id="tab-ycca" class="tab-content">
+        <div id="yccaGateWrap" class="card" style="max-width:520px;margin:0 auto;">
+            <div class="card-title"><span class="dot"></span> YCCA — akses</div>
+            <p class="history-hint">Password diatur di env server (<code>YCCA_PASSWORD</code>). Setelah login, session berlaku sampai tab/browser ditutup.</p>
+            <div class="sg">
+                <div class="fg">
+                    <label>Password</label>
+                    <input type="password" id="yccaPwInput" autocomplete="off" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-pri);font-family:'JetBrains Mono',monospace;font-size:0.9rem;" />
+                </div>
+                <button type="button" class="btn btn-primary" id="yccaUnlockBtn" onclick="yccaUnlock()">Buka akses</button>
+                <div id="statusYccaAuth" class="status"></div>
+            </div>
+        </div>
+        <div id="yccaApp" style="display:none;">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title"><span class="dot"></span> Blocklist firewall (DB)</div>
+                    <p class="history-hint">IP yang sudah diblokir tidak di-scan lagi di YCCA Scan (hemat quota VT).</p>
+                    <div class="sg">
+                        <div class="fg">
+                            <label>Tambah IP (1 per baris)</label>
+                            <textarea id="yccaBlockInput" rows="6" placeholder="203.0.113.10&#10;2001:db8::1"></textarea>
+                        </div>
+                        <div class="btn-row">
+                            <button type="button" class="btn btn-primary" onclick="yccaAddBlocklist()">Tambah ke DB</button>
+                            <button type="button" class="btn btn-secondary" onclick="yccaRefreshBlocklist()">Refresh</button>
+                            <button type="button" class="btn btn-secondary" onclick="yccaLogout()">Keluar</button>
+                        </div>
+                        <div class="fg">
+                            <label>Cari di daftar</label>
+                            <input type="text" id="yccaBlockSearch" placeholder="Filter IP…" oninput="yccaRenderBlocklistTable()" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-pri);font-family:'JetBrains Mono',monospace;font-size:0.85rem;" />
+                        </div>
+                        <div id="statusYccaBlock" class="status"></div>
+                        <div id="yccaBlocklistMeta" style="font-size:0.75rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></div>
+                        <div id="yccaBlocklistTable" class="history-list" style="max-height:220px;overflow:auto;margin-top:8px;"><span class="history-empty">Memuat…</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="dot"></span> YCCA Scan</div>
+                    <div class="sg">
+                        <div class="fg">
+                            <label>Daftar IP — 1 per baris</label>
+                            <textarea id="yccaScanInput" rows="11" placeholder="Hanya IPv4 / IPv6. IP yang sudah di blocklist dilewati (tidak panggil VT)."></textarea>
+                        </div>
+                        <div class="btn-row">
+                            <button type="button" id="yccaScanBtn" class="btn btn-primary" onclick="runYccaScan()">Scan (VT + korelasi) →</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearYccaScan()">✕ Clear</button>
+                        </div>
+                        <div id="statusYcca" class="status"></div>
+                        <div class="legend-row">
+                            <span class="vt-type-badge badge-ip">IP</span>
+                            <span class="verdict verdict-unknown">● BLOCKLIST (skip)</span>
+                            <span class="verdict verdict-clean">● CLEAN</span>
+                            <span class="verdict verdict-suspicious">● SUSPICIOUS</span>
+                            <span class="verdict verdict-malicious">● MALICIOUS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top:1.5rem;min-width:0;">
+                <div class="card-title">
+                    <span class="dot"></span> Hasil YCCA
+                    <span id="yccaResultCount" style="margin-left:auto;font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
+                </div>
+                <div class="vt-toolbar">
+                    <div class="vt-toolgroup" style="gap:8px;">
+                        <span class="vt-chip clean on" onclick="vtToggleFilter('clean', this)"><input id="yccaF_clean" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('clean', this.parentElement)"/> CLEAN</span>
+                        <span class="vt-chip susp on" onclick="vtToggleFilter('suspicious', this)"><input id="yccaF_suspicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('suspicious', this.parentElement)"/> SUSPICIOUS</span>
+                        <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="yccaF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>
+                    </div>
+                    <div class="vt-toolgroup">
+                        <div class="vt-dd" id="yccaExportDD">
+                            <button type="button" class="vt-mini-btn" onclick="vtToggleExportMenu(event)">Export ▾</button>
+                            <div class="vt-dd-menu">
+                                <button type="button" class="vt-dd-item" onclick="vtExport('csv')"><span>Export CSV</span><span class="vt-dd-sub">.csv</span></button>
+                                <button type="button" class="vt-dd-item" onclick="vtExport('pdf')"><span>Export PDF</span><span class="vt-dd-sub">.pdf</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="vt-subbar">
+                    <div id="yccaSelectedNote" class="vt-sub-note">0 selected</div>
+                    <div class="vt-sub-actions">
+                        <button type="button" class="vt-mini-btn" onclick="vtSelectVisible(true)">Select visible</button>
+                        <button type="button" class="vt-mini-btn" onclick="vtSelectVisible(false)">Unselect visible</button>
+                        <button type="button" class="vt-mini-btn" onclick="vtCopySelected()">Copy selected</button>
+                    </div>
+                </div>
+                <div id="yccaResults">
+                    <div style="color:var(--text-sec);font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:1rem;">Hasil scan muncul di sini…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 <script>
 /* ── TABS ── */
@@ -480,8 +577,14 @@ function openTab(id, btn) {
         _vtActiveResultsId = 'historyScanResults';
         _vtActiveNoteId = 'historySelectedNote';
         _vtStatusMsgId = 'statusHistory';
+    } else if (id === 'tab-ycca') {
+        _vtState = _vtStateYcca;
+        _vtActiveResultsId = 'yccaResults';
+        _vtActiveNoteId = 'yccaSelectedNote';
+        _vtStatusMsgId = 'statusYcca';
+        yccaSyncGate();
     }
-    if (id === 'tab-vt' || id === 'tab-history') vtSyncFilterUIs();
+    if (id === 'tab-vt' || id === 'tab-history' || id === 'tab-ycca') vtSyncFilterUIs();
 }
 
 /* ── UTILS ── */
@@ -659,6 +762,7 @@ function makeVtState() {
 }
 let _vtStateLookup = makeVtState();
 let _vtStateHistory = makeVtState();
+let _vtStateYcca = makeVtState();
 let _vtState = _vtStateLookup;
 
 /** Target DOM untuk kartu hasil: Lookup (#vtResults) atau Riwayat (#historyScanResults) */
@@ -679,7 +783,8 @@ function vtQuickStatus(msg) { vtNotify(msg, 'success'); }
 
 const VT_FILTER_IDS = {
     lookup:  { clean: 'vtF_clean', suspicious: 'vtF_suspicious', malicious: 'vtF_malicious' },
-    history: { clean: 'hVtF_clean', suspicious: 'hVtF_suspicious', malicious: 'hVtF_malicious' }
+    history: { clean: 'hVtF_clean', suspicious: 'hVtF_suspicious', malicious: 'hVtF_malicious' },
+    ycca:    { clean: 'yccaF_clean', suspicious: 'yccaF_suspicious', malicious: 'yccaF_malicious' }
 };
 function vtSyncFilterUIs() {
     function apply(state, idMap) {
@@ -693,6 +798,7 @@ function vtSyncFilterUIs() {
     }
     apply(_vtStateLookup, VT_FILTER_IDS.lookup);
     apply(_vtStateHistory, VT_FILTER_IDS.history);
+    apply(_vtStateYcca, VT_FILTER_IDS.ycca);
 }
 
 /* ── LOCAL HISTORY + EXPORT PRESETS ── */
@@ -959,7 +1065,9 @@ function vtApplyFilters() {
     const cards = [...res.querySelectorAll('.vt-card')];
     for (const c of cards) {
         const verdictKey = c.getAttribute('data-verdict') || 'unknown';
-        const show = verdictKey === 'unknown' ? true : !!_vtState.filters[verdictKey];
+        const show = verdictKey === 'unknown' || verdictKey === 'blocklist'
+            ? true
+            : !!_vtState.filters[verdictKey];
         c.style.display = show ? '' : 'none';
     }
 }
@@ -1189,6 +1297,60 @@ function makeCard(headerInner, bodyInner, collapsed) {
         </div>
         <div class="${bodyClass}">${bodyInner}</div>
     </div>`;
+}
+
+function renderYccaSkippedBlocklist(ioc, collapsed=false) {
+    const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IP.');">COPY</button>
+        </span>
+        <span class="vt-type-badge badge-ip">IP</span>
+        <span class="vt-ioc-val">${escHtml(ioc)}</span>
+        <span class="verdict verdict-unknown">● BLOCKLIST</span>`;
+    const body = `<p style="margin:0;color:var(--text-sec);font-size:0.85rem;line-height:1.5;">Sudah ada di database firewall (YCCA). Tidak di-scan VT / korelasi.</p>`;
+    const html = makeCard(header, body, collapsed);
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc, type: 'ip',
+        vtVerdict: 'BLOCKLIST',
+        verdictKey: 'blocklist',
+        malicious: 0, suspicious: 0, total: 0,
+        reputation: '', country: '', asn: '', asOwner: '',
+        vtUrl: `https://www.virustotal.com/gui/ip-address/${ioc}`,
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
+}
+
+function renderYccaInvalidLine(rawLine, reason, collapsed=false) {
+    const display = rawLine.length > 80 ? rawLine.slice(0, 80) + '…' : rawLine;
+    const header = `
+        <span class="vt-header-actions" onclick="event.stopPropagation()">
+            <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(rawLine)}');vtQuickStatus('✓ Copied.');">COPY</button>
+        </span>
+        <span class="vt-type-badge badge-ip">IP</span>
+        <span class="vt-ioc-val">${escHtml(display)}</span>
+        <span class="verdict verdict-unknown">● INVALID</span>`;
+    const body = `<p style="margin:0;color:var(--red);font-size:0.82rem;">${escHtml(reason)}</p>`;
+    const html = makeCard(header, body, collapsed);
+    _vtState.items.push({
+        id: _cardIdx - 1,
+        ioc: rawLine,
+        type: 'ip',
+        vtVerdict: 'INVALID',
+        verdictKey: 'unknown',
+        malicious: 0, suspicious: 0, total: 0,
+        reputation: '', country: '', asn: '', asOwner: '',
+        vtUrl: '',
+        selected: false,
+        correlation: null,
+        correlationLabel: ''
+    });
+    return html;
 }
 
 function renderHash(ioc, d, collapsed=false) {
@@ -1505,13 +1667,14 @@ function renderCorrelation(data, panelEl) {
 async function renderScanBatch(lineResults, opts = {}) {
     const mode = opts.mode || 'lookup';
     const isHistory = mode === 'history';
-    const resId = isHistory ? 'historyScanResults' : 'vtResults';
-    const countId = isHistory ? 'historyResultCount' : 'vtResultCount';
+    const isYcca = mode === 'ycca';
+    const resId = isHistory ? 'historyScanResults' : isYcca ? 'yccaResults' : 'vtResults';
+    const countId = isHistory ? 'historyResultCount' : isYcca ? 'yccaResultCount' : 'vtResultCount';
 
-    _vtState = isHistory ? _vtStateHistory : _vtStateLookup;
+    _vtState = isHistory ? _vtStateHistory : isYcca ? _vtStateYcca : _vtStateLookup;
     _vtActiveResultsId = resId;
-    _vtActiveNoteId = isHistory ? 'historySelectedNote' : 'vtSelectedNote';
-    _vtStatusMsgId = isHistory ? 'statusHistory' : 'statusVT';
+    _vtActiveNoteId = isHistory ? 'historySelectedNote' : isYcca ? 'yccaSelectedNote' : 'vtSelectedNote';
+    _vtStatusMsgId = isHistory ? 'statusHistory' : isYcca ? 'statusYcca' : 'statusVT';
 
     if (isHistory) {
         const ph = document.getElementById('historyScanPlaceholder');
@@ -1534,7 +1697,19 @@ async function renderScanBatch(lineResults, opts = {}) {
     const multi = lineResults.length > 1;
 
     for (let i = 0; i < lineResults.length; i++) {
-        const { rawIoc, vtResult, corrResult } = lineResults[i];
+        const line = lineResults[i];
+        const { rawIoc, vtResult, corrResult } = line;
+
+        if (isYcca && line.skipBlocklist) {
+            const cardHtml = renderYccaSkippedBlocklist(rawIoc, multi);
+            cards.push({ html: cardHtml, corrId: null, corrResult: null });
+            continue;
+        }
+        if (isYcca && line.invalidIp) {
+            const cardHtml = renderYccaInvalidLine(rawIoc, line.invalidReason || 'Bukan IP valid (hanya IPv4/IPv6).', multi);
+            cards.push({ html: cardHtml, corrId: null, corrResult: null });
+            continue;
+        }
 
         let cardHtml;
         if (vtResult.status === 'fulfilled') {
@@ -1549,7 +1724,7 @@ async function renderScanBatch(lineResults, opts = {}) {
             cardHtml = renderErr(rawIoc, null, vtResult.reason, multi, corrData);
         }
 
-        const corrPrefix = isHistory ? 'hcorr-' : 'corr-';
+        const corrPrefix = isHistory ? 'hcorr-' : isYcca ? 'ycorr-' : 'corr-';
         const corrId = `${corrPrefix}${_cardIdx - 1}`;
         cardHtml = cardHtml.replace(
             '</div>\n    </div>',
@@ -1569,11 +1744,12 @@ async function renderScanBatch(lineResults, opts = {}) {
     vtSyncFilterUIs();
 
     for (const { corrId, corrResult } of cards) {
+        if (!corrId || !corrResult) continue;
         const panel = document.getElementById(corrId);
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
-            const idNum = Number(String(corrId).replace(/^h?corr-/, ''));
+            const idNum = Number(String(corrId).replace(/^(corr|hcorr|ycorr)-/, ''));
             const it = _vtState.items.find(x => x.id === idNum);
             if (it) {
                 it.correlation = corrResult.value;
@@ -1590,6 +1766,276 @@ async function renderScanBatch(lineResults, opts = {}) {
     }
 
     if (countEl) countEl.textContent = `${lineResults.length} result(s)`;
+}
+
+/* ── YCCA (blocklist + scan) — mirrors api/_ioc.js ─────────────────────── */
+const SS_YCCA_OK = 'ycca_unlocked';
+const SS_YCCA_PW = 'ycca_pw';
+
+function yccaExtractIoc(raw) {
+    let s = String(raw ?? '').trim();
+    s = s.replace(/^\[|\]$/g, '');
+    s = s.replace(/^hxxps?/i, 'https');
+    s = s.replace(/\[\.\]/g, '.').replace(/\(dot\)/gi, '.');
+    if (/^https?:\/\//i.test(s)) {
+        try { s = new URL(s).hostname; }
+        catch { s = s.replace(/^https?:\/\//i, '').split('/')[0]; }
+    }
+    s = s.split('/')[0].split('?')[0].split('#')[0];
+    s = s.replace(/:(\d+)$/, '');
+    s = s.replace(/\.$/, '');
+    return s.toLowerCase();
+}
+function yccaDetectType(s) {
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
+    if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
+    if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
+    if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
+    return null;
+}
+function yccaNormalizeIp(raw) {
+    const ioc = yccaExtractIoc(raw);
+    if (yccaDetectType(ioc) !== 'ip') return null;
+    return ioc;
+}
+
+function yccaGetPw() {
+    try { return sessionStorage.getItem(SS_YCCA_PW) || ''; } catch (e) { return ''; }
+}
+function yccaAuthHeaders() {
+    const pw = yccaGetPw();
+    return pw ? { 'Authorization': 'Bearer ' + pw, 'Accept': 'application/json' } : { 'Accept': 'application/json' };
+}
+
+function yccaSyncGate() {
+    const gate = document.getElementById('yccaGateWrap');
+    const app = document.getElementById('yccaApp');
+    if (!gate || !app) return;
+    let ok = false;
+    try { ok = sessionStorage.getItem(SS_YCCA_OK) === '1' && !!yccaGetPw(); } catch (e) {}
+    gate.style.display = ok ? 'none' : 'block';
+    app.style.display = ok ? 'block' : 'none';
+    if (ok) yccaRefreshBlocklist();
+}
+
+async function yccaUnlock() {
+    const inp = document.getElementById('yccaPwInput');
+    const pw = (inp && inp.value) ? inp.value.trim() : '';
+    clearStatus('statusYccaAuth');
+    if (!pw) { setStatus('statusYccaAuth', '⚠ Password tidak boleh kosong.', 'error'); return; }
+    const btn = document.getElementById('yccaUnlockBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/ycca-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ password: pw })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            setStatus('statusYccaAuth', '⚠ ' + (data.error || 'Login gagal'), 'error');
+            return;
+        }
+        try {
+            sessionStorage.setItem(SS_YCCA_OK, '1');
+            sessionStorage.setItem(SS_YCCA_PW, pw);
+        } catch (e) {}
+        if (inp) inp.value = '';
+        yccaSyncGate();
+        setStatus('statusYccaAuth', '✓ Akses dibuka.', 'success');
+    } catch (e) {
+        setStatus('statusYccaAuth', '⚠ ' + (e.message || 'Network error'), 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function yccaLogout() {
+    try {
+        sessionStorage.removeItem(SS_YCCA_OK);
+        sessionStorage.removeItem(SS_YCCA_PW);
+    } catch (e) {}
+    yccaSyncGate();
+    clearStatus('statusYccaBlock');
+    clearStatus('statusYcca');
+}
+
+let _yccaBlocklistItems = [];
+
+async function yccaRefreshBlocklist() {
+    const meta = document.getElementById('yccaBlocklistMeta');
+    const tbl = document.getElementById('yccaBlocklistTable');
+    if (!yccaGetPw()) {
+        if (tbl) tbl.innerHTML = '<span class="history-empty">Belum login.</span>';
+        return;
+    }
+    clearStatus('statusYccaBlock');
+    if (meta) meta.textContent = 'Memuat…';
+    try {
+        const r = await fetch('/api/ycca-blocklist', { headers: yccaAuthHeaders() });
+        const data = await r.json();
+        if (!r.ok) {
+            setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error');
+            if (meta) meta.textContent = '';
+            if (tbl) tbl.innerHTML = '<span class="history-empty">Gagal memuat.</span>';
+            return;
+        }
+        _yccaBlocklistItems = Array.isArray(data.items) ? data.items : [];
+        if (meta) meta.textContent = _yccaBlocklistItems.length + ' IP di DB';
+        yccaRenderBlocklistTable();
+    } catch (e) {
+        setStatus('statusYccaBlock', '⚠ ' + (e.message || 'Network error'), 'error');
+        if (meta) meta.textContent = '';
+    }
+}
+
+function yccaRenderBlocklistTable() {
+    const tbl = document.getElementById('yccaBlocklistTable');
+    const q = (document.getElementById('yccaBlockSearch') && document.getElementById('yccaBlockSearch').value || '').trim().toLowerCase();
+    if (!tbl) return;
+    let rows = _yccaBlocklistItems.slice();
+    if (q) rows = rows.filter(x => String(x.ip || '').toLowerCase().includes(q));
+    if (!rows.length) {
+        tbl.innerHTML = '<span class="history-empty">' + (_yccaBlocklistItems.length ? 'Tidak cocok filter.' : 'Belum ada IP.') + '</span>';
+        return;
+    }
+    tbl.innerHTML = rows.map(x => {
+        const ip = escHtml(x.ip);
+        return `<div class="history-row" style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem;font-family:'JetBrains Mono',monospace;">
+            <span style="word-break:break-all;">${ip}</span>
+            <button type="button" class="vt-mini-btn" onclick="yccaDeleteOne(${JSON.stringify(x.ip)})">Hapus</button>
+        </div>`;
+    }).join('');
+}
+
+async function yccaDeleteOne(ip) {
+    if (!ip || !confirm('Hapus ' + ip + ' dari blocklist?')) return;
+    clearStatus('statusYccaBlock');
+    try {
+        const r = await fetch('/api/ycca-blocklist', {
+            method: 'DELETE',
+            headers: { ...yccaAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ips: [ip] })
+        });
+        const data = await r.json();
+        if (!r.ok) { setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error'); return; }
+        await yccaRefreshBlocklist();
+        setStatus('statusYccaBlock', '✓ IP dihapus.', 'success');
+    } catch (e) {
+        setStatus('statusYccaBlock', '⚠ ' + (e.message || 'Network error'), 'error');
+    }
+}
+
+async function yccaAddBlocklist() {
+    const ta = document.getElementById('yccaBlockInput');
+    const raw = (ta && ta.value) ? ta.value : '';
+    const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    clearStatus('statusYccaBlock');
+    if (!lines.length) { setStatus('statusYccaBlock', '⚠ Isi minimal satu baris IP.', 'error'); return; }
+    try {
+        const r = await fetch('/api/ycca-blocklist', {
+            method: 'POST',
+            headers: { ...yccaAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ips: lines })
+        });
+        const data = await r.json();
+        if (!r.ok) { setStatus('statusYccaBlock', '⚠ ' + (data.error || r.statusText), 'error'); return; }
+        const extra = (data.skippedNonIp && data.skippedNonIp.length)
+            ? ' — ' + data.skippedNonIp.length + ' baris bukan IP dilewati.'
+            : '';
+        setStatus('statusYccaBlock', `✓ Ditambahkan: ${data.inserted}, duplikat: ${data.duplicate}.${extra}`, 'success');
+        if (ta) ta.value = '';
+        await yccaRefreshBlocklist();
+    } catch (e) {
+        setStatus('statusYccaBlock', '⚠ ' + (e.message || 'Network error'), 'error');
+    }
+}
+
+async function runYccaScan() {
+    _vtState = _vtStateYcca;
+    _vtActiveResultsId = 'yccaResults';
+    _vtActiveNoteId = 'yccaSelectedNote';
+    _vtStatusMsgId = 'statusYcca';
+
+    const raw = document.getElementById('yccaScanInput').value.trim();
+    const btn = document.getElementById('yccaScanBtn');
+    clearStatus('statusYcca');
+
+    if (!yccaGetPw()) {
+        setStatus('statusYcca', '⚠ Login YCCA dulu.', 'error');
+        return;
+    }
+
+    if (!raw) { setStatus('statusYcca', '⚠ Input tidak boleh kosong!', 'error'); return; }
+
+    const lines = [...new Set(raw.split('\n').map(s => s.trim()).filter(s => s.length))];
+    if (!lines.length) { setStatus('statusYcca', '⚠ Tidak ada baris yang valid.', 'error'); return; }
+
+    let blockedSet = new Set();
+    try {
+        const r = await fetch('/api/ycca-blocklist', { headers: yccaAuthHeaders() });
+        const data = await r.json();
+        if (r.ok && Array.isArray(data.items)) {
+            blockedSet = new Set(data.items.map(x => String(x.ip || '').toLowerCase()));
+        }
+    } catch (e) {}
+
+    btn.disabled = true;
+    const lineResults = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        setStatus('statusYcca', `<span class="spinner"></span> Memproses ${i + 1} / ${lines.length}…`, 'loading');
+
+        const ip = yccaNormalizeIp(rawLine);
+        if (!ip) {
+            lineResults.push({
+                rawIoc: rawLine,
+                invalidIp: true,
+                invalidReason: 'Bukan IP valid (hanya IPv4/IPv6).',
+                vtResult: { status: 'fulfilled', value: null },
+                corrResult: { status: 'fulfilled', value: null }
+            });
+            continue;
+        }
+
+        if (blockedSet.has(ip)) {
+            lineResults.push({
+                rawIoc: ip,
+                skipBlocklist: true,
+                vtResult: { status: 'fulfilled', value: null },
+                corrResult: { status: 'fulfilled', value: null }
+            });
+            continue;
+        }
+
+        const [vtResult, corrResult] = await Promise.allSettled([
+            vtGet(ip),
+            fetchCorrelation(ip),
+        ]);
+        lineResults.push({ rawIoc: ip, vtResult, corrResult });
+
+        if (i < lines.length - 1) await new Promise(r => setTimeout(r, 400));
+    }
+
+    await renderScanBatch(lineResults, { mode: 'ycca' });
+
+    btn.disabled = false;
+    setStatus('statusYcca', `✓ ${lines.length} baris diproses.`, 'success');
+}
+
+function clearYccaScan() {
+    const ta = document.getElementById('yccaScanInput');
+    if (ta) ta.value = '';
+    const res = document.getElementById('yccaResults');
+    if (res) res.innerHTML = '<div style="color:var(--text-sec);font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;padding:1rem;">Hasil scan muncul di sini…</div>';
+    const c = document.getElementById('yccaResultCount');
+    if (c) c.textContent = '';
+    _vtStateYcca.items.length = 0;
+    Object.assign(_vtStateYcca.filters, { clean: true, suspicious: true, malicious: true });
+    if (_vtState === _vtStateYcca) vtUpdateSelectedNote();
+    vtSyncFilterUIs();
+    clearStatus('statusYcca');
 }
 
 async function runVTLookup() {
