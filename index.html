@@ -64,8 +64,9 @@
         .card-title .dot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); flex-shrink: 0; }
 
         label { font-size: 0.75rem; font-weight: 700; color: var(--text-sec); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        textarea, input[type="text"], input[type="password"] { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
-        textarea:focus, input:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
+        textarea, input[type="text"], input[type="password"], select { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
+        select { cursor: pointer; resize: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235a7aa8' d='M1 1.5L6 6l5-4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 2.2rem; }
+        textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
 
         .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn { flex:1; min-width: 100px; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.18s; }
@@ -334,6 +335,7 @@
                 <div class="fg">
                     <label for="mergerDbItemsInput">Daftar IP</label>
                     <textarea id="mergerDbItemsInput" rows="10" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
+                    <p id="mergerDbInputPreview" class="history-hint" style="margin:0.35rem 0 0;">Pratinjau: belum ada isian.</p>
                 </div>
                 <div class="btn-row">
                     <button type="button" class="btn btn-primary" id="mergerDbPostBtn" onclick="mergerDbPostItems()">Simpan ke Supabase</button>
@@ -358,9 +360,23 @@
 
         <div class="card" style="margin-top:1.5rem;">
             <div class="card-title"><span class="dot"></span> Output JSON (dari database)</div>
-            <p class="history-hint" style="margin:0;">Tulis nama <strong>field</strong> untuk setiap baris hasil, dipisah <strong>koma</strong> atau <strong>satu field per baris</strong>. Nilai diambil dari <code>payload</code> tiap IP di Supabase (urutan baris = urutan IP, diurutkan). Kosongkan untuk output berupa <strong>hanya array IP</strong>.</p>
+            <p class="history-hint" style="margin:0;">Ini <strong>bukan</strong> tab “Gabung JSON &amp; IP Baru”. Di sini output memakai baris IP dari Supabase. Mode <strong>Query SIEM</strong> menghasilkan struktur <code>query.terms.&lt;field&gt;</code> seperti contoh SIEM. Mode <strong>Object dari payload</strong>: tiap nama field harus ada di <code>payload</code> hasil scan — kalau tidak ada, nilainya <code>null</code> (misalnya isi <code>asd</code> tanpa key itu di payload → <code>{ "asd": null }</code> per IP).</p>
             <div class="fg">
-                <label for="mergerDbOutputFields">Field yang ingin ditampilkan</label>
+                <label for="mergerDbOutputMode">Format output</label>
+                <select id="mergerDbOutputMode" aria-describedby="mergerDbOutputModeHint">
+                    <option value="auto">Otomatis — field kosong = array IP; field diisi = object per baris</option>
+                    <option value="plain">Array IP saja (abaikan field di bawah)</option>
+                    <option value="payload_table">Object per baris dari payload (pakai field di bawah)</option>
+                    <option value="query_terms">Query SIEM — <code>{"query":{"terms":{"…":[IP]}}}</code></option>
+                </select>
+                <p id="mergerDbOutputModeHint" class="history-hint" style="margin:0.35rem 0 0;">Pilih <strong>Query SIEM</strong> bila ingin format query seperti tab merger, bukan daftar object kosong.</p>
+            </div>
+            <div class="fg" id="mergerDbTermsFieldWrap" style="display:none;">
+                <label for="mergerDbTermsField">Nama field di <code>terms</code> (contoh: <code>data.real_ip</code>)</label>
+                <input type="text" id="mergerDbTermsField" placeholder="data.real_ip" autocomplete="off" />
+            </div>
+            <div class="fg">
+                <label for="mergerDbOutputFields">Field yang ingin ditampilkan (payload)</label>
                 <textarea id="mergerDbOutputFields" rows="4" placeholder="ioc, vt_verdict, confidence, country"></textarea>
             </div>
             <div class="btn-row">
@@ -632,15 +648,17 @@ function processMerger() {
     // Prefer keys yang dulu pernah didukung, tapi tetap dinamis untuk key lain.
     const preferredKeys = ['data.real_ip', 'source.ip'];
     const preferredKey = preferredKeys.find(k => arrayKeys.includes(k));
-    const bestKey = preferredKey || arrayKeys.reduce((best, k) => {
-        const bestScore = ipScore(best);
-        const kScore = ipScore(k);
-        if (kScore > bestScore) return k;
-        return best;
-    }, arrayKeys[0]);
-
-    // Kalau semua score 0 (nggak ketahuan IP-like), pakai key pertama.
-    const ipKey = (preferredKey || ipScore(bestKey) > 0) ? bestKey : arrayKeys[0];
+    const sortedByIpLikeness = arrayKeys.slice().sort((a, b) => {
+        const sc = ipScore(b) - ipScore(a);
+        if (sc !== 0) return sc;
+        const la = Array.isArray(terms[a]) ? terms[a].length : 0;
+        const lb = Array.isArray(terms[b]) ? terms[b].length : 0;
+        if (lb !== la) return lb - la;
+        return String(a).localeCompare(String(b));
+    });
+    const ipKey = (preferredKey && arrayKeys.includes(preferredKey))
+        ? preferredKey
+        : sortedByIpLikeness[0];
 
     const existing = terms[ipKey];
     const combined = [...new Set([...existing,...newIps])];
@@ -797,6 +815,98 @@ let _mergerDbLastItems = [];
 let _mergerDbDidAutoRefresh = false;
 const MERGER_DB_POST_CHUNK = 40;
 
+/** Samakan dengan api/_ioc.js — normalisasi sebelum cek duplikat / DB. */
+function mergerDbExtractIoc(raw) {
+    let s = String(raw ?? '').trim();
+    s = s.replace(/^\[|\]$/g, '');
+    s = s.replace(/^hxxps?/i, 'https');
+    s = s.replace(/\[\.\]/g, '.').replace(/\(dot\)/gi, '.');
+    if (/^https?:\/\//i.test(s)) {
+        try {
+            const u = new URL(s);
+            s = u.hostname;
+        } catch (e) {
+            s = s.replace(/^https?:\/\//i, '').split('/')[0];
+        }
+    }
+    s = s.split('/')[0].split('?')[0].split('#')[0];
+    s = s.replace(/:(\d+)$/, '');
+    s = s.replace(/\.$/, '');
+    return s.toLowerCase();
+}
+function mergerDbDetectType(s) {
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
+    if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
+    if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
+    if (/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$/.test(s)) return 'domain';
+    return null;
+}
+function mergerDbNormalizeIpLine(raw) {
+    const ioc = mergerDbExtractIoc(raw);
+    if (mergerDbDetectType(ioc) !== 'ip') return null;
+    return ioc;
+}
+
+/** Hitung baris vs IP unik vs perkiraan simpan / sudah ada (memakai data terakhir Refresh). */
+function mergerDbGetInputClassification() {
+    const ta = document.getElementById('mergerDbItemsInput');
+    const raw = ta && ta.value ? ta.value : '';
+    const lines = raw.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    const dbSet = new Set();
+    (_mergerDbLastItems || []).forEach(function (r) {
+        if (r && r.ip) dbSet.add(String(r.ip));
+    });
+    let invalidLines = 0;
+    const uniqueNorm = [];
+    const seen = new Set();
+    for (let i = 0; i < lines.length; i++) {
+        const norm = mergerDbNormalizeIpLine(lines[i]);
+        if (!norm) {
+            invalidLines++;
+            continue;
+        }
+        if (!seen.has(norm)) {
+            seen.add(norm);
+            uniqueNorm.push(norm);
+        }
+    }
+    let wouldSave = 0;
+    let alreadyInDb = 0;
+    for (let j = 0; j < uniqueNorm.length; j++) {
+        if (dbSet.has(uniqueNorm[j])) alreadyInDb++;
+        else wouldSave++;
+    }
+    const validLineCount = lines.length - invalidLines;
+    const dupAmongValid = validLineCount - uniqueNorm.length;
+    return {
+        lineCount: lines.length,
+        invalidLines: invalidLines,
+        uniqueValid: uniqueNorm.length,
+        validLineCount: validLineCount,
+        dupAmongValid: dupAmongValid,
+        wouldSave: wouldSave,
+        alreadyInDb: alreadyInDb,
+        dbCachedCount: dbSet.size
+    };
+}
+
+function mergerDbUpdateInputPreview() {
+    const el = document.getElementById('mergerDbInputPreview');
+    if (!el) return;
+    const c = mergerDbGetInputClassification();
+    if (!c.lineCount) {
+        el.textContent = 'Pratinjau: belum ada isian.';
+        return;
+    }
+    let s = 'Pratinjau: ' + c.lineCount + ' baris isi';
+    if (c.invalidLines) s += ', ' + c.invalidLines + ' ditolak (bukan IP)';
+    s += ' → ' + c.uniqueValid + ' IP unik valid';
+    if (c.dupAmongValid) s += ' (' + c.dupAmongValid + ' baris berulang ke IP yang sama)';
+    s += ' — ' + c.wouldSave + ' akan disimpan, ' + c.alreadyInDb + ' sudah ada di DB.';
+    s += ' Perkiraan memakai ' + c.dbCachedCount + ' IP dari muatan terakhir; Refresh bila database berubah di luar halaman ini.';
+    el.textContent = s;
+}
+
 function mergerDbSetSaveProgress(pct, text) {
     const wrap = document.getElementById('mergerDbSaveProgressWrap');
     const fill = document.getElementById('mergerDbSaveProgressFill');
@@ -833,6 +943,20 @@ function mergerDbParseOutputFieldNames() {
     return out;
 }
 
+/** auto | plain | payload_table | query_terms */
+function mergerDbGetOutputMode() {
+    const el = document.getElementById('mergerDbOutputMode');
+    const v = el && el.value ? String(el.value) : 'auto';
+    if (v === 'plain' || v === 'payload_table' || v === 'query_terms') return v;
+    return 'auto';
+}
+
+function mergerDbSyncTermsFieldVisibility() {
+    const wrap = document.getElementById('mergerDbTermsFieldWrap');
+    const mode = mergerDbGetOutputMode();
+    if (wrap) wrap.style.display = mode === 'query_terms' ? 'block' : 'none';
+}
+
 function mergerDbBuildRowObjects(items, keys) {
     const list = Array.isArray(items) ? items.slice() : [];
     list.sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
@@ -854,12 +978,20 @@ function mergerDbRebuildOutputs(items) {
     const sortedRows = _mergerDbLastItems.slice().sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
     const ips = sortedRows.map(x => x && x.ip).filter(Boolean);
 
+    const mode = mergerDbGetOutputMode();
     const keys = mergerDbParseOutputFieldNames();
     let out;
-    if (!keys.length) {
+    if (mode === 'query_terms') {
+        const inp = document.getElementById('mergerDbTermsField');
+        const fk = ((inp && inp.value) || '').trim() || 'data.real_ip';
+        out = { query: { terms: { [fk]: ips.slice() } } };
+    } else if (mode === 'plain') {
         out = ips;
+    } else if (mode === 'payload_table') {
+        out = mergerDbBuildRowObjects(sortedRows, keys.length ? keys : ['ioc']);
     } else {
-        out = mergerDbBuildRowObjects(sortedRows, keys);
+        if (!keys.length) out = ips;
+        else out = mergerDbBuildRowObjects(sortedRows, keys);
     }
 
     const pre = document.getElementById('outputJsonDb');
@@ -868,6 +1000,7 @@ function mergerDbRebuildOutputs(items) {
         pre.textContent = JSON.stringify(out, null, 2);
         if (copyBtn) copyBtn.style.display = 'block';
     }
+    mergerDbUpdateInputPreview();
 }
 
 async function mergerDbRefreshFromDb() {
@@ -902,12 +1035,14 @@ async function mergerDbPostItems() {
         setStatus('statusMergerDb', '⚠ Isi minimal satu IP (satu per baris).', 'error');
         return;
     }
+    mergerDbUpdateInputPreview();
+    const preSnap = mergerDbGetInputClassification();
     const postBtn = document.getElementById('mergerDbPostBtn');
     const refBtn = document.getElementById('mergerDbRefreshBtn');
     if (postBtn) postBtn.disabled = true;
     if (refBtn) refBtn.disabled = true;
     mergerDbSetSaveProgress(0, '0% · 0 / ' + unique.length + ' IP');
-    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke Supabase…', 'loading');
+    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke Supabase… (pratinjau: ~' + preSnap.wouldSave + ' baru, ~' + preSnap.alreadyInDb + ' sudah ada)', 'loading');
     let totalSaved = 0;
     let totalSkipped = 0;
     let totalErr = 0;
@@ -1955,6 +2090,33 @@ document.addEventListener('DOMContentLoaded', function() {
             clearTimeout(mergerDbFieldsTimer);
             mergerDbFieldsTimer = setTimeout(function () { mergerDbRebuildOutputs(_mergerDbLastItems); }, 400);
         });
+    }
+    const mergerMode = document.getElementById('mergerDbOutputMode');
+    if (mergerMode) {
+        mergerMode.addEventListener('change', function () {
+            mergerDbSyncTermsFieldVisibility();
+            mergerDbRebuildOutputs(_mergerDbLastItems);
+        });
+        mergerDbSyncTermsFieldVisibility();
+    }
+    let mergerDbTermsTimer;
+    const mergerTermsInp = document.getElementById('mergerDbTermsField');
+    if (mergerTermsInp) {
+        mergerTermsInp.addEventListener('input', function () {
+            clearTimeout(mergerDbTermsTimer);
+            mergerDbTermsTimer = setTimeout(function () {
+                if (mergerDbGetOutputMode() === 'query_terms') mergerDbRebuildOutputs(_mergerDbLastItems);
+            }, 300);
+        });
+    }
+    let mergerDbInputTimer;
+    const mergerInp = document.getElementById('mergerDbItemsInput');
+    if (mergerInp) {
+        mergerInp.addEventListener('input', function () {
+            clearTimeout(mergerDbInputTimer);
+            mergerDbInputTimer = setTimeout(mergerDbUpdateInputPreview, 280);
+        });
+        mergerDbUpdateInputPreview();
     }
 });
 </script>

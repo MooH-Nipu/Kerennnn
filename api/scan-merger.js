@@ -78,12 +78,24 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabase
-        .from('merger_scanned_ips')
-        .select('ip,payload,updated_at')
-        .order('ip', { ascending: true });
-      if (error) return res.status(500).json({ error: error.message || String(error) });
-      return res.status(200).json({ items: data || [] });
+      // PostgREST default max-rows per request is 1000 — page until exhausted.
+      const pageSize = 1000;
+      const items = [];
+      let from = 0;
+      for (;;) {
+        const to = from + pageSize - 1;
+        const { data, error } = await supabase
+          .from('merger_scanned_ips')
+          .select('ip,payload,updated_at')
+          .order('ip', { ascending: true })
+          .range(from, to);
+        if (error) return res.status(500).json({ error: error.message || String(error) });
+        const chunk = data || [];
+        items.push(...chunk);
+        if (chunk.length < pageSize) break;
+        from += pageSize;
+      }
+      return res.status(200).json({ items });
     }
 
     if (req.method === 'POST') {
