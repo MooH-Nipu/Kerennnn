@@ -75,7 +75,8 @@ module.exports = async function handler(req, res) {
       }
 
       const errors = [];
-      const saved = [];
+      /** @type {Map<string, { indices: number[], mergedPatch: Record<string, unknown> }>} */
+      const byIp = new Map();
 
       for (let i = 0; i < items.length; i++) {
         const row = items[i];
@@ -88,7 +89,20 @@ module.exports = async function handler(req, res) {
           errors.push({ index: i, reason: 'missing or invalid ip/ioc' });
           continue;
         }
+        const patch = { ...row };
+        delete patch.ip;
+        delete patch.ioc;
+        if (!byIp.has(ip)) {
+          byIp.set(ip, { indices: [i], mergedPatch: { ...patch } });
+        } else {
+          const entry = byIp.get(ip);
+          entry.indices.push(i);
+          entry.mergedPatch = { ...entry.mergedPatch, ...patch };
+        }
+      }
 
+      const saved = [];
+      for (const [ip, { mergedPatch }] of byIp) {
         const { data: existing, error: selErr } = await supabase
           .from('merger_scanned_ips')
           .select('payload')
@@ -96,7 +110,7 @@ module.exports = async function handler(req, res) {
           .maybeSingle();
 
         if (selErr) {
-          errors.push({ index: i, ip, reason: selErr.message || String(selErr) });
+          errors.push({ ip, reason: selErr.message || String(selErr) });
           continue;
         }
 
@@ -104,9 +118,7 @@ module.exports = async function handler(req, res) {
           ? { ...existing.payload }
           : {};
 
-        const patch = { ...row };
-        delete patch.ip;
-        const merged = { ...base, ...patch, ioc: ip };
+        const merged = { ...base, ...mergedPatch, ioc: ip };
 
         const { error: upErr } = await supabase
           .from('merger_scanned_ips')
@@ -116,13 +128,20 @@ module.exports = async function handler(req, res) {
           );
 
         if (upErr) {
-          errors.push({ index: i, ip, reason: upErr.message || String(upErr) });
+          errors.push({ ip, reason: upErr.message || String(upErr) });
         } else {
           saved.push(ip);
         }
       }
 
-      return res.status(200).json({ ok: true, saved, errors, savedCount: saved.length, errorCount: errors.length });
+      return res.status(200).json({
+        ok: true,
+        saved,
+        errors,
+        savedCount: saved.length,
+        errorCount: errors.length,
+        uniqueIpCount: byIp.size,
+      });
     }
 
     if (req.method === 'DELETE') {
