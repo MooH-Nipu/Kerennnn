@@ -1,6 +1,30 @@
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('./_ioc');
 
+/** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
+function currentUpdatedAtIsoWib() {
+  const d = new Date();
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const t = (ty) => (parts.find((p) => p.type === ty) || {}).value || '';
+  const y = t('year');
+  const mo = t('month');
+  const da = t('day');
+  const h = t('hour');
+  const mi = t('minute');
+  const sec = t('second');
+  if (y && mo && da) return `${y}-${mo}-${da}T${h || '00'}:${mi || '00'}:${sec || '00'}+07:00`;
+  return new Date().toISOString();
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -102,10 +126,12 @@ module.exports = async function handler(req, res) {
       }
 
       const saved = [];
+      const skipped = [];
+
       for (const [ip, { mergedPatch }] of byIp) {
         const { data: existing, error: selErr } = await supabase
           .from('merger_scanned_ips')
-          .select('payload')
+          .select('ip')
           .eq('ip', ip)
           .maybeSingle();
 
@@ -114,21 +140,21 @@ module.exports = async function handler(req, res) {
           continue;
         }
 
-        const base = existing && existing.payload && typeof existing.payload === 'object'
-          ? { ...existing.payload }
-          : {};
+        if (existing != null && existing.ip) {
+          skipped.push(ip);
+          continue;
+        }
 
-        const merged = { ...base, ...mergedPatch, ioc: ip };
+        const merged = { ...mergedPatch, ioc: ip };
 
-        const { error: upErr } = await supabase
-          .from('merger_scanned_ips')
-          .upsert(
-            { ip, payload: merged, updated_at: new Date().toISOString() },
-            { onConflict: 'ip' }
-          );
+        const { error: insErr } = await supabase.from('merger_scanned_ips').insert({
+          ip,
+          payload: merged,
+          updated_at: currentUpdatedAtIsoWib(),
+        });
 
-        if (upErr) {
-          errors.push({ ip, reason: upErr.message || String(upErr) });
+        if (insErr) {
+          errors.push({ ip, reason: insErr.message || String(insErr) });
         } else {
           saved.push(ip);
         }
@@ -137,8 +163,10 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         saved,
+        skipped,
         errors,
         savedCount: saved.length,
+        skippedCount: skipped.length,
         errorCount: errors.length,
         uniqueIpCount: byIp.size,
       });

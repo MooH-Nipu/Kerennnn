@@ -330,14 +330,20 @@
         <div class="grid">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Simpan IP ke database</div>
-                <p class="history-hint" style="margin:0;">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. IP yang sudah ada di-merge: field lain di payload lama tetap ada; <code>ioc</code> selalu diset ke IP yang dinormalisasi.</p>
+                <p class="history-hint" style="margin:0;">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. <strong>IP yang sudah ada di database tidak akan disimpan lagi</strong> (dilewati). Hanya IP baru yang ditambahkan.</p>
                 <div class="fg">
                     <label for="mergerDbItemsInput">Daftar IP</label>
                     <textarea id="mergerDbItemsInput" rows="10" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
                 </div>
                 <div class="btn-row">
-                    <button type="button" class="btn btn-primary" onclick="mergerDbPostItems()">Simpan ke Supabase</button>
-                    <button type="button" class="btn btn-secondary" onclick="mergerDbRefreshFromDb()">Refresh dari DB</button>
+                    <button type="button" class="btn btn-primary" id="mergerDbPostBtn" onclick="mergerDbPostItems()">Simpan ke Supabase</button>
+                    <button type="button" class="btn btn-secondary" id="mergerDbRefreshBtn" onclick="mergerDbRefreshFromDb()">Refresh dari DB</button>
+                </div>
+                <div id="mergerDbSaveProgressWrap" style="display:none;margin-top:12px;">
+                    <div style="height:9px;background:rgba(0,0,0,0.28);border-radius:7px;overflow:hidden;border:1px solid var(--border);">
+                        <div id="mergerDbSaveProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-hl));transition:width 0.22s ease;"></div>
+                    </div>
+                    <div id="mergerDbSaveProgressLabel" style="font-size:0.76rem;color:var(--text-sec);margin-top:8px;font-family:'JetBrains Mono',monospace;">0%</div>
                 </div>
                 <div class="fg" style="margin-top:0.5rem;">
                     <label for="mergerDbDeleteIp">Hapus satu IP dari DB</label>
@@ -789,6 +795,24 @@ const VT_EXPORT_PRESETS = {
 
 let _mergerDbLastItems = [];
 let _mergerDbDidAutoRefresh = false;
+const MERGER_DB_POST_CHUNK = 40;
+
+function mergerDbSetSaveProgress(pct, text) {
+    const wrap = document.getElementById('mergerDbSaveProgressWrap');
+    const fill = document.getElementById('mergerDbSaveProgressFill');
+    const lab = document.getElementById('mergerDbSaveProgressLabel');
+    const n = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+    if (fill) fill.style.width = n + '%';
+    if (lab) lab.textContent = text != null ? String(text) : n + '%';
+    if (wrap) wrap.style.display = 'block';
+}
+
+function mergerDbHideSaveProgress() {
+    const wrap = document.getElementById('mergerDbSaveProgressWrap');
+    const fill = document.getElementById('mergerDbSaveProgressFill');
+    if (wrap) wrap.style.display = 'none';
+    if (fill) fill.style.width = '0%';
+}
 
 function mergerDbAuthHeaders() {
     return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
@@ -878,27 +902,52 @@ async function mergerDbPostItems() {
         setStatus('statusMergerDb', '⚠ Isi minimal satu IP (satu per baris).', 'error');
         return;
     }
-    const items = unique.map(ip => ({ ioc: ip }));
-    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan…', 'loading');
+    const postBtn = document.getElementById('mergerDbPostBtn');
+    const refBtn = document.getElementById('mergerDbRefreshBtn');
+    if (postBtn) postBtn.disabled = true;
+    if (refBtn) refBtn.disabled = true;
+    mergerDbSetSaveProgress(0, '0% · 0 / ' + unique.length + ' IP');
+    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke Supabase…', 'loading');
+    let totalSaved = 0;
+    let totalSkipped = 0;
+    let totalErr = 0;
     try {
-        const r = await fetch('/api/scan-merger', {
-            method: 'POST',
-            headers: mergerDbAuthHeaders(),
-            body: JSON.stringify({ items }),
-        });
-        const { data } = await readFetchJson(r);
-        if (!r.ok) {
-            setStatus('statusMergerDb', '⚠ ' + escHtml(formatApiError(data && data.error) || r.status), 'error');
-            return;
+        const total = unique.length;
+        for (let i = 0; i < total; i += MERGER_DB_POST_CHUNK) {
+            const chunk = unique.slice(i, i + MERGER_DB_POST_CHUNK);
+            const items = chunk.map(ip => ({ ioc: ip }));
+            const doneBefore = i;
+            const r = await fetch('/api/scan-merger', {
+                method: 'POST',
+                headers: mergerDbAuthHeaders(),
+                body: JSON.stringify({ items }),
+            });
+            const { data } = await readFetchJson(r);
+            if (!r.ok) {
+                mergerDbSetSaveProgress(Math.round((doneBefore / total) * 100), 'Gagal di batch ' + (Math.floor(i / MERGER_DB_POST_CHUNK) + 1));
+                setStatus('statusMergerDb', '⚠ ' + escHtml(formatApiError(data && data.error) || r.status), 'error');
+                return;
+            }
+            totalSaved += (data && data.savedCount) || 0;
+            totalSkipped += (data && data.skippedCount) || 0;
+            totalErr += (data && data.errorCount) || 0;
+            const done = Math.min(i + chunk.length, total);
+            const pct = Math.round((done / total) * 100);
+            mergerDbSetSaveProgress(pct, pct + '% · ' + done + ' / ' + total + ' IP');
         }
-        const errN = (data && data.errorCount) || 0;
-        const okN = (data && data.savedCount) || 0;
-        let msg = `✓ Tersimpan: ${okN} baris.`;
-        if (errN) msg += ` Gagal / dilewati: ${errN}.`;
-        setStatus('statusMergerDb', escHtml(msg), errN ? 'error' : 'success');
+        let msg = `✓ Selesai: ${totalSaved} IP baru disimpan.`;
+        if (totalSkipped) msg += ` ${totalSkipped} dilewati (sudah ada di DB).`;
+        if (totalErr) msg += ` ${totalErr} error.`;
+        if (!totalSaved && !totalErr && totalSkipped) msg = `✓ Semua ${totalSkipped} IP sudah ada di database — tidak ada yang ditambahkan.`;
+        setStatus('statusMergerDb', escHtml(msg), totalErr ? 'error' : 'success');
+        mergerDbSetSaveProgress(100, '100% · ' + unique.length + ' / ' + unique.length + ' IP');
         await mergerDbRefreshFromDb();
     } catch (e) {
         setStatus('statusMergerDb', '⚠ ' + escHtml(e.message || String(e)), 'error');
+    } finally {
+        if (postBtn) postBtn.disabled = false;
+        if (refBtn) refBtn.disabled = false;
+        setTimeout(mergerDbHideSaveProgress, 1800);
     }
 }
 
