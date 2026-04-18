@@ -16,17 +16,20 @@ function httpsGet(url, headers) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers }, (res) => {
       let body = '';
-      res.on('data', chunk => body += chunk);
+      res.on('data', (chunk) => (body += chunk));
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode, data: JSON.parse(body) });
-        } catch (e) {
+        } catch {
           reject(new Error('Failed to parse VT response: ' + body.slice(0, 200)));
         }
       });
     });
     req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Request timeout')); });
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
   });
 }
 
@@ -49,7 +52,11 @@ module.exports = async function handler(req, res) {
 
   // ── Validation ────────────────────────────────
   if (apiKeys.length === 0) {
-    return res.status(500).json({ error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' } });
+    return res
+      .status(500)
+      .json({
+        error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' },
+      });
   }
 
   const { ioc: rawIoc } = req.query;
@@ -58,18 +65,20 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Clean + detect ────────────────────────────
-  const ioc  = extractIOC(rawIoc);
+  const ioc = extractIOC(rawIoc);
   const type = detectType(ioc);
 
   if (!type) {
     return res.status(400).json({
-      error: { message: `Cannot detect IOC type for: "${ioc}". Supports IP, domain, hash (MD5/SHA-1/SHA-256/SHA-512).` }
+      error: {
+        message: `Cannot detect IOC type for: "${ioc}". Supports IP, domain, hash (MD5/SHA-1/SHA-256/SHA-512).`,
+      },
     });
   }
 
   const urlMap = {
-    hash:   `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
-    ip:     `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
+    hash: `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
+    ip: `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
     domain: `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(ioc)}`,
   };
 
@@ -92,7 +101,7 @@ module.exports = async function handler(req, res) {
     try {
       const { status, data } = await httpsGet(vtUrl, {
         'x-apikey': apiKeys[i],
-        'Accept':   'application/json',
+        Accept: 'application/json',
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
 
@@ -108,7 +117,6 @@ module.exports = async function handler(req, res) {
 
       if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
       return res.status(status).json(data);
-
     } catch (err) {
       lastError = err;
       continue;
@@ -118,13 +126,13 @@ module.exports = async function handler(req, res) {
   // All keys failed: distinguish rate limit vs access error
   if (rateLimitedCount === apiKeys.length) {
     return res.status(429).json({
-      error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` }
+      error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` },
     });
   }
 
   // Cannot access VirusTotal (network, timeout, parse error, etc.)
   const msg = lastError?.message || 'Unknown error';
   return res.status(503).json({
-    error: { message: `Cannot access VirusTotal: ${msg}` }
+    error: { message: `Cannot access VirusTotal: ${msg}` },
   });
 };
