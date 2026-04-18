@@ -362,8 +362,17 @@
             <div class="card-title"><span class="dot"></span> Query SIEM (JSON dari database)</div>
             <p class="history-hint" style="margin:0;">IP dari Supabase dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
             <div class="fg">
-                <label for="mergerDbTermsField">Nama field di <code>terms</code> (contoh: <code>data.real_ip</code>)</label>
-                <input type="text" id="mergerDbTermsField" placeholder="data.real_ip" autocomplete="off" />
+                <label for="mergerDbTermsPreset">Field di <code>terms</code></label>
+                <select id="mergerDbTermsPreset">
+                    <option value="data.ip">data.ip</option>
+                    <option value="source.ip">source.ip</option>
+                    <option value="data.real_ip" selected>data.real_ip</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </div>
+            <div class="fg" id="mergerDbTermsCustomWrap" style="display:none;">
+                <label for="mergerDbTermsField">Nama field custom</label>
+                <input type="text" id="mergerDbTermsField" placeholder="mis. host.ip" autocomplete="off" />
             </div>
             <div class="btn-row">
                 <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildOutputs(_mergerDbLastItems)">Bangun ulang output</button>
@@ -914,13 +923,30 @@ function mergerDbAuthHeaders() {
     return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
 }
 
+function mergerDbSyncTermsCustomVisibility() {
+    const sel = document.getElementById('mergerDbTermsPreset');
+    const wrap = document.getElementById('mergerDbTermsCustomWrap');
+    const custom = sel && sel.value === 'custom';
+    if (wrap) wrap.style.display = custom ? 'block' : 'none';
+}
+
+function mergerDbGetTermsFieldKey() {
+    const sel = document.getElementById('mergerDbTermsPreset');
+    const v = sel && sel.value ? String(sel.value) : 'data.real_ip';
+    if (v === 'custom') {
+        const inp = document.getElementById('mergerDbTermsField');
+        const fk = ((inp && inp.value) || '').trim();
+        return fk || 'data.real_ip';
+    }
+    return v;
+}
+
 function mergerDbRebuildOutputs(items) {
     _mergerDbLastItems = Array.isArray(items) ? items.slice() : [];
     const sortedRows = _mergerDbLastItems.slice().sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
     const ips = sortedRows.map(x => x && x.ip).filter(Boolean);
 
-    const inp = document.getElementById('mergerDbTermsField');
-    const fk = ((inp && inp.value) || '').trim() || 'data.real_ip';
+    const fk = mergerDbGetTermsFieldKey();
     const out = { query: { terms: { [fk]: ips.slice() } } };
 
     const pre = document.getElementById('outputJsonDb');
@@ -2012,6 +2038,14 @@ document.addEventListener('DOMContentLoaded', function() {
     vtInitExportPresetUI();
     vtSyncFilterUIs();
 
+    const mergerTermsPreset = document.getElementById('mergerDbTermsPreset');
+    if (mergerTermsPreset) {
+        mergerTermsPreset.addEventListener('change', function () {
+            mergerDbSyncTermsCustomVisibility();
+            mergerDbRebuildOutputs(_mergerDbLastItems);
+        });
+        mergerDbSyncTermsCustomVisibility();
+    }
     let mergerDbTermsTimer;
     const mergerTermsInp = document.getElementById('mergerDbTermsField');
     if (mergerTermsInp) {
