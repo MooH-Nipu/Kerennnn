@@ -1,5 +1,5 @@
 -- Run in Supabase SQL Editor (public schema).
--- Stores IPs + JSON payload for the "Merger (DB)" tab.
+-- Stores IPs + JSON payload for the PAC Filter tab.
 
 -- Satu baris per IP: PRIMARY KEY mencegah duplikat (bentrok insert/upsert = update baris yang sama).
 -- updated_at: timestamptz. Aplikasi mengisi dengan offset WIB (+07:00). Default now() untuk insert manual dari SQL.
@@ -12,4 +12,4 @@ create table if not exists public.merger_scanned_ips (
 create index if not exists merger_scanned_ips_updated_at_idx
   on public.merger_scanned_ips (updated_at desc);
 
-comment on table public.merger_scanned_ips is 'Manual scan rows for JSON Merger (DB) — synced to SIEM query.terms output.';
+comment on table public.merger_scanned_ips is 'Manual scan rows for PAC Filter — synced to SIEM query.terms output.';

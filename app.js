@@ -435,7 +435,7 @@ function mergerDbRebuildOutputs(items) {
 
 async function mergerDbRefreshFromDb() {
     clearStatus('statusMergerDb');
-    setStatus('statusMergerDb', '<span class="spinner"></span> Memuat dari Supabase…', 'loading');
+    setStatus('statusMergerDb', '<span class="spinner"></span> Memuat dari DB…', 'loading');
     try {
         const r = await fetch('/api/scan-merger', { method: 'GET', headers: mergerDbAuthHeaders() });
         const { data, text } = await readFetchJson(r);
@@ -472,7 +472,7 @@ async function mergerDbPostItems() {
     if (postBtn) postBtn.disabled = true;
     if (refBtn) refBtn.disabled = true;
     mergerDbSetSaveProgress(0, '0% · 0 / ' + unique.length + ' IP');
-    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke Supabase… (pratinjau: ~' + preSnap.wouldSave + ' baru, ~' + preSnap.alreadyInDb + ' sudah ada)', 'loading');
+    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke DB… (pratinjau: ~' + preSnap.wouldSave + ' baru, ~' + preSnap.alreadyInDb + ' sudah ada)', 'loading');
     let totalSaved = 0;
     let totalSkipped = 0;
     let totalErr = 0;

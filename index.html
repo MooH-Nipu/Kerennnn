@@ -20,7 +20,7 @@
     <nav class="tab-nav">
         <button type="button" class="tab-btn active" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button type="button" class="tab-btn" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
-        <button type="button" class="tab-btn" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)">🔗 Merger (DB)</button>
+        <button type="button" class="tab-btn" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)">PAC Filter</button>
         <button type="button" class="tab-btn" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
         <button type="button" class="tab-btn" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
@@ -77,9 +77,9 @@
         </div>
     </div>
 
-    <!-- TAB: JSON MERGER + SUPABASE -->
+    <!-- TAB: PAC Filter (DB-backed) -->
     <div id="tab-merger-db" class="tab-content">
-        <p class="history-hint" style="margin:0 0 1rem;">Data disimpan di Supabase (<code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
+        <p class="history-hint" style="margin:0 0 1rem;">Data disimpan di DB (tabel <code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
 
         <div class="grid">
             <div class="card">
@@ -91,7 +91,7 @@
                     <p id="mergerDbInputPreview" class="history-hint" style="margin:0.35rem 0 0;">Pratinjau: belum ada isian.</p>
                 </div>
                 <div class="btn-row">
-                    <button type="button" class="btn btn-primary" id="mergerDbPostBtn" onclick="mergerDbPostItems()">Simpan ke Supabase</button>
+                    <button type="button" class="btn btn-primary" id="mergerDbPostBtn" onclick="mergerDbPostItems()">Simpan ke DB</button>
                     <button type="button" class="btn btn-secondary" id="mergerDbRefreshBtn" onclick="mergerDbRefreshFromDb()">Refresh dari DB</button>
                 </div>
                 <div id="mergerDbSaveProgressWrap" style="display:none;margin-top:12px;">
@@ -113,7 +113,7 @@
 
         <div class="card" style="margin-top:1.5rem;">
             <div class="card-title"><span class="dot"></span> Query SIEM (JSON dari database)</div>
-            <p class="history-hint" style="margin:0;">IP dari Supabase dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
+            <p class="history-hint" style="margin:0;">IP dari DB dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
             <div class="fg">
                 <label for="mergerDbTermsPreset">Field di <code>terms</code></label>
                 <select id="mergerDbTermsPreset">
