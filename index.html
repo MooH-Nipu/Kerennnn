@@ -359,32 +359,18 @@
         </div>
 
         <div class="card" style="margin-top:1.5rem;">
-            <div class="card-title"><span class="dot"></span> Output JSON (dari database)</div>
-            <p class="history-hint" style="margin:0;">Ini <strong>bukan</strong> tab “Gabung JSON &amp; IP Baru”. Di sini output memakai baris IP dari Supabase. Mode <strong>Query SIEM</strong> menghasilkan struktur <code>query.terms.&lt;field&gt;</code> seperti contoh SIEM. Mode <strong>Object dari payload</strong>: tiap nama field harus ada di <code>payload</code> hasil scan — kalau tidak ada, nilainya <code>null</code> (misalnya isi <code>asd</code> tanpa key itu di payload → <code>{ "asd": null }</code> per IP).</p>
+            <div class="card-title"><span class="dot"></span> Query SIEM (JSON dari database)</div>
+            <p class="history-hint" style="margin:0;">IP dari Supabase dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
             <div class="fg">
-                <label for="mergerDbOutputMode">Format output</label>
-                <select id="mergerDbOutputMode" aria-describedby="mergerDbOutputModeHint">
-                    <option value="auto">Otomatis — field kosong = array IP; field diisi = object per baris</option>
-                    <option value="plain">Array IP saja (abaikan field di bawah)</option>
-                    <option value="payload_table">Object per baris dari payload (pakai field di bawah)</option>
-                    <option value="query_terms">Query SIEM — <code>{"query":{"terms":{"…":[IP]}}}</code></option>
-                </select>
-                <p id="mergerDbOutputModeHint" class="history-hint" style="margin:0.35rem 0 0;">Pilih <strong>Query SIEM</strong> bila ingin format query seperti tab merger, bukan daftar object kosong.</p>
-            </div>
-            <div class="fg" id="mergerDbTermsFieldWrap" style="display:none;">
                 <label for="mergerDbTermsField">Nama field di <code>terms</code> (contoh: <code>data.real_ip</code>)</label>
                 <input type="text" id="mergerDbTermsField" placeholder="data.real_ip" autocomplete="off" />
-            </div>
-            <div class="fg">
-                <label for="mergerDbOutputFields">Field yang ingin ditampilkan (payload)</label>
-                <textarea id="mergerDbOutputFields" rows="4" placeholder="ioc, vt_verdict, confidence, country"></textarea>
             </div>
             <div class="btn-row">
                 <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildOutputs(_mergerDbLastItems)">Bangun ulang output</button>
             </div>
             <div class="output-wrap" style="flex-grow:1;margin-top:12px;">
                 <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
-                <pre id="outputJsonDb" class="output-code tall">[]</pre>
+                <pre id="outputJsonDb" class="output-code tall">{ }</pre>
             </div>
         </div>
     </div>
@@ -928,71 +914,14 @@ function mergerDbAuthHeaders() {
     return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
 }
 
-/** Nama field dari textarea "Field yang ingin ditampilkan" (koma / baris / titik koma). */
-function mergerDbParseOutputFieldNames() {
-    const raw = (document.getElementById('mergerDbOutputFields') && document.getElementById('mergerDbOutputFields').value || '').trim();
-    if (!raw) return [];
-    const parts = raw.split(/[\n,;|]+/).map(s => s.trim()).filter(Boolean);
-    const seen = new Set();
-    const out = [];
-    for (const p of parts) {
-        if (seen.has(p)) continue;
-        seen.add(p);
-        out.push(p);
-    }
-    return out;
-}
-
-/** auto | plain | payload_table | query_terms */
-function mergerDbGetOutputMode() {
-    const el = document.getElementById('mergerDbOutputMode');
-    const v = el && el.value ? String(el.value) : 'auto';
-    if (v === 'plain' || v === 'payload_table' || v === 'query_terms') return v;
-    return 'auto';
-}
-
-function mergerDbSyncTermsFieldVisibility() {
-    const wrap = document.getElementById('mergerDbTermsFieldWrap');
-    const mode = mergerDbGetOutputMode();
-    if (wrap) wrap.style.display = mode === 'query_terms' ? 'block' : 'none';
-}
-
-function mergerDbBuildRowObjects(items, keys) {
-    const list = Array.isArray(items) ? items.slice() : [];
-    list.sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
-    return list.map(row => {
-        const ip = row.ip;
-        const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        const o = {};
-        keys.forEach(k => {
-            let v = p[k];
-            if (v === undefined && k === 'ioc') v = ip;
-            o[k] = v !== undefined ? v : null;
-        });
-        return o;
-    });
-}
-
 function mergerDbRebuildOutputs(items) {
     _mergerDbLastItems = Array.isArray(items) ? items.slice() : [];
     const sortedRows = _mergerDbLastItems.slice().sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
     const ips = sortedRows.map(x => x && x.ip).filter(Boolean);
 
-    const mode = mergerDbGetOutputMode();
-    const keys = mergerDbParseOutputFieldNames();
-    let out;
-    if (mode === 'query_terms') {
-        const inp = document.getElementById('mergerDbTermsField');
-        const fk = ((inp && inp.value) || '').trim() || 'data.real_ip';
-        out = { query: { terms: { [fk]: ips.slice() } } };
-    } else if (mode === 'plain') {
-        out = ips;
-    } else if (mode === 'payload_table') {
-        out = mergerDbBuildRowObjects(sortedRows, keys.length ? keys : ['ioc']);
-    } else {
-        if (!keys.length) out = ips;
-        else out = mergerDbBuildRowObjects(sortedRows, keys);
-    }
+    const inp = document.getElementById('mergerDbTermsField');
+    const fk = ((inp && inp.value) || '').trim() || 'data.real_ip';
+    const out = { query: { terms: { [fk]: ips.slice() } } };
 
     const pre = document.getElementById('outputJsonDb');
     const copyBtn = document.getElementById('copyBtnJsonDb');
@@ -2083,29 +2012,13 @@ document.addEventListener('DOMContentLoaded', function() {
     vtInitExportPresetUI();
     vtSyncFilterUIs();
 
-    let mergerDbFieldsTimer;
-    const mergerFld = document.getElementById('mergerDbOutputFields');
-    if (mergerFld) {
-        mergerFld.addEventListener('input', function () {
-            clearTimeout(mergerDbFieldsTimer);
-            mergerDbFieldsTimer = setTimeout(function () { mergerDbRebuildOutputs(_mergerDbLastItems); }, 400);
-        });
-    }
-    const mergerMode = document.getElementById('mergerDbOutputMode');
-    if (mergerMode) {
-        mergerMode.addEventListener('change', function () {
-            mergerDbSyncTermsFieldVisibility();
-            mergerDbRebuildOutputs(_mergerDbLastItems);
-        });
-        mergerDbSyncTermsFieldVisibility();
-    }
     let mergerDbTermsTimer;
     const mergerTermsInp = document.getElementById('mergerDbTermsField');
     if (mergerTermsInp) {
         mergerTermsInp.addEventListener('input', function () {
             clearTimeout(mergerDbTermsTimer);
             mergerDbTermsTimer = setTimeout(function () {
-                if (mergerDbGetOutputMode() === 'query_terms') mergerDbRebuildOutputs(_mergerDbLastItems);
+                mergerDbRebuildOutputs(_mergerDbLastItems);
             }, 300);
         });
     }
