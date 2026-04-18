@@ -16,37 +16,52 @@ function httpGet(url, headers = {}) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers }, (res) => {
       let body = '';
-      res.on('data', c => body += c);
+      res.on('data', (c) => (body += c));
       res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
-        catch (e) { reject(new Error('Parse error: ' + body.slice(0, 100))); }
+        try {
+          resolve({ status: res.statusCode, data: JSON.parse(body) });
+        } catch {
+          reject(new Error('Parse error: ' + body.slice(0, 100)));
+        }
       });
     });
     req.on('error', reject);
-    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(8000, () => {
+      req.destroy();
+      reject(new Error('Timeout'));
+    });
   });
 }
 
 function httpPost(url, postBody, headers = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    const req = https.request({
-      hostname: u.hostname,
-      path: u.pathname + u.search,
-      method: 'POST',
-      headers: {
-        ...headers
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: {
+          ...headers,
+        },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          try {
+            resolve({ status: res.statusCode, data: JSON.parse(body) });
+          } catch {
+            reject(new Error('Parse error: ' + body.slice(0, 120)));
+          }
+        });
       }
-    }, (res) => {
-      let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
-        catch (e) { reject(new Error('Parse error: ' + body.slice(0, 120))); }
-      });
-    });
+    );
     req.on('error', reject);
-    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(8000, () => {
+      req.destroy();
+      reject(new Error('Timeout'));
+    });
     req.write(postBody);
     req.end();
   });
@@ -66,8 +81,8 @@ async function checkVT(ioc, type) {
   if (!keys.length) return { source: 'VirusTotal', skipped: true, reason: 'No API key' };
 
   const urlMap = {
-    hash:   `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
-    ip:     `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
+    hash: `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
+    ip: `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,
     domain: `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(ioc)}`,
   };
   const url = urlMap[type];
@@ -79,38 +94,48 @@ async function checkVT(ioc, type) {
   for (const key of keys) {
     try {
       const { status, data } = await httpGet(url, {
-        'x-apikey': key, 'Accept': 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0'
+        'x-apikey': key,
+        Accept: 'application/json',
+        'User-Agent': 'Charlie-kerennnn/1.0',
       });
       if (status === 429) {
         rateLimitedCount++;
         continue;
       }
-      if (status !== 200) return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
+      if (status !== 200)
+        return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
-      const s   = data.data?.attributes?.last_analysis_stats || {};
-      const mal = s.malicious  || 0;
+      const s = data.data?.attributes?.last_analysis_stats || {};
+      const mal = s.malicious || 0;
       const sus = s.suspicious || 0;
       const total = Object.values(s).reduce((a, b) => a + b, 0);
       const ratio = total > 0 ? (mal + sus) / total : 0;
       const score = Math.round(ratio * 100);
       // Malicious: VT malicious engines > 3; else suspicious/clean/unknown
-      const verdict = mal > 3 ? 'malicious' : (mal > 0 || sus > 3) ? 'suspicious' : total === 0 ? 'unknown' : 'clean';
+      const verdict =
+        mal > 3
+          ? 'malicious'
+          : mal > 0 || sus > 3
+            ? 'suspicious'
+            : total === 0
+              ? 'unknown'
+              : 'clean';
 
       const vtUrlMap = {
         hash: `https://www.virustotal.com/gui/file/${ioc}`,
-        ip:   `https://www.virustotal.com/gui/ip-address/${ioc}`,
+        ip: `https://www.virustotal.com/gui/ip-address/${ioc}`,
         domain: `https://www.virustotal.com/gui/domain/${ioc}`,
       };
 
       return {
-        source:  'VirusTotal',
+        source: 'VirusTotal',
         verdict,
         score,
-        weight:  0.25 * getTrustFactor('TRUST_VT'),
+        weight: 0.25 * getTrustFactor('TRUST_VT'),
         meta: {
-          'Malicious':  mal,
-          'Suspicious': sus,
-          'Undetected': s.undetected || 0,
+          Malicious: mal,
+          Suspicious: sus,
+          Undetected: s.undetected || 0,
           'Total Engines': total,
           'Detection %': score + '%',
         },
@@ -125,7 +150,10 @@ async function checkVT(ioc, type) {
   if (rateLimitedCount === keys.length) {
     return { source: 'VirusTotal', error: 'All keys rate limited. Try again later.' };
   }
-  return { source: 'VirusTotal', error: `Cannot access VirusTotal: ${lastError?.message || 'Unknown error'}` };
+  return {
+    source: 'VirusTotal',
+    error: `Cannot access VirusTotal: ${lastError?.message || 'Unknown error'}`,
+  };
 }
 
 // ── Source: AbuseIPDB ─────────────────────────────────────────────────────
@@ -137,21 +165,25 @@ async function checkAbuseIPDB(ip) {
       `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
       { Key: apiKey, Accept: 'application/json' }
     );
-    if (status !== 200) return { source: 'AbuseIPDB', error: `AbuseIPDB: ${data?.errors?.[0]?.detail || `HTTP ${status}`}` };
+    if (status !== 200)
+      return {
+        source: 'AbuseIPDB',
+        error: `AbuseIPDB: ${data?.errors?.[0]?.detail || `HTTP ${status}`}`,
+      };
     const d = data.data;
     const score = d.abuseConfidenceScore || 0;
     return {
-      source:  'AbuseIPDB',
+      source: 'AbuseIPDB',
       verdict: score >= 50 ? 'malicious' : score >= 25 ? 'suspicious' : 'clean',
       score,
-      weight:  0.25 * getTrustFactor('TRUST_ABUSEIPDB'),
+      weight: 0.25 * getTrustFactor('TRUST_ABUSEIPDB'),
       meta: {
-        'Abuse Score':   score + '%',
+        'Abuse Score': score + '%',
         'Total Reports': d.totalReports,
         'Last Reported': d.lastReportedAt ? d.lastReportedAt.slice(0, 10) : '—',
-        'ISP':           d.isp || '—',
-        'Usage Type':    d.usageType || '—',
-        'Country':       d.countryCode || '—',
+        ISP: d.isp || '—',
+        'Usage Type': d.usageType || '—',
+        Country: d.countryCode || '—',
       },
       link: `https://www.abuseipdb.com/check/${ip}`,
     };
@@ -169,16 +201,12 @@ async function checkAbuseCh(ioc) {
   try {
     // URLhaus "host" query uses HTTP POST with body: host=<host>
     const postBody = `host=${encodeURIComponent(ioc)}`;
-    const { status, data } = await httpPost(
-      `https://urlhaus-api.abuse.ch/v1/host/`,
-      postBody,
-      {
-        'Auth-Key': apiKey,
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Charlie-kerennnn/1.0'
-      }
-    );
+    const { status, data } = await httpPost(`https://urlhaus-api.abuse.ch/v1/host/`, postBody, {
+      'Auth-Key': apiKey,
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'Charlie-kerennnn/1.0',
+    });
 
     if (status !== 200) {
       const msg = data?.errors?.[0]?.detail || data?.error || data?.message || `HTTP ${status}`;
@@ -197,10 +225,11 @@ async function checkAbuseCh(ioc) {
     }
 
     const urls = Array.isArray(data?.urls) ? data.urls : [];
-    const urlCount = data?.url_count !== undefined && data?.url_count !== null
-      ? Number(data.url_count)
-      : urls.length;
-    const onlineUrls = urls.filter(u => u?.url_status === 'online').length;
+    const urlCount =
+      data?.url_count !== undefined && data?.url_count !== null
+        ? Number(data.url_count)
+        : urls.length;
+    const onlineUrls = urls.filter((u) => u?.url_status === 'online').length;
     const firstSeen = data?.firstseen || '—';
 
     const verdict = onlineUrls > 0 ? 'malicious' : urlCount > 0 ? 'suspicious' : 'clean';
@@ -229,7 +258,8 @@ async function checkOTX(ioc, type) {
   if (!apiKey) return { source: 'AlienVault OTX', skipped: true, reason: 'No API key' };
   const typeMap = { ip: 'IPv4', domain: 'domain', hash: 'file' };
   const otxType = typeMap[type];
-  if (!otxType) return { source: 'AlienVault OTX', skipped: true, reason: `Unsupported type: ${type}` };
+  if (!otxType)
+    return { source: 'AlienVault OTX', skipped: true, reason: `Unsupported type: ${type}` };
   try {
     const { status, data } = await httpGet(
       `https://otx.alienvault.com/api/v1/indicators/${otxType}/${encodeURIComponent(ioc)}/general`,
@@ -237,17 +267,18 @@ async function checkOTX(ioc, type) {
     );
     if (status !== 200) return { source: 'AlienVault OTX', error: `OTX: HTTP ${status}` };
     const pulseCount = data.pulse_info?.count || 0;
-    const verdict    = pulseCount >= 10 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
+    const verdict = pulseCount >= 10 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
     return {
-      source:  'AlienVault OTX',
+      source: 'AlienVault OTX',
       verdict,
-      score:   Math.min(pulseCount * 10, 100),
-      weight:  0.25 * getTrustFactor('TRUST_OTX'),
+      score: Math.min(pulseCount * 10, 100),
+      weight: 0.25 * getTrustFactor('TRUST_OTX'),
       meta: {
-        'Pulse Count':      pulseCount,
-        'Reputation':       data.reputation ?? '—',
-        'Type Tags':        (data.type_tags || []).slice(0, 3).join(', ') || '—',
-        'Malware Families': (data.pulse_info?.related?.malware_families || []).slice(0, 2).join(', ') || '—',
+        'Pulse Count': pulseCount,
+        Reputation: data.reputation ?? '—',
+        'Type Tags': (data.type_tags || []).slice(0, 3).join(', ') || '—',
+        'Malware Families':
+          (data.pulse_info?.related?.malware_families || []).slice(0, 2).join(', ') || '—',
       },
       link: `https://otx.alienvault.com/indicator/${otxType}/${ioc}`,
     };
@@ -267,24 +298,34 @@ async function checkGreyNoise(ip) {
     );
     if (status === 404) {
       return {
-        source: 'GreyNoise', verdict: 'unknown', score: 0, weight: 0.20,
-        meta: { 'Status': 'Not seen', 'Noise': 'No', 'RIOT': 'No' },
+        source: 'GreyNoise',
+        verdict: 'unknown',
+        score: 0,
+        weight: 0.2,
+        meta: { Status: 'Not seen', Noise: 'No', RIOT: 'No' },
         link: `https://viz.greynoise.io/ip/${ip}`,
       };
     }
-    if (status !== 200) return { source: 'GreyNoise', error: `GreyNoise: ${data?.message || `HTTP ${status}`}` };
-    const cls     = data.classification || 'unknown';
-    const verdict = data.riot ? 'clean' : cls === 'malicious' ? 'malicious' : cls === 'benign' ? 'clean' : 'unknown';
+    if (status !== 200)
+      return { source: 'GreyNoise', error: `GreyNoise: ${data?.message || `HTTP ${status}`}` };
+    const cls = data.classification || 'unknown';
+    const verdict = data.riot
+      ? 'clean'
+      : cls === 'malicious'
+        ? 'malicious'
+        : cls === 'benign'
+          ? 'clean'
+          : 'unknown';
     return {
-      source:  'GreyNoise',
+      source: 'GreyNoise',
       verdict,
-      score:   verdict === 'malicious' ? 80 : verdict === 'clean' ? 0 : 30,
-      weight:  0.20,
+      score: verdict === 'malicious' ? 80 : verdict === 'clean' ? 0 : 30,
+      weight: 0.2,
       meta: {
-        'Classification': cls,
-        'Noise':          data.noise ? 'Yes (scanner)' : 'No',
-        'RIOT':           data.riot  ? 'Yes (known safe)' : 'No',
-        'Name':           data.name || '—',
+        Classification: cls,
+        Noise: data.noise ? 'Yes (scanner)' : 'No',
+        RIOT: data.riot ? 'Yes (known safe)' : 'No',
+        Name: data.name || '—',
       },
       link: `https://viz.greynoise.io/ip/${ip}`,
     };
@@ -319,22 +360,23 @@ module.exports = async function handler(req, res) {
   const { ioc: rawIoc } = req.query;
   if (!rawIoc) return res.status(400).json({ error: 'Missing ?ioc= param.' });
 
-  const ioc  = extractIOC(rawIoc);
+  const ioc = extractIOC(rawIoc);
   const type = detectType(ioc);
   if (!type) return res.status(400).json({ error: `Cannot detect IOC type for: "${ioc}"` });
 
   // Build check list based on IOC type
-  const checks = [ checkVT(ioc, type) ];                          // all types
-  if (type === 'ip') checks.push(checkAbuseIPDB(ioc));            // IP only
+  const checks = [checkVT(ioc, type)]; // all types
+  if (type === 'ip') checks.push(checkAbuseIPDB(ioc)); // IP only
+  if (type === 'ip') checks.push(checkGreyNoise(ioc)); // IP only
   if (type === 'ip' || type === 'domain') checks.push(checkAbuseCh(ioc)); // Abuse.ch (URLhaus) host query
-  checks.push(checkOTX(ioc, type));                               // all types
+  checks.push(checkOTX(ioc, type)); // all types
 
-  const results    = await Promise.all(checks);
+  const results = await Promise.all(checks);
   const confidence = calcConfidence(results);
 
   // Total weights of active (non-skipped, non-error) sources
   const activeWeights = results
-    .filter(r => !r.skipped && !r.error && r.verdict !== undefined)
+    .filter((r) => !r.skipped && !r.error && r.verdict !== undefined)
     .reduce((sum, r) => sum + r.weight, 0);
 
   return res.status(200).json({ ioc, type, confidence, activeWeights, sources: results });

@@ -45,7 +45,10 @@ async function readJsonBody(req) {
   }
   return new Promise((resolve, reject) => {
     let raw = '';
-    req.on('data', (c) => { raw += c; if (raw.length > 2e6) req.destroy(new Error('Body too large')); });
+    req.on('data', (c) => {
+      raw += c;
+      if (raw.length > 2e6) req.destroy(new Error('Body too large'));
+    });
     req.on('end', () => {
       if (!raw.trim()) return resolve({});
       try {
@@ -102,12 +105,14 @@ module.exports = async function handler(req, res) {
       let body;
       try {
         body = await readJsonBody(req);
-      } catch (e) {
+      } catch {
         return res.status(400).json({ error: 'Invalid JSON body.' });
       }
       const items = body && Array.isArray(body.items) ? body.items : null;
       if (!items || !items.length) {
-        return res.status(400).json({ error: 'Body must include { items: [ ... ] } with at least one object.' });
+        return res
+          .status(400)
+          .json({ error: 'Body must include { items: [ ... ] } with at least one object.' });
       }
 
       const errors = [];
@@ -191,14 +196,16 @@ module.exports = async function handler(req, res) {
         let body = {};
         try {
           body = await readJsonBody(req);
-        } catch (e) {
+        } catch {
           return res.status(400).json({ error: 'Invalid JSON body.' });
         }
         ip = (body.ip != null ? String(body.ip) : '').trim();
       }
       const norm = normalizeIpLine(ip);
       if (!norm) {
-        return res.status(400).json({ error: 'Missing or invalid ip (query ?ip= or JSON { ip }).' });
+        return res
+          .status(400)
+          .json({ error: 'Missing or invalid ip (query ?ip= or JSON { ip }).' });
       }
 
       const { error } = await supabase.from('merger_scanned_ips').delete().eq('ip', norm);

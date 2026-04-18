@@ -1,4 +1,5 @@
 .vercel
+node_modules/
 
 # Environment (secrets) — keep .env.example as the template
 .env
