@@ -335,11 +335,11 @@
 
         <div class="grid">
             <div class="card">
-                <div class="card-title"><span class="dot"></span> Simpan hasil scan (manual)</div>
-                <p class="history-hint" style="margin:0;">Tempel <strong>JSON array</strong> objek, mis. dari export / salinan hasil. Tiap objek wajib punya <code>ioc</code> atau <code>ip</code> (hanya alamat IP yang diterima). Baris yang sama di-<code>ip</code> akan di-<em>merge</em> ke payload lama.</p>
+                <div class="card-title"><span class="dot"></span> Simpan IP ke database</div>
+                <p class="history-hint" style="margin:0;">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. IP yang sudah ada di-merge: field lain di payload lama tetap ada; <code>ioc</code> selalu diset ke IP yang dinormalisasi.</p>
                 <div class="fg">
-                    <label for="mergerDbItemsInput">JSON array</label>
-                    <textarea id="mergerDbItemsInput" rows="10" placeholder='[{"ioc":"203.0.113.10","vt_verdict":"malicious","confidence":82}, {"ioc":"198.51.100.2","vt_verdict":"clean"}]'></textarea>
+                    <label for="mergerDbItemsInput">Daftar IP</label>
+                    <textarea id="mergerDbItemsInput" rows="10" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
                 </div>
                 <div class="btn-row">
                     <button type="button" class="btn btn-primary" onclick="mergerDbPostItems()">Simpan ke Supabase</button>
@@ -1022,22 +1022,14 @@ async function mergerDbRefreshFromDb() {
 async function mergerDbPostItems() {
     clearStatus('statusMergerDb');
     const ta = document.getElementById('mergerDbItemsInput');
-    const raw = (ta && ta.value || '').trim();
-    if (!raw) {
-        setStatus('statusMergerDb', '⚠ JSON array tidak boleh kosong.', 'error');
+    const raw = ta && ta.value ? ta.value : '';
+    const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const unique = [...new Set(lines)];
+    if (!unique.length) {
+        setStatus('statusMergerDb', '⚠ Isi minimal satu IP (satu per baris).', 'error');
         return;
     }
-    let items;
-    try {
-        items = JSON.parse(raw);
-    } catch (e) {
-        setStatus('statusMergerDb', '⚠ JSON tidak valid: ' + escHtml(e.message || String(e)), 'error');
-        return;
-    }
-    if (!Array.isArray(items)) {
-        setStatus('statusMergerDb', '⚠ Harus berupa JSON array [...].', 'error');
-        return;
-    }
+    const items = unique.map(ip => ({ ioc: ip }));
     setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan…', 'loading');
     try {
         const r = await fetch('/api/scan-merger', {
