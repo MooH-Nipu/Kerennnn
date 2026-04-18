@@ -8,7 +8,7 @@ Connect the repository, use the default Node runtime, and deploy. Static files a
 
 ## Database (Supabase)
 
-Merger (DB) tab persists IPs to Supabase. Apply SQL in order:
+PAC Filter tab persists IPs to the database (Supabase). Apply SQL in order:
 
 1. [supabase/merger_scanned_ips.sql](supabase/merger_scanned_ips.sql)
 2. [supabase/merger_scanned_ips_timestamp_wib.sql](supabase/merger_scanned_ips_timestamp_wib.sql) (if you use the timestamp column)
