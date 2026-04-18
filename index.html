@@ -325,13 +325,7 @@
 
     <!-- TAB: JSON MERGER + SUPABASE -->
     <div id="tab-merger-db" class="tab-content">
-        <div class="apikey-bar" style="margin-bottom:1.25rem;">
-            <label for="mergerDbPwInput">Merger API password</label>
-            <input type="password" id="mergerDbPwInput" autocomplete="off" placeholder="Kosongkan jika server tidak set MERGER_API_PASSWORD" />
-            <button type="button" class="btn btn-secondary" style="flex:0 0 auto;min-width:auto;padding:8px 14px;" onclick="mergerDbSavePw()">Simpan di session</button>
-            <span id="mergerDbPwSaved" style="font-size:0.72rem;color:var(--green);font-family:'JetBrains Mono',monospace;display:none;">✓ Header akan dipakai untuk request</span>
-        </div>
-        <p class="history-hint" style="margin:-0.5rem 0 1rem;">Data disimpan di Supabase (<code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
+        <p class="history-hint" style="margin:0 0 1rem;">Data disimpan di Supabase (<code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
 
         <div class="grid">
             <div class="card">
@@ -354,39 +348,21 @@
                 </div>
                 <div id="statusMergerDb" class="status"></div>
             </div>
-            <div class="card">
-                <div class="card-title"><span class="dot"></span> Template query (SIEM)</div>
-                <p class="history-hint" style="margin:0;">Kosongkan untuk memakai minimal <code>{"query":{"terms":{}}}</code>. Daftar IP di key yang dipilih akan <strong>diganti</strong> isinya dengan IP dari database setiap refresh.</p>
-                <div class="fg">
-                    <label for="mergerDbTemplate">JSON template</label>
-                    <textarea id="mergerDbTemplate" rows="10" placeholder='{"query":{"terms":{"data.real_ip":["1.1.1.1"],"other":"x"}}}'></textarea>
-                </div>
-                <div class="fg">
-                    <label for="mergerDbIpKeySelect">Key <code>query.terms</code> untuk list IP</label>
-                    <select id="mergerDbIpKeySelect" class="vt-preset-select" style="max-width:100%;width:100%;"></select>
-                </div>
-            </div>
         </div>
 
-        <div class="grid" style="margin-top:1.5rem;">
-            <div class="card">
-                <div class="card-title"><span class="dot"></span> Output — query.terms (IP dari DB)</div>
-                <div class="output-wrap" style="flex-grow:1;">
-                    <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
-                    <pre id="outputJsonDb" class="output-code tall">{ }</pre>
-                </div>
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-title"><span class="dot"></span> Output JSON (dari database)</div>
+            <p class="history-hint" style="margin:0;">Tulis nama <strong>field</strong> untuk setiap baris hasil, dipisah <strong>koma</strong> atau <strong>satu field per baris</strong>. Nilai diambil dari <code>payload</code> tiap IP di Supabase (urutan baris = urutan IP, diurutkan). Kosongkan untuk output berupa <strong>hanya array IP</strong>.</p>
+            <div class="fg">
+                <label for="mergerDbOutputFields">Field yang ingin ditampilkan</label>
+                <textarea id="mergerDbOutputFields" rows="4" placeholder="ioc, vt_verdict, confidence, country"></textarea>
             </div>
-            <div class="card">
-                <div class="card-title"><span class="dot"></span> Output — detail per IP (field terpilih)</div>
-                <p class="history-hint" style="margin:0;">Centang kolom yang ingin dimasukkan ke JSON array di bawah (urutan mengikuti daftar IP di DB).</p>
-                <div id="mergerDbFieldChips" class="vt-col-chips open" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 0;border:none;"></div>
-                <div class="btn-row" style="margin-top:6px;">
-                    <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildDetailOnly()">Perbarui detail</button>
-                </div>
-                <div class="output-wrap" style="flex-grow:1;margin-top:10px;">
-                    <button id="copyBtnJsonDbDetail" class="copy-btn" style="display:none" onclick="copyText('outputJsonDbDetail','copyBtnJsonDbDetail')">COPY</button>
-                    <pre id="outputJsonDbDetail" class="output-code tall">[]</pre>
-                </div>
+            <div class="btn-row">
+                <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildOutputs(_mergerDbLastItems)">Bangun ulang output</button>
+            </div>
+            <div class="output-wrap" style="flex-grow:1;margin-top:12px;">
+                <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
+                <pre id="outputJsonDb" class="output-code tall">[]</pre>
             </div>
         </div>
     </div>
@@ -811,125 +787,31 @@ const VT_EXPORT_PRESETS = {
     siem: ['ioc','type','vt_verdict','detections','confidence','sources']
 };
 
-const SS_MERGER_API_PW = 'socToolboxMergerApiPw';
 let _mergerDbLastItems = [];
 let _mergerDbDidAutoRefresh = false;
 
-function mergerDbSavePw() {
-    const inp = document.getElementById('mergerDbPwInput');
-    const v = inp ? inp.value.trim() : '';
-    try {
-        if (v) sessionStorage.setItem(SS_MERGER_API_PW, v);
-        else sessionStorage.removeItem(SS_MERGER_API_PW);
-    } catch (e) {}
-    const hint = document.getElementById('mergerDbPwSaved');
-    if (hint) {
-        hint.style.display = v ? 'inline' : 'none';
-        if (v) setTimeout(() => { hint.style.display = 'none'; }, 2500);
-    }
-}
-
 function mergerDbAuthHeaders() {
-    const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    try {
-        const pw = sessionStorage.getItem(SS_MERGER_API_PW) || '';
-        if (pw) h['X-Merger-Password'] = pw;
-    } catch (e) {}
-    return h;
+    return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
 }
 
-function mergerDbLooksLikeIp(s) {
-    s = String(s ?? '').trim();
-    if (!s) return false;
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return true;
-    if (s.includes(':') && /^[0-9a-fA-F:]+$/.test(s)) return true;
-    return false;
+/** Nama field dari textarea "Field yang ingin ditampilkan" (koma / baris / titik koma). */
+function mergerDbParseOutputFieldNames() {
+    const raw = (document.getElementById('mergerDbOutputFields') && document.getElementById('mergerDbOutputFields').value || '').trim();
+    if (!raw) return [];
+    const parts = raw.split(/[\n,;|]+/).map(s => s.trim()).filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (const p of parts) {
+        if (seen.has(p)) continue;
+        seen.add(p);
+        out.push(p);
+    }
+    return out;
 }
 
-function mergerDbIpScoreForKey(terms, key) {
-    const arr = terms[key];
-    if (!Array.isArray(arr)) return 0;
-    let score = 0;
-    for (const item of arr.slice(0, 50)) {
-        if (mergerDbLooksLikeIp(item)) score++;
-    }
-    return score;
-}
-
-/** Pick best query.terms key that holds IP list (same heuristics as processMerger). */
-function mergerDbPickTermsIpKey(terms) {
-    const arrayKeys = Object.keys(terms).filter(k => Array.isArray(terms[k]));
-    if (!arrayKeys.length) return { ipKey: null, arrayKeys: [], note: '' };
-    const preferredKeys = ['data.real_ip', 'source.ip'];
-    const preferredKey = preferredKeys.find(k => arrayKeys.includes(k));
-    const bestKey = preferredKey || arrayKeys.reduce((best, k) => {
-        const bestScore = mergerDbIpScoreForKey(terms, best);
-        const kScore = mergerDbIpScoreForKey(terms, k);
-        return kScore > bestScore ? k : best;
-    }, arrayKeys[0]);
-    const ipKey = (preferredKey || mergerDbIpScoreForKey(terms, bestKey) > 0) ? bestKey : arrayKeys[0];
-    const note = arrayKeys.length > 1 ? ` (${arrayKeys.length} array keys, using ${ipKey})` : '';
-    return { ipKey, arrayKeys, note };
-}
-
-function mergerDbParseTemplate() {
-    const raw = (document.getElementById('mergerDbTemplate') && document.getElementById('mergerDbTemplate').value || '').trim();
-    if (!raw) {
-        return { ok: true, obj: { query: { terms: {} } } };
-    }
-    let obj;
-    try {
-        obj = JSON.parse(raw);
-    } catch (e) {
-        return { ok: false, error: e.message || String(e) };
-    }
-    if (!obj || typeof obj !== 'object') return { ok: false, error: 'Root harus berupa object' };
-    if (!obj.query) obj.query = {};
-    if (!obj.query.terms || typeof obj.query.terms !== 'object' || Array.isArray(obj.query.terms)) {
-        obj.query.terms = {};
-    }
-    return { ok: true, obj };
-}
-
-function mergerDbFillIpKeySelect(terms, preferredIpKey) {
-    const sel = document.getElementById('mergerDbIpKeySelect');
-    if (!sel) return;
-    const arrayKeys = Object.keys(terms).filter(k => Array.isArray(terms[k]));
-    const prev = sel.value;
-    sel.innerHTML = '';
-    if (!arrayKeys.length) {
-        const o = document.createElement('option');
-        o.value = '';
-        o.textContent = '(tambah key array di template)';
-        sel.appendChild(o);
-        return;
-    }
-    for (const k of arrayKeys) {
-        const o = document.createElement('option');
-        o.value = k;
-        o.textContent = k;
-        sel.appendChild(o);
-    }
-    if (preferredIpKey && arrayKeys.includes(preferredIpKey)) sel.value = preferredIpKey;
-    else if (prev && arrayKeys.includes(prev)) sel.value = prev;
-    else {
-        const { ipKey } = mergerDbPickTermsIpKey(terms);
-        if (ipKey) sel.value = ipKey;
-    }
-}
-
-function mergerDbGetSelectedExportKeys() {
-    const host = document.getElementById('mergerDbFieldChips');
-    if (!host) return VT_EXPORT_ALL_KEYS.slice();
-    const keys = [];
-    host.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb => {
-        if (cb.checked) keys.push(cb.getAttribute('data-key'));
-    });
-    return keys.length ? keys : VT_EXPORT_ALL_KEYS.slice();
-}
-
-function mergerDbBuildDetailJson(items, keys) {
-    const list = Array.isArray(items) ? items : [];
+function mergerDbBuildRowObjects(items, keys) {
+    const list = Array.isArray(items) ? items.slice() : [];
+    list.sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
     return list.map(row => {
         const ip = row.ip;
         const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
@@ -945,56 +827,23 @@ function mergerDbBuildDetailJson(items, keys) {
 
 function mergerDbRebuildOutputs(items) {
     _mergerDbLastItems = Array.isArray(items) ? items.slice() : [];
-    const ips = [...new Set(_mergerDbLastItems.map(x => x && x.ip).filter(Boolean))].sort();
+    const sortedRows = _mergerDbLastItems.slice().sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || '')));
+    const ips = sortedRows.map(x => x && x.ip).filter(Boolean);
 
-    const parsed = mergerDbParseTemplate();
-    if (!parsed.ok) {
-        clearStatus('statusMergerDb');
-        setStatus('statusMergerDb', '⚠ Template JSON: ' + escHtml(parsed.error), 'error');
-        return;
+    const keys = mergerDbParseOutputFieldNames();
+    let out;
+    if (!keys.length) {
+        out = ips;
+    } else {
+        out = mergerDbBuildRowObjects(sortedRows, keys);
     }
-    const obj = parsed.obj;
-    const terms = obj.query.terms;
-    let arrayKeys = Object.keys(terms).filter(k => Array.isArray(terms[k]));
-    if (!arrayKeys.length) {
-        terms['data.real_ip'] = [];
-        arrayKeys = ['data.real_ip'];
-    }
-    const { ipKey: detected } = mergerDbPickTermsIpKey(terms);
-    let selKey = document.getElementById('mergerDbIpKeySelect') && document.getElementById('mergerDbIpKeySelect').value;
-    if (!selKey || !arrayKeys.includes(selKey)) {
-        selKey = detected || arrayKeys[0] || 'data.real_ip';
-        if (!terms[selKey]) terms[selKey] = [];
-        if (!Array.isArray(terms[selKey])) terms[selKey] = [];
-    }
-    mergerDbFillIpKeySelect(terms, selKey);
-    const finalKey = document.getElementById('mergerDbIpKeySelect').value || selKey;
-    if (!terms[finalKey] || !Array.isArray(terms[finalKey])) terms[finalKey] = [];
-
-    const termsCopy = JSON.parse(JSON.stringify(terms));
-    termsCopy[finalKey] = ips;
-    const outObj = JSON.parse(JSON.stringify(obj));
-    outObj.query.terms = termsCopy;
 
     const pre = document.getElementById('outputJsonDb');
     const copyBtn = document.getElementById('copyBtnJsonDb');
     if (pre) {
-        pre.textContent = JSON.stringify(outObj, null, 2);
+        pre.textContent = JSON.stringify(out, null, 2);
         if (copyBtn) copyBtn.style.display = 'block';
     }
-
-    const keys = mergerDbGetSelectedExportKeys();
-    const detail = mergerDbBuildDetailJson(_mergerDbLastItems, keys);
-    const preD = document.getElementById('outputJsonDbDetail');
-    const copyD = document.getElementById('copyBtnJsonDbDetail');
-    if (preD) {
-        preD.textContent = JSON.stringify(detail, null, 2);
-        if (copyD) copyD.style.display = detail.length ? 'block' : 'none';
-    }
-}
-
-function mergerDbRebuildDetailOnly() {
-    mergerDbRebuildOutputs(_mergerDbLastItems);
 }
 
 async function mergerDbRefreshFromDb() {
@@ -1078,35 +927,6 @@ async function mergerDbDeleteOne() {
     } catch (e) {
         setStatus('statusMergerDb', '⚠ ' + escHtml(e.message || String(e)), 'error');
     }
-}
-
-function mergerDbInitFieldChips() {
-    const host = document.getElementById('mergerDbFieldChips');
-    if (!host || host.getAttribute('data-merger-chips') === '1') return;
-    host.setAttribute('data-merger-chips', '1');
-    host.innerHTML = '';
-    VT_EXPORT_ALL_KEYS.forEach(k => {
-        const lab = VT_EXPORT_LABELS[k] || k;
-        const span = document.createElement('span');
-        span.className = 'vt-col-chip on';
-        const id = 'mergerDbCol_' + k.replace(/[^a-z0-9]/gi, '_');
-        span.innerHTML = '<label for="' + id + '" style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:0.72rem;color:var(--text-sec);">' +
-            '<input type="checkbox" id="' + id + '" data-key="' + escHtml(k) + '" checked /> ' + escHtml(lab) + '</label>';
-        host.appendChild(span);
-    });
-    host.addEventListener('change', function (ev) {
-        const t = ev.target;
-        if (t && t.matches && t.matches('input[type="checkbox"][data-key]')) {
-            const wrap = t.closest('.vt-col-chip');
-            if (wrap) wrap.classList.toggle('on', t.checked);
-        }
-    });
-}
-
-function mergerDbOnTemplateInput() {
-    const parsed = mergerDbParseTemplate();
-    if (!parsed.ok) return;
-    mergerDbFillIpKeySelect(parsed.obj.query.terms, null);
 }
 
 function errToObj(e) {
@@ -2079,17 +1899,14 @@ document.addEventListener('DOMContentLoaded', function() {
     vtInitExportPresetUI();
     vtSyncFilterUIs();
 
-    mergerDbInitFieldChips();
-    const mergerTmpl = document.getElementById('mergerDbTemplate');
-    if (mergerTmpl) mergerTmpl.addEventListener('input', mergerDbOnTemplateInput);
-    try {
-        const mpw = sessionStorage.getItem(SS_MERGER_API_PW);
-        const mpi = document.getElementById('mergerDbPwInput');
-        if (mpw && mpi) mpi.value = mpw;
-    } catch (e) {}
-    mergerDbOnTemplateInput();
-    const mergerKeySel = document.getElementById('mergerDbIpKeySelect');
-    if (mergerKeySel) mergerKeySel.addEventListener('change', function () { mergerDbRebuildOutputs(_mergerDbLastItems); });
+    let mergerDbFieldsTimer;
+    const mergerFld = document.getElementById('mergerDbOutputFields');
+    if (mergerFld) {
+        mergerFld.addEventListener('input', function () {
+            clearTimeout(mergerDbFieldsTimer);
+            mergerDbFieldsTimer = setTimeout(function () { mergerDbRebuildOutputs(_mergerDbLastItems); }, 400);
+        });
+    }
 });
 </script>
 </body>
