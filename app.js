@@ -1505,6 +1505,28 @@ async function renderScanBatch(lineResults, opts = {}) {
     if (countEl) countEl.textContent = `${lineResults.length} result(s)`;
 }
 
+/** How many IOC lines to scan in parallel. Use 1 if VirusTotal often returns 429; 2–3 is faster when you have quota or several VT keys. */
+const VT_SCAN_CONCURRENCY = 2;
+
+/** Run `fn(item, index)` over `items` with a fixed worker pool; results stay in input order. */
+async function vtMapPool(items, concurrency, fn) {
+    const n = items.length;
+    const out = new Array(n);
+    let nextIndex = 0;
+    const workers = Math.min(Math.max(1, concurrency), n);
+
+    async function worker() {
+        for (;;) {
+            const i = nextIndex++;
+            if (i >= n) return;
+            out[i] = await fn(items[i], i);
+        }
+    }
+
+    await Promise.all(Array.from({ length: workers }, worker));
+    return out;
+}
+
 async function runVTLookup() {
     _vtState = _vtStateLookup;
     _vtActiveResultsId = 'vtResults';
@@ -1521,20 +1543,18 @@ async function runVTLookup() {
     if (!lines.length) { setStatus('statusVT','⚠ Tidak ada IOC yang valid.','error'); return; }
 
     btn.disabled = true;
-    const lineResults = [];
+    setStatus('statusVT', `<span class="spinner"></span> Scanning 0 / ${lines.length}…`, 'loading');
 
-    for (let i = 0; i < lines.length; i++) {
-        const rawIoc = lines[i];
-        setStatus('statusVT', `<span class="spinner"></span> Scanning ${i+1} / ${lines.length}...`, 'loading');
-
+    let completed = 0;
+    const lineResults = await vtMapPool(lines, VT_SCAN_CONCURRENCY, async (rawIoc) => {
         const [vtResult, corrResult] = await Promise.allSettled([
             vtGet(rawIoc),
             fetchCorrelation(rawIoc),
         ]);
-        lineResults.push({ rawIoc, vtResult, corrResult });
-
-        if (i < lines.length - 1) await new Promise(r => setTimeout(r, 400));
-    }
+        completed++;
+        setStatus('statusVT', `<span class="spinner"></span> Progress: ${completed} / ${lines.length} IOC(s)…`, 'loading');
+        return { rawIoc, vtResult, corrResult };
+    });
 
     await renderScanBatch(lineResults);
 

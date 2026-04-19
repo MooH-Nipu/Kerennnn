@@ -287,53 +287,6 @@ async function checkOTX(ioc, type) {
   }
 }
 
-// ── Source: GreyNoise ─────────────────────────────────────────────────────
-async function checkGreyNoise(ip) {
-  const apiKey = process.env.GREYNOISE_API_KEY;
-  if (!apiKey) return { source: 'GreyNoise', skipped: true, reason: 'No API key' };
-  try {
-    const { status, data } = await httpGet(
-      `https://api.greynoise.io/v3/community/${encodeURIComponent(ip)}`,
-      { key: apiKey, Accept: 'application/json' }
-    );
-    if (status === 404) {
-      return {
-        source: 'GreyNoise',
-        verdict: 'unknown',
-        score: 0,
-        weight: 0.2,
-        meta: { Status: 'Not seen', Noise: 'No', RIOT: 'No' },
-        link: `https://viz.greynoise.io/ip/${ip}`,
-      };
-    }
-    if (status !== 200)
-      return { source: 'GreyNoise', error: `GreyNoise: ${data?.message || `HTTP ${status}`}` };
-    const cls = data.classification || 'unknown';
-    const verdict = data.riot
-      ? 'clean'
-      : cls === 'malicious'
-        ? 'malicious'
-        : cls === 'benign'
-          ? 'clean'
-          : 'unknown';
-    return {
-      source: 'GreyNoise',
-      verdict,
-      score: verdict === 'malicious' ? 80 : verdict === 'clean' ? 0 : 30,
-      weight: 0.2,
-      meta: {
-        Classification: cls,
-        Noise: data.noise ? 'Yes (scanner)' : 'No',
-        RIOT: data.riot ? 'Yes (known safe)' : 'No',
-        Name: data.name || '—',
-      },
-      link: `https://viz.greynoise.io/ip/${ip}`,
-    };
-  } catch (e) {
-    return { source: 'GreyNoise', error: `Cannot access GreyNoise: ${e.message}` };
-  }
-}
-
 // ── Weighted confidence score ─────────────────────────────────────────────
 // verdictScore maps verdict → risk level 0.0–1.0
 // unknown gets 0.2 (slight risk, not zero) so it still nudges the score
@@ -367,7 +320,6 @@ module.exports = async function handler(req, res) {
   // Build check list based on IOC type
   const checks = [checkVT(ioc, type)]; // all types
   if (type === 'ip') checks.push(checkAbuseIPDB(ioc)); // IP only
-  if (type === 'ip') checks.push(checkGreyNoise(ioc)); // IP only
   if (type === 'ip' || type === 'domain') checks.push(checkAbuseCh(ioc)); // Abuse.ch (URLhaus) host query
   checks.push(checkOTX(ioc, type)); // all types
 
