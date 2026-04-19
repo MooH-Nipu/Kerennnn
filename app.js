@@ -455,32 +455,71 @@ async function mergerDbRefreshFromDb() {
     }
 }
 
+function mergerDbCollectNormUniqueIps(raw) {
+    const lines = raw.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+        const norm = mergerDbNormalizeIpLine(lines[i]);
+        if (!norm || seen.has(norm)) continue;
+        seen.add(norm);
+        out.push(norm);
+    }
+    return out;
+}
+
 async function mergerDbPostItems() {
     clearStatus('statusMergerDb');
     const ta = document.getElementById('mergerDbItemsInput');
     const raw = ta && ta.value ? ta.value : '';
-    const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
-    const unique = [...new Set(lines)];
-    if (!unique.length) {
-        setStatus('statusMergerDb', '⚠ Isi minimal satu IP (satu per baris).', 'error');
+    const normUnique = mergerDbCollectNormUniqueIps(raw);
+    if (!normUnique.length) {
+        setStatus('statusMergerDb', '⚠ Isi minimal satu IP valid (satu per baris).', 'error');
         return;
     }
     mergerDbUpdateInputPreview();
     const preSnap = mergerDbGetInputClassification();
+    const dbSet = new Set();
+    (_mergerDbLastItems || []).forEach(function (r) {
+        if (r && r.ip) dbSet.add(String(r.ip));
+    });
+    const toPost = normUnique.filter(function (ip) { return !dbSet.has(ip); });
+    const clientSkipped = normUnique.length - toPost.length;
     const postBtn = document.getElementById('mergerDbPostBtn');
     const refBtn = document.getElementById('mergerDbRefreshBtn');
     if (postBtn) postBtn.disabled = true;
     if (refBtn) refBtn.disabled = true;
-    mergerDbSetSaveProgress(0, '0% · 0 / ' + unique.length + ' IP');
-    setStatus('statusMergerDb', '<span class="spinner"></span> Menyimpan ke DB… (pratinjau: ~' + preSnap.wouldSave + ' baru, ~' + preSnap.alreadyInDb + ' sudah ada)', 'loading');
+    const totalSend = toPost.length;
+    mergerDbSetSaveProgress(0, totalSend ? '0% · 0 / ' + totalSend + ' IP dikirim' : '—');
+    setStatus(
+        'statusMergerDb',
+        '<span class="spinner"></span> Menyimpan ke DB… (pratinjau: ~' +
+            preSnap.wouldSave +
+            ' baru, ~' +
+            preSnap.alreadyInDb +
+            ' sudah ada' +
+            (clientSkipped ? '; ' + clientSkipped + ' tidak dikirim karena sudah di snapshot' : '') +
+            ')',
+        'loading'
+    );
     let totalSaved = 0;
     let totalSkipped = 0;
     let totalErr = 0;
     try {
-        const total = unique.length;
-        for (let i = 0; i < total; i += MERGER_DB_POST_CHUNK) {
-            const chunk = unique.slice(i, i + MERGER_DB_POST_CHUNK);
-            const items = chunk.map(ip => ({ ioc: ip }));
+        if (!totalSend) {
+            mergerDbSetSaveProgress(100, 'Selesai · 0 dikirim');
+            let msg =
+                '✓ Tidak ada IP baru yang dikirim — ' +
+                clientSkipped +
+                ' sudah ada di snapshot (sama dengan muatan terakhir Refresh).';
+            msg += ' Refresh bila database berubah di luar halaman ini.';
+            setStatus('statusMergerDb', escHtml(msg), 'success');
+            await mergerDbRefreshFromDb();
+            return;
+        }
+        for (let i = 0; i < totalSend; i += MERGER_DB_POST_CHUNK) {
+            const chunk = toPost.slice(i, i + MERGER_DB_POST_CHUNK);
+            const items = chunk.map(function (ip) { return { ioc: ip }; });
             const doneBefore = i;
             const r = await fetch('/api/scan-merger', {
                 method: 'POST',
@@ -489,23 +528,29 @@ async function mergerDbPostItems() {
             });
             const { data } = await readFetchJson(r);
             if (!r.ok) {
-                mergerDbSetSaveProgress(Math.round((doneBefore / total) * 100), 'Gagal di batch ' + (Math.floor(i / MERGER_DB_POST_CHUNK) + 1));
+                mergerDbSetSaveProgress(
+                    Math.round((doneBefore / totalSend) * 100),
+                    'Gagal di batch ' + (Math.floor(i / MERGER_DB_POST_CHUNK) + 1)
+                );
                 setStatus('statusMergerDb', '⚠ ' + escHtml(formatApiError(data && data.error) || r.status), 'error');
                 return;
             }
             totalSaved += (data && data.savedCount) || 0;
             totalSkipped += (data && data.skippedCount) || 0;
             totalErr += (data && data.errorCount) || 0;
-            const done = Math.min(i + chunk.length, total);
-            const pct = Math.round((done / total) * 100);
-            mergerDbSetSaveProgress(pct, pct + '% · ' + done + ' / ' + total + ' IP');
+            const done = Math.min(i + chunk.length, totalSend);
+            const pct = Math.round((done / totalSend) * 100);
+            mergerDbSetSaveProgress(pct, pct + '% · ' + done + ' / ' + totalSend + ' IP dikirim');
         }
         let msg = `✓ Selesai: ${totalSaved} IP baru disimpan.`;
-        if (totalSkipped) msg += ` ${totalSkipped} dilewati (sudah ada di DB).`;
+        if (clientSkipped) msg += ` ${clientSkipped} tidak dikirim (sudah di snapshot).`;
+        if (totalSkipped) msg += ` ${totalSkipped} dilewati di server (sudah ada di DB).`;
         if (totalErr) msg += ` ${totalErr} error.`;
-        if (!totalSaved && !totalErr && totalSkipped) msg = `✓ Semua ${totalSkipped} IP sudah ada di database — tidak ada yang ditambahkan.`;
+        if (!totalSaved && !totalErr && totalSkipped && !clientSkipped) {
+            msg = `✓ Semua ${totalSkipped} IP sudah ada di database — tidak ada yang ditambahkan.`;
+        }
         setStatus('statusMergerDb', escHtml(msg), totalErr ? 'error' : 'success');
-        mergerDbSetSaveProgress(100, '100% · ' + unique.length + ' / ' + unique.length + ' IP');
+        mergerDbSetSaveProgress(100, '100% · ' + totalSend + ' / ' + totalSend + ' IP dikirim');
         await mergerDbRefreshFromDb();
     } catch (e) {
         setStatus('statusMergerDb', '⚠ ' + escHtml(e.message || String(e)), 'error');
@@ -516,27 +561,48 @@ async function mergerDbPostItems() {
     }
 }
 
-async function mergerDbDeleteOne() {
+async function mergerDbDeleteBatch() {
     clearStatus('statusMergerDb');
-    const inp = document.getElementById('mergerDbDeleteIp');
-    const ip = (inp && inp.value || '').trim();
-    if (!ip) {
-        setStatus('statusMergerDb', '⚠ Isi IP yang akan dihapus.', 'error');
+    const ta = document.getElementById('mergerDbDeleteIps');
+    const raw = ta && ta.value ? ta.value : '';
+    const lines = raw.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    const unique = [];
+    const seen = new Set();
+    for (let i = 0; i < lines.length; i++) {
+        const n = mergerDbNormalizeIpLine(lines[i]);
+        if (n && !seen.has(n)) {
+            seen.add(n);
+            unique.push(n);
+        }
+    }
+    if (!unique.length) {
+        setStatus('statusMergerDb', '⚠ Isi minimal satu IP valid (satu per baris).', 'error');
         return;
     }
-    setStatus('statusMergerDb', '<span class="spinner"></span> Menghapus…', 'loading');
+    setStatus(
+        'statusMergerDb',
+        '<span class="spinner"></span> Menghapus ' + unique.length + ' IP…',
+        'loading'
+    );
     try {
-        const r = await fetch('/api/scan-merger?ip=' + encodeURIComponent(ip), {
+        const r = await fetch('/api/scan-merger', {
             method: 'DELETE',
             headers: mergerDbAuthHeaders(),
+            body: JSON.stringify({ ips: unique }),
         });
         const { data } = await readFetchJson(r);
         if (!r.ok) {
             setStatus('statusMergerDb', '⚠ ' + escHtml(formatApiError(data && data.error) || r.status), 'error');
             return;
         }
-        if (inp) inp.value = '';
-        setStatus('statusMergerDb', '✓ IP dihapus dari database.', 'success');
+        const del = data && typeof data.deletedCount === 'number' ? data.deletedCount : 0;
+        const reqCount = data && typeof data.requested === 'number' ? data.requested : unique.length;
+        if (ta) ta.value = '';
+        setStatus(
+            'statusMergerDb',
+            '✓ Baris terhapus dari DB: ' + del + ' (diminta: ' + reqCount + ' IP unik valid).',
+            'success'
+        );
         await mergerDbRefreshFromDb();
     } catch (e) {
         setStatus('statusMergerDb', '⚠ ' + escHtml(e.message || String(e)), 'error');
