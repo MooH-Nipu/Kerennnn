@@ -27,7 +27,6 @@ Set the environment variables below, then use **Refresh dari DB** in the UI.
 | `ABUSEIPDB_API_KEY` | `api/correlate.js` | AbuseIPDB |
 | `ABUSECH_API_KEY` or `URLHAUS_API_KEY` | `api/correlate.js` | Abuse.ch / URLhaus |
 | `OTX_API_KEY` | `api/correlate.js` | AlienVault OTX |
-| `GREYNOISE_API_KEY` | `api/correlate.js` | GreyNoise |
 | `TRUST_VT`, `TRUST_ABUSEIPDB`, `TRUST_ABUSECH`, `TRUST_OTX` | `api/correlate.js` | Optional numeric weights (defaults apply if unset) |
 
 The front end stores the VirusTotal key in **localStorage** for browser calls; server routes use env keys for `/api/vt` and correlation.
