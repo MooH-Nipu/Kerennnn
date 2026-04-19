@@ -244,3 +244,8 @@
         #historyScanSurface .vt-toolbar { border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; }
         #historyScanSurface .vt-subbar { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
         #historyScanResults { border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; min-height: 120px; padding-right: 2px; }
+
+        /* PAC Filter: grid global 2 kolom membuat satu kartu terlihat “setengah lebar” — pakai satu kolom penuh */
+        #tab-merger-db > .grid {
+            grid-template-columns: 1fr;
+        }

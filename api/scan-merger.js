@@ -144,20 +144,26 @@ module.exports = async function handler(req, res) {
 
       const saved = [];
       const skipped = [];
+      const ipList = [...byIp.keys()];
+      const EXISTING_LOOKUP_CHUNK = 100;
+      const existingSet = new Set();
 
-      for (const [ip, { mergedPatch }] of byIp) {
-        const { data: existing, error: selErr } = await supabase
+      for (let li = 0; li < ipList.length; li += EXISTING_LOOKUP_CHUNK) {
+        const slice = ipList.slice(li, li + EXISTING_LOOKUP_CHUNK);
+        const { data: rows, error: selErr } = await supabase
           .from('merger_scanned_ips')
           .select('ip')
-          .eq('ip', ip)
-          .maybeSingle();
-
+          .in('ip', slice);
         if (selErr) {
-          errors.push({ ip, reason: selErr.message || String(selErr) });
-          continue;
+          return res.status(500).json({ error: selErr.message || String(selErr) });
         }
+        for (const row of rows || []) {
+          if (row && row.ip) existingSet.add(row.ip);
+        }
+      }
 
-        if (existing != null && existing.ip) {
+      for (const [ip, { mergedPatch }] of byIp) {
+        if (existingSet.has(ip)) {
           skipped.push(ip);
           continue;
         }
@@ -191,26 +197,81 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const q = req.query || {};
-      let ip = typeof q.ip === 'string' ? q.ip.trim() : '';
-      if (!ip) {
-        let body = {};
-        try {
-          body = await readJsonBody(req);
-        } catch {
-          return res.status(400).json({ error: 'Invalid JSON body.' });
+      const queryIp = typeof q.ip === 'string' ? q.ip.trim() : '';
+
+      if (queryIp) {
+        const norm = normalizeIpLine(queryIp);
+        if (!norm) {
+          return res.status(400).json({ error: 'Invalid ip query parameter.' });
         }
-        ip = (body.ip != null ? String(body.ip) : '').trim();
-      }
-      const norm = normalizeIpLine(ip);
-      if (!norm) {
-        return res
-          .status(400)
-          .json({ error: 'Missing or invalid ip (query ?ip= or JSON { ip }).' });
+        const { data: delRows, error } = await supabase
+          .from('merger_scanned_ips')
+          .delete()
+          .eq('ip', norm)
+          .select('ip');
+        if (error) return res.status(500).json({ error: error.message || String(error) });
+        const deletedCount = (delRows || []).length;
+        return res.status(200).json({ ok: true, deleted: norm, deletedCount });
       }
 
-      const { error } = await supabase.from('merger_scanned_ips').delete().eq('ip', norm);
+      let body = {};
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return res.status(400).json({ error: 'Invalid JSON body.' });
+      }
+
+      if (body && Array.isArray(body.ips) && body.ips.length) {
+        const DELETE_IN_CHUNK = 500;
+        const MAX_IPS = 20000;
+        const seen = new Set();
+        const norms = [];
+        for (const x of body.ips) {
+          const n = normalizeIpLine(x != null ? String(x) : '');
+          if (n && !seen.has(n)) {
+            seen.add(n);
+            norms.push(n);
+          }
+        }
+        if (!norms.length) {
+          return res.status(400).json({ error: 'No valid IPs in ips array.' });
+        }
+        if (norms.length > MAX_IPS) {
+          return res.status(400).json({ error: `Too many IPs (max ${MAX_IPS} per request).` });
+        }
+        let deletedCount = 0;
+        for (let i = 0; i < norms.length; i += DELETE_IN_CHUNK) {
+          const slice = norms.slice(i, i + DELETE_IN_CHUNK);
+          const { data: delRows, error } = await supabase
+            .from('merger_scanned_ips')
+            .delete()
+            .in('ip', slice)
+            .select('ip');
+          if (error) return res.status(500).json({ error: error.message || String(error) });
+          deletedCount += (delRows || []).length;
+        }
+        return res.status(200).json({
+          ok: true,
+          deletedCount,
+          requested: norms.length,
+        });
+      }
+
+      const ipSingle = (body.ip != null ? String(body.ip) : '').trim();
+      const norm = normalizeIpLine(ipSingle);
+      if (!norm) {
+        return res.status(400).json({
+          error: 'Missing or invalid ip (query ?ip=, JSON { ip }, or { ips: [...] }).',
+        });
+      }
+      const { data: delRows, error } = await supabase
+        .from('merger_scanned_ips')
+        .delete()
+        .eq('ip', norm)
+        .select('ip');
       if (error) return res.status(500).json({ error: error.message || String(error) });
-      return res.status(200).json({ ok: true, deleted: norm });
+      const deletedCount = (delRows || []).length;
+      return res.status(200).json({ ok: true, deleted: norm, deletedCount });
     }
 
     res.setHeader('Allow', 'GET, POST, DELETE, OPTIONS');

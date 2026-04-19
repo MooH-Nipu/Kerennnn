@@ -101,10 +101,10 @@
                     <div id="mergerDbSaveProgressLabel" style="font-size:0.76rem;color:var(--text-sec);margin-top:8px;font-family:'JetBrains Mono',monospace;">0%</div>
                 </div>
                 <div class="fg" style="margin-top:0.5rem;">
-                    <label for="mergerDbDeleteIp">Hapus satu IP dari DB</label>
+                    <label for="mergerDbDeleteIps">Hapus IP dari DB (satu per baris)</label>
+                    <textarea id="mergerDbDeleteIps" rows="5" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
                     <div class="btn-row" style="flex-wrap:wrap;">
-                        <input type="text" id="mergerDbDeleteIp" placeholder="203.0.113.10" style="flex:2;min-width:160px;" />
-                        <button type="button" class="btn btn-secondary" onclick="mergerDbDeleteOne()">Hapus IP</button>
+                        <button type="button" class="btn btn-secondary" onclick="mergerDbDeleteBatch()">Hapus dari DB</button>
                     </div>
                 </div>
                 <div id="statusMergerDb" class="status"></div>
