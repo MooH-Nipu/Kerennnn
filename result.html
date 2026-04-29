@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>IOC Watchfloor · Result</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .r-wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 40px; }
+      .r-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom: 14px; }
+      .r-back { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text-pri); font-weight:800; letter-spacing:0.4px; text-decoration:none; }
+      .r-back:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); }
+      .r-title { font-size: 0.9rem; color: var(--text-sec); font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; margin-left: auto; }
+
+      .r-takeaways { display:grid; grid-template-columns: 1fr; gap:10px; margin: 14px 0; }
+      @media (min-width: 950px) { .r-takeaways { grid-template-columns: 1fr 1fr; } }
+      .tw-card { border:1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: rgba(0,0,0,0.18); }
+      .tw-bad { border-color: rgba(245,166,35,0.28); background: rgba(245,166,35,0.08); }
+      .tw-good { border-color: rgba(15,186,129,0.25); background: rgba(15,186,129,0.08); }
+      .tw-h { font-size:0.72rem; font-weight: 900; letter-spacing: 0.9px; text-transform: uppercase; margin-bottom: 6px; }
+      .tw-bad .tw-h { color: var(--yellow); }
+      .tw-good .tw-h { color: var(--green); }
+      .tw-q { font-family:'JetBrains Mono', monospace; font-size:0.78rem; color: var(--text-pri); line-height:1.55; }
+
+      .r-summary { display:grid; grid-template-columns: 1fr; gap: 14px; }
+      @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.2fr 0.8fr; } }
+      .r-kv { display:flex; flex-direction:column; gap: 10px; }
+      .r-ioc { font-family:'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 900; letter-spacing: 0.2px; color: var(--text-pri); }
+      .r-sub { font-size: 0.78rem; color: var(--text-sec); }
+      .r-chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+      .r-chip { font-family:'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 900; padding: 4px 10px; border-radius: 999px; border:1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-sec); }
+      .r-chip.clean { border-color: rgba(15,186,129,0.25); background: rgba(15,186,129,0.1); color: var(--green); }
+      .r-chip.suspicious { border-color: rgba(245,166,35,0.25); background: rgba(245,166,35,0.1); color: var(--yellow); }
+      .r-chip.malicious { border-color: rgba(229,72,77,0.3); background: rgba(229,72,77,0.12); color: var(--red); }
+      .r-chip.unknown { border-color: rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+
+      .r-actions { display:flex; gap:10px; flex-wrap:wrap; }
+      .r-actions .btn { min-width: 160px; }
+
+      .r-scoreCard { border:1px solid var(--border); border-radius: 14px; padding: 18px 16px; background: rgba(0,0,0,0.18); display:flex; flex-direction:column; gap: 10px; align-items:center; justify-content:center; text-align:center; }
+      .r-scoreNum { font-family:'Syne', sans-serif; font-size: 3.1rem; font-weight: 900; letter-spacing: -1px; color: var(--text-pri); }
+      .r-scoreDen { margin-top: -10px; font-size: 0.78rem; color: var(--text-sec); font-family:'JetBrains Mono', monospace; }
+      .r-scoreLabel { margin-top: 8px; font-size: 0.9rem; font-weight: 900; color: var(--text-pri); }
+      .r-mini { font-size: 0.74rem; color: var(--text-sec); line-height: 1.5; }
+      .r-divider { height:1px; width:100%; background: var(--border); margin: 4px 0 0; opacity: 0.8; }
+
+      .r-grid2 { display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+      @media (min-width: 1000px) { .r-grid2 { grid-template-columns: 1fr 1fr; } }
+
+      .r-pre { font-family:'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-code); background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px; overflow:auto; max-height: 360px; }
+
+      .r-muted { color: var(--text-sec); }
+      .r-err { color: var(--red); }
+      .r-loading { display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono', monospace; color: var(--text-sec); font-size: 0.78rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="r-wrap">
+        <div class="r-top">
+          <a class="r-back" href="/" title="Back to home">
+            ← Back
+          </a>
+          <div class="r-title">Cached IP result</div>
+        </div>
+
+        <div class="r-takeaways">
+          <div class="tw-card tw-bad">
+            <div class="tw-h">A good analyst does not say</div>
+            <div class="tw-q">“3 engines flagged it, so it is malicious.”</div>
+          </div>
+          <div class="tw-card tw-good">
+            <div class="tw-h">A good analyst says</div>
+            <div class="tw-q">
+              “This IOC is assessed based on source quality, recency, and multi-source corroboration — not raw engine count.”
+            </div>
+          </div>
+        </div>
+
+        <div id="status" class="r-loading">
+          <span class="spinner"></span> Loading cached result…
+        </div>
+
+        <div id="content" style="display:none">
+          <div class="grid">
+            <div class="card">
+              <div class="r-summary">
+                <div class="r-kv">
+                  <div class="r-chips">
+                    <span id="chipType" class="r-chip">IP</span>
+                    <span id="chipVt" class="r-chip unknown">VT: —</span>
+                    <span id="chipTi" class="r-chip">TI: —</span>
+                  </div>
+                  <div class="r-ioc" id="iocText">—</div>
+                  <div class="r-sub">
+                    <span class="r-muted">Identifier:</span>
+                    <span id="stableId" class="r-muted" style="font-family:'JetBrains Mono', monospace;">—</span>
+                  </div>
+                  <div class="r-actions">
+                    <button type="button" class="btn btn-secondary" id="copyBtn">Copy IP</button>
+                    <button type="button" class="btn btn-primary" id="openVtBtn">Open in VirusTotal →</button>
+                  </div>
+                  <div class="r-sub" id="metaLine">—</div>
+                </div>
+
+                <div class="r-scoreCard">
+                  <div class="r-scoreNum" id="scoreNum">—</div>
+                  <div class="r-scoreDen">/ 100</div>
+                  <div class="r-divider"></div>
+                  <div class="r-scoreLabel" id="scoreLabel">—</div>
+                  <div class="r-mini" id="scoreNote">Correlation score (multi-source TI) — interpret with context.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="r-grid2">
+            <div class="card">
+              <div class="card-title"><span class="dot"></span> Context</div>
+              <div id="ctxGrid" class="meta-grid"></div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span class="dot"></span> Evidence (raw)</div>
+              <div class="r-pre" id="rawJson">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function escHtml(s) {
+        return String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function getIdFromUrl() {
+        // Supports:
+        // - /result/<id> (via rewrite to result.html?id=<id>)
+        // - /result.html?id=<id>
+        const u = new URL(window.location.href);
+        const id = u.searchParams.get('id');
+        return id ? String(id) : '';
+      }
+
+      function confLabel(score) {
+        if (score === null || score === undefined) return 'NO DATA';
+        if (score >= 70) return 'HIGH RISK';
+        if (score >= 40) return 'MEDIUM RISK';
+        if (score >= 15) return 'LOW RISK';
+        return 'LIKELY CLEAN';
+      }
+      function confClass(score) {
+        if (score === null || score === undefined) return 'unknown';
+        if (score >= 70) return 'malicious';
+        if (score >= 40) return 'suspicious';
+        if (score >= 15) return 'suspicious';
+        return 'clean';
+      }
+      function mi(k, v, c) {
+        const cls = c ? ' ' + c : '';
+        const val = v === null || v === undefined || v === '' ? '—' : String(v);
+        return '<div class="meta-item"><div class="mk">' + escHtml(k) + '</div><div class="mv' + cls + '">' + escHtml(val) + '</div></div>';
+      }
+
+      async function main() {
+        const id = getIdFromUrl();
+        const status = document.getElementById('status');
+        const content = document.getElementById('content');
+        if (!id) {
+          status.innerHTML = '<span class="r-err">⚠ Missing id</span>';
+          return;
+        }
+
+        try {
+          const r = await fetch('/api/ip-cache/by-id?id=' + encodeURIComponent(id), {
+            headers: { Accept: 'application/json' },
+          });
+          const j = await r.json().catch(() => null);
+          if (!r.ok) {
+            const msg = (j && (j.error && (j.error.message || j.error))) || (j && j.error) || r.status;
+            status.innerHTML = '<span class="r-err">⚠ ' + escHtml(String(msg)) + '</span>';
+            return;
+          }
+
+          const item = j && j.item ? j.item : null;
+          if (!item) {
+            status.innerHTML = '<span class="r-err">⚠ Not found</span>';
+            return;
+          }
+
+          const ip = item.ip || '—';
+          const stableId = item.id || id;
+          const vtVerdict = String(item.vt_verdict || 'unknown').toLowerCase();
+          const score = item.corr_confidence === null || item.corr_confidence === undefined ? null : Number(item.corr_confidence);
+
+          document.getElementById('iocText').textContent = ip;
+          document.getElementById('stableId').textContent = stableId;
+
+          const chipVt = document.getElementById('chipVt');
+          chipVt.className = 'r-chip ' + (vtVerdict || 'unknown');
+          chipVt.textContent = 'VT: ' + (vtVerdict ? vtVerdict.toUpperCase() : '—');
+
+          const chipTi = document.getElementById('chipTi');
+          chipTi.className = 'r-chip ' + confClass(score);
+          chipTi.textContent = 'TI: ' + confLabel(score);
+
+          const scoreNum = document.getElementById('scoreNum');
+          scoreNum.textContent = score === null || Number.isNaN(score) ? '—' : String(Math.round(score));
+          document.getElementById('scoreLabel').textContent = confLabel(score);
+
+          const metaLine = document.getElementById('metaLine');
+          const first = item.first_scanned_at ? new Date(item.first_scanned_at).toLocaleString() : '—';
+          const last = item.last_scanned_at ? new Date(item.last_scanned_at).toLocaleString() : '—';
+          const sc = Number(item.scan_count || 0);
+          metaLine.textContent = 'Scan count: ' + sc + ' · First: ' + first + ' · Last: ' + last;
+
+          const ctx = document.getElementById('ctxGrid');
+          const vtStats = item.vt_stats || {};
+          const det =
+            vtStats && (vtStats.malicious !== undefined || vtStats.total !== undefined)
+              ? String((vtStats.malicious || 0) + '/' + (vtStats.total || 0))
+              : '—';
+          const vtPayload = item.vt_payload || {};
+          ctx.innerHTML =
+            mi('IP', ip, 'cyan') +
+            mi('VT verdict', vtVerdict ? vtVerdict.toUpperCase() : '—', '') +
+            mi('Detections', det, '') +
+            mi('Country', vtPayload.country || '—', 'cyan') +
+            mi('ASN', vtPayload.asn ? 'AS' + vtPayload.asn : '—', 'purple') +
+            mi('AS Owner', vtPayload.as_owner || '—', '') +
+            mi('Network', vtPayload.network || '—', '') +
+            mi('VT reputation', vtPayload.reputation === undefined ? '—' : vtPayload.reputation, vtPayload.reputation < 0 ? 'red' : vtPayload.reputation > 0 ? 'green' : '');
+
+          document.getElementById('rawJson').innerHTML = escHtml(JSON.stringify(item, null, 2));
+
+          const copyBtn = document.getElementById('copyBtn');
+          copyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(String(ip));
+              copyBtn.textContent = '✓ Copied';
+              setTimeout(() => (copyBtn.textContent = 'Copy IP'), 1500);
+            } catch {
+              alert('Copy failed');
+            }
+          });
+
+          const openVtBtn = document.getElementById('openVtBtn');
+          openVtBtn.addEventListener('click', () => {
+            const url = 'https://www.virustotal.com/gui/ip-address/' + encodeURIComponent(String(ip));
+            window.open(url, '_blank', 'noopener');
+          });
+
+          status.style.display = 'none';
+          content.style.display = '';
+        } catch (e) {
+          status.innerHTML = '<span class="r-err">⚠ ' + escHtml(e.message || String(e)) + '</span>';
+        }
+      }
+
+      main();
+    </script>
+  </body>
+</html>
+

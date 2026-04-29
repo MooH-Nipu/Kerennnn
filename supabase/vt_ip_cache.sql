@@ -3,6 +3,7 @@
 -- TTL is enforced by API cleanup (delete rows older than 15 days by last_scanned_at).
 
 create table if not exists public.vt_ip_cache (
+  id uuid unique not null default gen_random_uuid(),
   ip text primary key,
   scan_count int not null default 0,
   first_scanned_at timestamptz not null default now(),
@@ -14,6 +15,9 @@ create table if not exists public.vt_ip_cache (
 
 create index if not exists vt_ip_cache_last_scanned_at_idx
   on public.vt_ip_cache (last_scanned_at desc);
+
+create index if not exists vt_ip_cache_id_idx
+  on public.vt_ip_cache (id);
 
 comment on table public.vt_ip_cache is 'Cache for VT IP scans (for seen-before + recent list). TTL: 15 days by API cleanup.';
 

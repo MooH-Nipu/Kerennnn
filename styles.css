@@ -253,7 +253,7 @@
         .dash-empty { font-size: 0.78rem; color: var(--text-sec); font-family:'JetBrains Mono', monospace; padding: 10px 2px; }
         .dash-row { display:flex; align-items:center; gap:10px; flex-wrap: wrap; background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
         .dash-row:hover { background: rgba(255,255,255,0.03); border-color: rgba(47,126,247,0.35); }
-        .dash-ip { font-family:'JetBrains Mono', monospace; font-size:0.84rem; font-weight: 700; color: var(--text-pri); }
+        .dash-ip { font-family:'JetBrains Mono', monospace; font-size:0.84rem; font-weight: 700; color: var(--text-pri); display:flex; align-items:center; gap:10px; }
         .dash-meta { display:flex; gap:8px; flex-wrap: wrap; align-items:center; margin-left:auto; }
         .dash-when { font-family:'JetBrains Mono', monospace; font-size:0.72rem; color: var(--text-sec); }
         .dash-pill { font-family:'JetBrains Mono', monospace; font-size:0.7rem; font-weight:700; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
@@ -261,6 +261,11 @@
         .dash-pill.suspicious { border-color: rgba(245,166,35,0.25); background: rgba(245,166,35,0.1); color: var(--yellow); }
         .dash-pill.malicious { border-color: rgba(229,72,77,0.3); background: rgba(229,72,77,0.12); color: var(--red); }
         .dash-pill.unknown { border-color: rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+
+        .dash-link{ width:26px; height:26px; border-radius:8px; border:1px solid rgba(34,211,238,0.25); background:rgba(34,211,238,0.08); color:var(--cyan); display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem; line-height:1; cursor:pointer; flex:0 0 auto; }
+        .dash-link:hover{ background:rgba(34,211,238,0.14); border-color:rgba(34,211,238,0.4); }
+        .dash-link:active{ transform:translateY(1px); }
+        .dash-link:focus-visible{ outline:2px solid rgba(34,211,238,0.55); outline-offset:2px; }
 
         /* Export preset */
         .vt-export-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.08); }

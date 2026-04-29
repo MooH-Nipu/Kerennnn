@@ -177,6 +177,7 @@ function fmtWhen(iso) {
 }
 
 function dashboardRowHtml(item) {
+    const stableId = item?.id || '';
     const ip = item?.ip || '';
     const verdict = (item?.vt_verdict || 'unknown').toLowerCase();
     const when = fmtWhen(item?.last_scanned_at);
@@ -188,8 +189,12 @@ function dashboardRowHtml(item) {
     const total = stats?.total ?? '';
     const det = (mal !== '' && total !== '') ? `${mal}/${total}` : '—';
     const idJs = JSON.stringify(ip);
+    const sidJs = JSON.stringify(stableId);
     return `<div class="dash-row" onclick='dashboardGoToLookup(${idJs})'>
-        <div class="dash-ip">${escHtml(ip)}</div>
+        <div class="dash-ip">
+            ${escHtml(ip)}
+            ${stableId ? `<button type="button" class="dash-link" title="Open cached result" onclick='event.stopPropagation();dashboardOpenResult(${sidJs})'>↗</button>` : ``}
+        </div>
         <div class="dash-meta">
             <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
             <span class="dash-pill">scan: ${escHtml(sc)}</span>
@@ -207,6 +212,19 @@ function dashboardGoToLookup(ip) {
     const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
     if (tabBtn) openTab('tab-vt', tabBtn);
     setStatus('statusVT', '✓ IP dari Dashboard ditempelkan — klik <strong>Scan with VirusTotal</strong> untuk scan.', 'success');
+}
+
+function dashboardOpenResult(stableId) {
+    if (!stableId) return;
+    const sid = String(stableId);
+    // Prefer pretty route (handled by Vercel rewrite). Fallback to querystring.
+    const pretty = `/result/${encodeURIComponent(sid)}`;
+    const fallback = `/result.html?id=${encodeURIComponent(sid)}`;
+    try {
+        window.open(pretty, '_blank', 'noopener');
+    } catch (e) {
+        try { window.open(fallback, '_blank', 'noopener'); } catch {}
+    }
 }
 
 async function dashboardRefreshRecent() {

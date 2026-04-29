@@ -151,7 +151,7 @@ module.exports = async function handler(req, res) {
           try {
             const { data: row } = await supabase
               .from('vt_ip_cache')
-              .select('ip,scan_count,last_scanned_at,first_scanned_at')
+              .select('id,ip,scan_count,last_scanned_at,first_scanned_at')
               .eq('ip', ioc)
               .maybeSingle();
             existing = row || null;
@@ -176,6 +176,7 @@ module.exports = async function handler(req, res) {
             enabled: true,
             ttlDays,
             seenBefore: !!existing,
+            stableId: existing ? existing.id || null : null,
             scanCount: existing ? Number(existing.scan_count || 0) : 0,
             lastSeen: existing ? existing.last_scanned_at || null : null,
           };
@@ -208,7 +209,9 @@ module.exports = async function handler(req, res) {
               data._meta.cache.scanCount = nextCount;
               data._meta.cache.lastSeen = nowIso;
             } else {
-              await supabase.from('vt_ip_cache').insert({
+              const { data: inserted } = await supabase
+                .from('vt_ip_cache')
+                .insert({
                 ip: ioc,
                 scan_count: 1,
                 first_scanned_at: nowIso,
@@ -216,9 +219,12 @@ module.exports = async function handler(req, res) {
                 vt_verdict: vtVerdict,
                 vt_stats: vtStats,
                 vt_payload: vtPayload,
-              });
+                })
+                .select('id')
+                .maybeSingle();
               data._meta.cache.scanCount = 1;
               data._meta.cache.lastSeen = nowIso;
+              data._meta.cache.stableId = inserted ? inserted.id || null : null;
             }
           } catch {
             // ignore DB errors (do not block VT response)

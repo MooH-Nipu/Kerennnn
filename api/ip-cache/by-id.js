@@ -12,15 +12,9 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-function dateMinusDaysIso(days) {
-  const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
-  return new Date(Date.now() - ms).toISOString();
-}
-
-function clampInt(n, lo, hi, fallback) {
-  const x = Number.parseInt(String(n), 10);
-  if (!Number.isFinite(x)) return fallback;
-  return Math.max(lo, Math.min(hi, x));
+function isUuid(v) {
+  const s = String(v || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
 }
 
 module.exports = async function handler(req, res) {
@@ -28,6 +22,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Keep result access consistent with the app lock.
   if (authEnabled() && !requireAuth(req, res)) return;
 
   const supabase = getSupabase();
@@ -37,24 +32,20 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const limit = clampInt(req.query?.limit, 1, 50, 15);
-  const ttlDays = 15;
-  const cutoffIso = dateMinusDaysIso(ttlDays);
-
-  // Lazy cleanup TTL (best-effort)
-  try {
-    await supabase.from('vt_ip_cache').delete().lt('last_scanned_at', cutoffIso);
-  } catch {
-    // ignore cleanup errors
-  }
+  const id = req.query?.id;
+  if (!isUuid(id)) return res.status(400).json({ error: 'Missing/invalid ?id= (uuid).' });
 
   const { data, error } = await supabase
     .from('vt_ip_cache')
-    .select('id,ip,scan_count,first_scanned_at,last_scanned_at,vt_verdict,vt_stats,corr_confidence')
-    .order('last_scanned_at', { ascending: false })
-    .limit(limit);
+    .select(
+      'id,ip,scan_count,first_scanned_at,last_scanned_at,vt_verdict,vt_stats,vt_payload,corr_confidence,corr_payload'
+    )
+    .eq('id', String(id))
+    .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message || String(error) });
-  return res.status(200).json({ ok: true, ttlDays, items: data || [] });
+  if (!data) return res.status(404).json({ error: 'Not found' });
+
+  return res.status(200).json({ ok: true, item: data });
 };
 
