@@ -17,6 +17,9 @@
       .r-back:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); }
       .r-title { font-size: 0.9rem; color: var(--text-sec); font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; margin-left: auto; }
 
+      /* Result page uses a single main card; don't split into 2 columns on desktop */
+      @media (min-width: 1024px) { .r-wrap .grid { grid-template-columns: 1fr; } }
+
       .r-takeaways { display:grid; grid-template-columns: 1fr; gap:10px; margin: 14px 0; }
       @media (min-width: 950px) { .r-takeaways { grid-template-columns: 1fr 1fr; } }
       .tw-card { border:1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: rgba(0,0,0,0.18); }
