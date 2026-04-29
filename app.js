@@ -207,6 +207,81 @@ async function ipCachePostCorrelation(corr) {
 }
 
 /* ── DASHBOARD (Recent IP cache) ── */
+function dashboardOpenSearchConsole() {
+    const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
+    if (tabBtn) openTab('tab-vt', tabBtn);
+}
+
+function dashboardScrollToInvestigations() {
+    scrollToDashboardSection('dash-recent-feed');
+}
+
+function scrollToDashboardSection(sectionId) {
+    const dashTabBtn = document.getElementById('tabBtn-dashboard');
+    const dashPanel = document.getElementById('tab-dashboard');
+    if (!dashTabBtn || !dashPanel) return;
+    const wasActive = dashPanel.classList.contains('active');
+    if (!wasActive && dashTabBtn) openTab('tab-dashboard', dashTabBtn);
+    const scrollIt = () => {
+        const el = document.getElementById(sectionId);
+        if (!el) return;
+        try {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            el.scrollIntoView(true);
+        }
+    };
+    if (wasActive) scrollIt();
+    else setTimeout(scrollIt, 50);
+}
+
+/** Dashboard nav links (#dash-*) switch to Dashboard tab before scrolling */
+function dashboardInTabAnchor(ev, el) {
+    if (ev) ev.preventDefault();
+    const raw = el && el.getAttribute ? String(el.getAttribute('href') || '') : '';
+    const id = raw.charAt(0) === '#' ? raw.slice(1) : '';
+    if (id) scrollToDashboardSection(id);
+    return false;
+}
+
+/** Update Live Watch risk bar from recent cache items */
+function dashboardUpdateRiskMix(items) {
+    const countEl = document.getElementById('dashRiskMixCount');
+    const els = document.querySelectorAll('.dash-risk-bar .dash-risk-seg');
+    if (!els.length) return;
+
+    var nc = 0;
+    var ns = 0;
+    var nm = 0;
+    var nu = 0;
+    (items || []).forEach(function (it) {
+        var v = String(it && it.vt_verdict ? it.vt_verdict : 'unknown').toLowerCase();
+        if (v === 'clean') nc++;
+        else if (v === 'malicious') nm++;
+        else if (v === 'suspicious') ns++;
+        else nu++;
+    });
+    var n = (items && items.length) || 0;
+    if (countEl) countEl.textContent = n === 1 ? '1 item' : String(n) + ' items';
+
+    var uThird = nu / 3;
+    var g0 = nc + uThird;
+    var g1 = ns + uThird;
+    var g2 = nm + uThird;
+    var totalG = g0 + g1 + g2;
+
+    els.forEach(function (seg, idx) {
+        var g = idx === 0 ? g0 : idx === 1 ? g1 : g2;
+        if (!totalG || n === 0) {
+            seg.style.flex = '1 1 0';
+            seg.style.opacity = '0.35';
+        } else {
+            seg.style.flex = String(Math.max(g, 0)) + ' 1 0';
+            seg.style.opacity = '1';
+        }
+    });
+}
+
 function fmtWhen(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -283,6 +358,7 @@ async function dashboardRefreshRecent() {
             const msg = formatApiError(data && data.error) || text || r.status;
             setStatus('statusDashboard', '⚠ ' + escHtml(msg), 'error');
             if (host) host.innerHTML = '<div class="dash-empty">Tidak bisa memuat data.</div>';
+            dashboardUpdateRiskMix([]);
             return;
         }
         const items = (data && data.items) || [];
@@ -291,10 +367,12 @@ async function dashboardRefreshRecent() {
         } else {
             if (host) host.innerHTML = items.map(dashboardRowHtml).join('');
         }
+        dashboardUpdateRiskMix(items);
         setStatus('statusDashboard', `✓ Loaded ${items.length} IP (TTL ${data.ttlDays || 15} hari).`, 'success');
     } catch (e) {
         setStatus('statusDashboard', '⚠ ' + escHtml(e.message || String(e)), 'error');
         if (host) host.innerHTML = '<div class="dash-empty">Tidak bisa memuat data.</div>';
+        dashboardUpdateRiskMix([]);
     }
 }
 
