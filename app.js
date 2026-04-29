@@ -217,8 +217,8 @@ function dashboardGoToLookup(ip) {
 function dashboardOpenResult(stableId) {
     if (!stableId) return;
     const sid = String(stableId);
-    // Prefer pretty route (handled by Vercel rewrite). Fallback to querystring.
-    const pretty = `/result/${encodeURIComponent(sid)}`;
+    // Prefer pretty route, but include `?id=` so it still works without rewrites (local/dev).
+    const pretty = `/result/${encodeURIComponent(sid)}?id=${encodeURIComponent(sid)}`;
     const fallback = `/result.html?id=${encodeURIComponent(sid)}`;
     try {
         window.open(pretty, '_blank', 'noopener');
