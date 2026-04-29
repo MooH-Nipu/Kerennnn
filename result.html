@@ -29,7 +29,7 @@
       .tw-joke { margin-top: 8px; font-family:'JetBrains Mono', monospace; font-size:0.72rem; color: var(--text-sec); line-height:1.5; opacity: 0.95; }
 
       .r-summary { display:grid; grid-template-columns: 1fr; gap: 14px; }
-      @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.2fr 0.8fr; } }
+      @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.25fr 0.55fr 1fr; } }
       .r-kv { display:flex; flex-direction:column; gap: 10px; }
       .r-ioc { font-family:'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 900; letter-spacing: 0.2px; color: var(--text-pri); }
       .r-sub { font-size: 0.78rem; color: var(--text-sec); }
@@ -50,6 +50,12 @@
       .r-mini { font-size: 0.74rem; color: var(--text-sec); line-height: 1.5; }
       .r-divider { height:1px; width:100%; background: var(--border); margin: 4px 0 0; opacity: 0.8; }
 
+      .r-evidenceCard { border:1px solid var(--border); border-radius: 14px; padding: 12px 12px; background: rgba(0,0,0,0.18); display:flex; flex-direction:column; gap: 10px; min-width: 0; }
+      .r-evidenceHead { display:flex; align-items:center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid rgba(90,122,168,0.16); }
+      .r-evidenceTitle { font-size: 0.78rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); display:flex; align-items:center; gap: 8px; }
+      .r-evidenceDot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); flex: 0 0 auto; }
+      .r-pre.r-pre--evidence { max-height: 240px; }
+
       .r-grid2 { display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
       @media (min-width: 1000px) { .r-grid2 { grid-template-columns: 1fr 1fr; } }
       .r-grid2 { align-items: start; }
@@ -58,6 +64,13 @@
       .r-rawToggle { margin-left: auto; border: 1px solid rgba(90,122,168,0.22); background: rgba(255,255,255,0.03); color: var(--text-sec); border-radius: 999px; padding: 6px 10px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase; cursor: pointer; }
       .r-rawToggle:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); color: var(--text-pri); }
       .r-rawToggle:focus { outline: none; box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
+
+      .meta-grid.meta-grid--row { display:flex; flex-wrap:nowrap; gap: 8px; overflow-x:auto; padding-bottom: 2px; }
+      .meta-grid.meta-grid--row .meta-item { flex: 0 0 auto; min-width: 150px; }
+      .meta-grid.meta-grid--row .mv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+
+      .meta-grid.meta-grid--details { grid-template-columns: 1fr; }
+      @media (min-width: 900px) { .meta-grid.meta-grid--details { grid-template-columns: 1fr 1fr; } }
 
       /* Engine analysis */
       .ea-wrap { margin-top: 14px; }
@@ -73,7 +86,7 @@
       .ea-grid { display:grid; grid-template-columns: 1fr; gap: 12px; }
       @media (min-width: 1000px) { .ea-grid { grid-template-columns: 1fr 1fr 1fr; } }
 
-      .ea-card { border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,0.18); overflow:hidden; }
+      .ea-card { border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,0.18); overflow:hidden; display:flex; flex-direction:column; }
       .ea-top { display:flex; align-items:flex-start; gap: 10px; padding: 12px 12px; border-bottom: 1px solid rgba(90,122,168,0.16); }
       .ea-logo { width: 28px; height: 28px; border-radius: 8px; display:flex; align-items:center; justify-content:center; border: 1px solid rgba(47,126,247,0.35); background: rgba(47,126,247,0.06); flex: 0 0 auto; }
       .ea-logo span { font-family:'JetBrains Mono', monospace; font-weight: 900; font-size: 0.72rem; color: var(--text-pri); opacity: 0.95; }
@@ -89,8 +102,8 @@
       .ea-link { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(90,122,168,0.22); background: rgba(255,255,255,0.03); color: var(--text-pri); display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; }
       .ea-link:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); }
 
-      .ea-body { padding: 10px 12px 12px; }
-      .ea-detailBtn { width: 100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(90,122,168,0.18); background: rgba(0,0,0,0.12); color: var(--text-pri); cursor:pointer; font-weight: 900; font-size: 0.78rem; }
+      .ea-body { padding: 10px 12px 12px; display:flex; flex-direction:column; gap: 10px; flex: 1; }
+      .ea-detailBtn { width: 100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(90,122,168,0.18); background: rgba(0,0,0,0.12); color: var(--text-pri); cursor:pointer; font-weight: 900; font-size: 0.78rem; margin-top: auto; }
       .ea-detailBtn .ea-chev { font-family:'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-sec); }
       .ea-detail { display:none; margin-top: 10px; border-top: 1px dashed rgba(90,122,168,0.18); padding-top: 10px; }
       .ea-detail.open { display:block; }
@@ -161,22 +174,23 @@
                   <div class="r-scoreLabel" id="scoreLabel">—</div>
                   <div class="r-mini" id="scoreNote">Correlation score (multi-source TI) — interpret with context.</div>
                 </div>
+
+                <div class="r-evidenceCard">
+                  <div class="r-evidenceHead">
+                    <div class="r-evidenceTitle">
+                      <span class="r-evidenceDot"></span> Evidence (raw)
+                    </div>
+                    <button type="button" class="r-rawToggle" id="rawToggle" aria-controls="rawJson" aria-expanded="false">Show</button>
+                  </div>
+                  <div class="r-pre r-pre--evidence" id="rawJson" hidden>—</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="r-grid2">
-            <div class="card">
-              <div class="card-title"><span class="dot"></span> Context</div>
-              <div id="ctxGrid" class="meta-grid"></div>
-            </div>
-            <div class="card">
-              <div class="card-title">
-                <span class="dot"></span> Evidence (raw)
-                <button type="button" class="r-rawToggle" id="rawToggle" aria-controls="rawJson" aria-expanded="false">Show</button>
-              </div>
-              <div class="r-pre" id="rawJson" hidden>—</div>
-            </div>
+          <div class="card" style="margin-top: 14px;">
+            <div class="card-title"><span class="dot"></span> Context</div>
+            <div id="ctxGrid" class="meta-grid meta-grid--row"></div>
           </div>
 
           <div class="card ea-wrap">
@@ -192,7 +206,7 @@
 
           <div class="card" style="margin-top: 14px;">
             <div class="card-title"><span class="dot"></span> Details</div>
-            <div id="provGrid" class="meta-grid"></div>
+            <div id="provGrid" class="meta-grid meta-grid--details"></div>
           </div>
         </div>
       </div>
