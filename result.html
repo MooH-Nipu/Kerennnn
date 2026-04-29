@@ -26,6 +26,7 @@
       .tw-bad .tw-h { color: var(--yellow); }
       .tw-good .tw-h { color: var(--green); }
       .tw-q { font-family:'JetBrains Mono', monospace; font-size:0.78rem; color: var(--text-pri); line-height:1.55; }
+      .tw-joke { margin-top: 8px; font-family:'JetBrains Mono', monospace; font-size:0.72rem; color: var(--text-sec); line-height:1.5; opacity: 0.95; }
 
       .r-summary { display:grid; grid-template-columns: 1fr; gap: 14px; }
       @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.2fr 0.8fr; } }
@@ -54,6 +55,46 @@
 
       .r-pre { font-family:'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-code); background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px; overflow:auto; max-height: 360px; }
 
+      /* Engine analysis */
+      .ea-wrap { margin-top: 14px; }
+      .ea-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 8px; }
+      .ea-title { font-size: 0.98rem; font-weight: 900; color: var(--text-pri); }
+      .ea-sub { font-size: 0.78rem; color: var(--text-sec); }
+      .ea-counts { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-left: auto; }
+      .ea-pill { font-family:'JetBrains Mono', monospace; font-size:0.7rem; font-weight:900; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+      .ea-pill.malicious { border-color: rgba(229,72,77,0.3); background: rgba(229,72,77,0.12); color: var(--red); }
+      .ea-pill.suspicious { border-color: rgba(245,166,35,0.25); background: rgba(245,166,35,0.1); color: var(--yellow); }
+      .ea-pill.clean { border-color: rgba(15,186,129,0.25); background: rgba(15,186,129,0.1); color: var(--green); }
+      .ea-pill.unknown { border-color: rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+      .ea-grid { display:grid; grid-template-columns: 1fr; gap: 12px; }
+      @media (min-width: 1000px) { .ea-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+      .ea-card { border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,0.18); overflow:hidden; }
+      .ea-top { display:flex; align-items:flex-start; gap: 10px; padding: 12px 12px; border-bottom: 1px solid rgba(90,122,168,0.16); }
+      .ea-logo { width: 28px; height: 28px; border-radius: 8px; display:flex; align-items:center; justify-content:center; border: 1px solid rgba(47,126,247,0.35); background: rgba(47,126,247,0.06); flex: 0 0 auto; }
+      .ea-logo span { font-family:'JetBrains Mono', monospace; font-weight: 900; font-size: 0.72rem; color: var(--text-pri); opacity: 0.95; }
+      .ea-name { font-weight: 900; color: var(--text-pri); line-height: 1.1; }
+      .ea-mini { font-family:'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-sec); margin-top: 4px; }
+      .ea-right { margin-left:auto; display:flex; align-items:center; gap: 8px; flex-wrap:wrap; justify-content:flex-end; }
+      .ea-badge { font-family:'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 900; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+      .ea-badge.malicious { border-color: rgba(229,72,77,0.3); background: rgba(229,72,77,0.12); color: var(--red); }
+      .ea-badge.suspicious { border-color: rgba(245,166,35,0.25); background: rgba(245,166,35,0.1); color: var(--yellow); }
+      .ea-badge.clean { border-color: rgba(15,186,129,0.25); background: rgba(15,186,129,0.1); color: var(--green); }
+      .ea-badge.unknown { border-color: rgba(90,122,168,0.2); background: rgba(90,122,168,0.08); color: var(--text-sec); }
+      .ea-score { font-family:'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 900; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(90,122,168,0.2); background: rgba(255,255,255,0.03); color: var(--text-sec); }
+      .ea-link { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(90,122,168,0.22); background: rgba(255,255,255,0.03); color: var(--text-pri); display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; }
+      .ea-link:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); }
+
+      .ea-body { padding: 10px 12px 12px; }
+      .ea-detailBtn { width: 100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(90,122,168,0.18); background: rgba(0,0,0,0.12); color: var(--text-pri); cursor:pointer; font-weight: 900; font-size: 0.78rem; }
+      .ea-detailBtn .ea-chev { font-family:'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-sec); }
+      .ea-detail { display:none; margin-top: 10px; border-top: 1px dashed rgba(90,122,168,0.18); padding-top: 10px; }
+      .ea-detail.open { display:block; }
+      .ea-meta { display:grid; grid-template-columns: 1fr; gap: 8px; }
+      @media (min-width: 680px) { .ea-meta { grid-template-columns: 1fr 1fr; } }
+      .ea-mk { font-family:'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-sec); }
+      .ea-mv { font-family:'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-pri); word-break: break-word; }
+
       .r-muted { color: var(--text-sec); }
       .r-err { color: var(--red); }
       .r-loading { display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono', monospace; color: var(--text-sec); font-size: 0.78rem; }
@@ -72,13 +113,14 @@
         <div class="r-takeaways">
           <div class="tw-card tw-bad">
             <div class="tw-h">A good analyst does not say</div>
-            <div class="tw-q">“3 engines flagged it, so it is malicious.”</div>
+            <div class="tw-q" id="twDont">“3 engines flagged it, so it is malicious.”</div>
           </div>
           <div class="tw-card tw-good">
             <div class="tw-h">A good analyst says</div>
-            <div class="tw-q">
+            <div class="tw-q" id="twSay">
               “This IOC is assessed based on source quality, recency, and multi-source corroboration — not raw engine count.”
             </div>
+            <div class="tw-joke" id="twJoke" style="display:none"></div>
           </div>
         </div>
 
@@ -129,6 +171,17 @@
               <div class="r-pre" id="rawJson">—</div>
             </div>
           </div>
+
+          <div class="card ea-wrap">
+            <div class="ea-head">
+              <div>
+                <div class="ea-title">Engine Analysis</div>
+                <div class="ea-sub">Consensus, per-engine evidence, and expandable analyst detail</div>
+              </div>
+              <div class="ea-counts" id="eaCounts"></div>
+            </div>
+            <div class="ea-grid" id="eaGrid"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -175,7 +228,240 @@
         return '<div class="meta-item"><div class="mk">' + escHtml(k) + '</div><div class="mv' + cls + '">' + escHtml(val) + '</div></div>';
       }
 
+      const TAKEAWAYS = [
+        {
+          dont: '“3 engines flagged it, so it is malicious.”',
+          say: '“This IOC is assessed based on source quality, recency, and multi-source corroboration — not raw engine count.”',
+          joke: 'If your verdict fits in a tweet, it probably needs a footnote.',
+        },
+        {
+          dont: '“It’s clean because only 1/91 engines flagged it.”',
+          say: '“Low detections reduce confidence, but recency and curated intel still matter — correlate with telemetry.”',
+          joke: 'One engine can be wrong… and so can ninety-one. Analysts exist for a reason.',
+        },
+        {
+          dont: '“GreyNoise says noise, so we can ignore it.”',
+          say: '“GreyNoise helps with context (internet background vs targeted), but we still validate against our environment.”',
+          joke: 'Noise is still a signal — just… at high volume.',
+        },
+        {
+          dont: '“OTX pulse = malicious.”',
+          say: '“Community pulses are supporting evidence; we prioritize curated, corroborated, and recent signals.”',
+          joke: 'Pulses are like rumors: useful, but not court evidence.',
+        },
+        {
+          dont: '“AbuseIPDB score is 0%, so it’s safe.”',
+          say: '“Reputation is absence-of-reports, not proof of benignness; check infrastructure type and activity.”',
+          joke: 'No reports can mean “clean”… or “nobody bothered reporting it yet.”',
+        },
+        {
+          dont: '“It’s malicious because the score is high.”',
+          say: '“We explain why the score is high (drivers), what’s missing, and what benign explanations were ruled out.”',
+          joke: 'Scores are numbers. Verdicts are arguments.',
+        },
+      ];
+
+      function applyRandomTakeaway() {
+        const i = Math.floor(Math.random() * TAKEAWAYS.length);
+        const t = TAKEAWAYS[i];
+        const d = document.getElementById('twDont');
+        const s = document.getElementById('twSay');
+        const j = document.getElementById('twJoke');
+        if (d) d.textContent = t.dont;
+        if (s) s.textContent = t.say;
+        if (j) {
+          if (t.joke) {
+            j.style.display = '';
+            j.textContent = t.joke;
+          } else {
+            j.style.display = 'none';
+            j.textContent = '';
+          }
+        }
+      }
+
+      function vKey(v) {
+        const s = String(v || '').toLowerCase();
+        if (s === 'malicious') return 'malicious';
+        if (s === 'suspicious') return 'suspicious';
+        if (s === 'clean' || s === 'benign' || s === 'harmless') return 'clean';
+        if (s === 'unknown' || s === 'not_found') return 'unknown';
+        if (s === 'error') return 'unknown';
+        if (s === 'skipped' || s === 'no_key') return 'unknown';
+        return 'unknown';
+      }
+
+      function shortLogo(name) {
+        const n = String(name || '').trim();
+        if (!n) return 'TI';
+        const parts = n.split(/\s+/).filter(Boolean);
+        const two = parts.slice(0, 2).map((p) => p[0]).join('');
+        return (two || n.slice(0, 2)).toUpperCase();
+      }
+
+      function renderCounts(items) {
+        const counts = { malicious: 0, suspicious: 0, clean: 0, unknown: 0 };
+        for (const it of items) {
+          const k = vKey(it.verdict);
+          counts[k] = (counts[k] || 0) + 1;
+        }
+        const host = document.getElementById('eaCounts');
+        if (!host) return;
+        host.innerHTML =
+          '<span class="ea-pill malicious">' + counts.malicious + ' malicious</span>' +
+          '<span class="ea-pill suspicious">' + counts.suspicious + ' suspicious</span>' +
+          '<span class="ea-pill clean">' + counts.clean + ' clean</span>' +
+          '<span class="ea-pill unknown">' + counts.unknown + ' unknown/error</span>';
+      }
+
+      function metaGridHtml(meta) {
+        const obj = meta && typeof meta === 'object' ? meta : {};
+        const entries = Object.entries(obj);
+        if (!entries.length) {
+          return '<div class="ea-mini">No additional fields.</div>';
+        }
+        return (
+          '<div class="ea-meta">' +
+          entries
+            .slice(0, 18)
+            .map(([k, v]) => {
+              const val = v === null || v === undefined ? '—' : String(v);
+              return '<div><div class="ea-mk">' + escHtml(k) + '</div><div class="ea-mv">' + escHtml(val) + '</div></div>';
+            })
+            .join('') +
+          '</div>'
+        );
+      }
+
+      function engineCardHtml(x, idx) {
+        const name = String(x.source || 'Unknown');
+        const verdict = String(x.verdict || 'unknown');
+        const key = vKey(verdict);
+        const score =
+          x.score === null || x.score === undefined || x.score === '' || Number.isNaN(Number(x.score))
+            ? null
+            : Number(x.score);
+        const link = x.link ? String(x.link) : '';
+        const detailId = 'ea-detail-' + idx;
+
+        const mini =
+          x.skipped
+            ? 'No key configured'
+            : x.error
+              ? 'Error: ' + String(x.error)
+              : x.subtitle
+                ? String(x.subtitle)
+                : x.note
+                  ? String(x.note)
+                  : '';
+
+        return (
+          '<div class="ea-card" data-ea-idx="' +
+          idx +
+          '">' +
+          '<div class="ea-top">' +
+          '<div class="ea-logo"><span>' +
+          escHtml(shortLogo(name)) +
+          '</span></div>' +
+          '<div>' +
+          '<div class="ea-name">' +
+          escHtml(name) +
+          '</div>' +
+          (mini ? '<div class="ea-mini">' + escHtml(mini) + '</div>' : '') +
+          '</div>' +
+          '<div class="ea-right">' +
+          '<span class="ea-badge ' +
+          escHtml(key) +
+          '">● ' +
+          escHtml(String(verdict || 'unknown').toUpperCase()) +
+          '</span>' +
+          (score === null ? '' : '<span class="ea-score">Score ' + escHtml(String(Math.round(score))) + '%</span>') +
+          (link
+            ? '<a class="ea-link" href="' +
+              escHtml(link) +
+              '" target="_blank" rel="noopener" title="Open provider">↗</a>'
+            : '') +
+          '</div>' +
+          '</div>' +
+          '<div class="ea-body">' +
+          '<button type="button" class="ea-detailBtn" data-ea-toggle="' +
+          escHtml(detailId) +
+          '">' +
+          '<span>Details</span><span class="ea-chev">▼</span>' +
+          '</button>' +
+          '<div class="ea-detail" id="' +
+          escHtml(detailId) +
+          '">' +
+          metaGridHtml(x.meta) +
+          '</div>' +
+          '</div>' +
+          '</div>'
+        );
+      }
+
+      function buildEngines(item) {
+        const engines = [];
+
+        // VT (cached summary)
+        const vtStats = item.vt_stats || {};
+        const det = vtStats && (vtStats.malicious !== undefined || vtStats.total !== undefined)
+          ? String((vtStats.malicious || 0) + '/' + (vtStats.total || 0))
+          : '';
+        engines.push({
+          source: 'VirusTotal',
+          verdict: String(item.vt_verdict || 'unknown').toLowerCase(),
+          score: null,
+          subtitle: det ? ('Detections ' + det) : '',
+          meta: {
+            Detections: det || '—',
+            Reputation: item?.vt_payload?.reputation ?? '—',
+            Country: item?.vt_payload?.country ?? '—',
+            ASN: item?.vt_payload?.asn ? 'AS' + item.vt_payload.asn : '—',
+            'AS Owner': item?.vt_payload?.as_owner ?? '—',
+            Network: item?.vt_payload?.network ?? '—',
+          },
+          link: item?.ip ? 'https://www.virustotal.com/gui/ip-address/' + encodeURIComponent(String(item.ip)) : '',
+        });
+
+        const corr = item.corr_payload || {};
+        const srcs = Array.isArray(corr.sources) ? corr.sources : [];
+        for (const s of srcs) {
+          engines.push({
+            source: s.source || 'Threat Intel',
+            verdict: s.skipped ? 'skipped' : s.error ? 'error' : (s.verdict || 'unknown'),
+            score: s.score,
+            meta: s.meta || {},
+            link: s.link || '',
+            skipped: !!s.skipped,
+            error: s.error || '',
+          });
+        }
+
+        return engines;
+      }
+
+      function renderEngineAnalysis(item) {
+        const grid = document.getElementById('eaGrid');
+        if (!grid) return;
+        const engines = buildEngines(item);
+        renderCounts(engines);
+        grid.innerHTML = engines.map((x, i) => engineCardHtml(x, i)).join('');
+
+        grid.addEventListener('click', (ev) => {
+          const btn = ev.target && ev.target.closest ? ev.target.closest('[data-ea-toggle]') : null;
+          if (!btn) return;
+          const id = btn.getAttribute('data-ea-toggle');
+          if (!id) return;
+          const detail = document.getElementById(id);
+          if (!detail) return;
+          const open = detail.classList.toggle('open');
+          const chev = btn.querySelector('.ea-chev');
+          if (chev) chev.textContent = open ? '▲' : '▼';
+        }, { once: true });
+      }
+
       async function main() {
+        applyRandomTakeaway();
         const id = getIdFromUrl();
         const status = document.getElementById('status');
         const content = document.getElementById('content');
@@ -245,6 +531,7 @@
             mi('VT reputation', vtPayload.reputation === undefined ? '—' : vtPayload.reputation, vtPayload.reputation < 0 ? 'red' : vtPayload.reputation > 0 ? 'green' : '');
 
           document.getElementById('rawJson').innerHTML = escHtml(JSON.stringify(item, null, 2));
+          renderEngineAnalysis(item);
 
           const copyBtn = document.getElementById('copyBtn');
           copyBtn.addEventListener('click', async () => {
