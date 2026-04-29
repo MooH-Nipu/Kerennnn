@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
 
   const { data, error } = await supabase
     .from('vt_ip_cache')
-    .select('ip,scan_count,first_scanned_at,last_scanned_at,vt_verdict,vt_stats')
+    .select('ip,scan_count,first_scanned_at,last_scanned_at,vt_verdict,vt_stats,corr_confidence')
     .order('last_scanned_at', { ascending: false })
     .limit(limit);
 
