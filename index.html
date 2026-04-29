@@ -16,13 +16,15 @@
     <header class="app-header">
         <h1><span class="w1">Charlie</span> <span class="w2">kerennnn</span></h1>
         <div class="header-actions">
-            <button id="logoutBtn" type="button" class="btn btn-secondary btn-ycca" style="display:none" onclick="authLogout()">YCCA</button>
+            <button id="yccaBtn" type="button" class="btn btn-secondary btn-ycca" style="display:none" title="Logged in">YCCA</button>
+            <button id="logoutBtn" type="button" class="btn btn-secondary btn-ycca" style="display:none" onclick="authLogout()">Logout</button>
         </div>
     </header>
 
     <!-- LOGIN OVERLAY -->
     <div id="loginOverlay" class="login-overlay" style="display:none" aria-hidden="true">
         <div class="login-card" role="dialog" aria-modal="true" aria-label="Login">
+            <button type="button" class="login-close" aria-label="Close login" title="Close" onclick="authDismissLogin()">✕</button>
             <div class="card-title"><span class="dot"></span> Login</div>
             <p class="history-hint compact">Masukkan password untuk membuka akses.</p>
             <div class="fg">
@@ -40,7 +42,7 @@
         <button id="tabBtn-dashboard" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dashboard" data-tab="tab-dashboard" onclick="openTab('tab-dashboard',this)">🏠 Dashboard</button>
         <button id="tabBtn-formatter" type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-formatter" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button id="tabBtn-merger" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
-        <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)">PAC Filter</button>
+        <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)" style="display:none">PAC Filter</button>
         <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
         <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
@@ -50,7 +52,7 @@
         <div class="grid">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Last 15 scanned IP</div>
-                <p class="history-hint compact">Sumber: cache database (TTL 15 hari). Klik IP untuk mengisi tab <strong>VirusTotal Lookup</strong>.</p>
+                <p class="history-hint compact">Sumber: cache database (TTL 15 hari). Klik tombol panah di kanan untuk mengisi tab <strong>VirusTotal Lookup</strong>.</p>
                 <div class="btn-row">
                     <button type="button" class="btn btn-secondary" onclick="dashboardRefreshRecent()">Refresh</button>
                 </div>

@@ -189,6 +189,11 @@
             </div>
             <div class="ea-grid" id="eaGrid"></div>
           </div>
+
+          <div class="card" style="margin-top: 14px;">
+            <div class="card-title"><span class="dot"></span> Details</div>
+            <div id="provGrid" class="meta-grid"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -524,6 +529,19 @@
           const last = item.last_scanned_at ? new Date(item.last_scanned_at).toLocaleString() : '—';
           const sc = Number(item.scan_count || 0);
           metaLine.textContent = 'Scan count: ' + sc + ' · First: ' + first + ' · Last: ' + last;
+
+          const prov = document.getElementById('provGrid');
+          if (prov) {
+            const rid = item.id || id || '—';
+            const firstSubmitted = item.first_scanned_at ? new Date(item.first_scanned_at).toLocaleString() : '—';
+            const lastChecked = item.last_scanned_at ? new Date(item.last_scanned_at).toLocaleString() : '—';
+            const cacheLine = item.last_scanned_at ? ('cached · ' + new Date(item.last_scanned_at).toLocaleString()) : 'cached';
+            prov.innerHTML =
+              mi('Result ID', rid, '') +
+              mi('First submitted', firstSubmitted, 'cyan') +
+              mi('Last checked', lastChecked, '') +
+              mi('Cache', cacheLine, '');
+          }
 
           const ctx = document.getElementById('ctxGrid');
           const vtStats = item.vt_stats || {};

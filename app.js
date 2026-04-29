@@ -80,16 +80,33 @@ function copyText(elId, btnId) {
 /* ── AUTH (single password) ── */
 let _authReady = false;
 let _isAuthed = false;
+let _loginOverlayDismissed = false;
 
 function setLockedUi(locked) {
     document.body.classList.toggle('app-locked', !!locked);
     const ov = document.getElementById('loginOverlay');
     if (ov) {
-        ov.style.display = locked ? 'flex' : 'none';
+        ov.style.display = (locked && !_loginOverlayDismissed) ? 'flex' : 'none';
         ov.setAttribute('aria-hidden', locked ? 'false' : 'true');
     }
+    if (!locked) _loginOverlayDismissed = false;
+
+    const yccaBtn = document.getElementById('yccaBtn');
     const logoutBtn = document.getElementById('logoutBtn');
+    if (yccaBtn) yccaBtn.style.display = locked ? 'none' : 'inline-flex';
     if (logoutBtn) logoutBtn.style.display = locked ? 'none' : 'inline-flex';
+
+    const pacBtn = document.getElementById('tabBtn-merger-db');
+    if (pacBtn) pacBtn.style.display = locked ? 'none' : '';
+}
+
+function authDismissLogin() {
+    _loginOverlayDismissed = true;
+    const ov = document.getElementById('loginOverlay');
+    if (ov) {
+        ov.style.display = 'none';
+        ov.setAttribute('aria-hidden', 'true');
+    }
 }
 
 async function authCheck() {
@@ -97,6 +114,8 @@ async function authCheck() {
         const r = await fetch('/api/auth/me', { headers: { 'Accept': 'application/json' } });
         if (!r.ok) return false;
         const j = await r.json().catch(() => null);
+        // If auth is disabled server-side, allow access (and show PAC Filter).
+        if (j && j.enabled === false) return true;
         return !!j?.ok;
     } catch {
         return false;
@@ -190,18 +209,21 @@ function dashboardRowHtml(item) {
     const det = (mal !== '' && total !== '') ? `${mal}/${total}` : '—';
     const idJs = JSON.stringify(ip);
     const sidJs = JSON.stringify(stableId);
-    return `<div class="dash-row" onclick='dashboardGoToLookup(${idJs})'>
-        <div class="dash-ip">
-            ${escHtml(ip)}
-            ${stableId ? `<button type="button" class="dash-link" title="Open cached result" onclick='event.stopPropagation();dashboardOpenResult(${sidJs})'>↗</button>` : ``}
+    return `<div class="dash-row">
+        <div class="dash-left">
+            <div class="dash-ip">
+                ${escHtml(ip)}
+                <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
+                ${stableId ? `<button type="button" class="dash-link" title="Open cached result" onclick='dashboardOpenResult(${sidJs})'>↗</button>` : ``}
+            </div>
+            <div class="dash-meta">
+                <span class="dash-pill">scan: ${escHtml(sc)}</span>
+                <span class="dash-pill">det: ${escHtml(det)}</span>
+                <span class="dash-pill">ti: ${escHtml(corr === null || corr === undefined ? '—' : String(corr) + '%')}</span>
+                <span class="dash-when">${escHtml(when)}</span>
+            </div>
         </div>
-        <div class="dash-meta">
-            <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
-            <span class="dash-pill">scan: ${escHtml(sc)}</span>
-            <span class="dash-pill">det: ${escHtml(det)}</span>
-            <span class="dash-pill">ti: ${escHtml(corr === null || corr === undefined ? '—' : String(corr) + '%')}</span>
-            <span class="dash-when">${escHtml(when)}</span>
-        </div>
+        <button type="button" class="dash-go" title="Open in VirusTotal Lookup" onclick='dashboardGoToLookup(${idJs})'>›</button>
     </div>`;
 }
 
@@ -406,6 +428,11 @@ function toggleCard(el) {
     const chev = card.querySelector('.vt-chevron');
     const collapsed = body.classList.toggle('collapsed');
     chev.classList.toggle('open', !collapsed);
+}
+
+function openCachedResult(stableId) {
+    if (!stableId) return;
+    dashboardOpenResult(stableId);
 }
 
 let _cardIdx = 0;
@@ -1282,9 +1309,11 @@ function makeCard(headerInner, bodyInner, collapsed) {
     const bodyClass = collapsed ? 'vt-card-body collapsed' : 'vt-card-body';
     const chevClass = collapsed ? 'vt-chevron' : 'vt-chevron open';
     return `<div class="vt-card">
-        <div class="vt-card-header" onclick="toggleCard(this)">
+        <div class="vt-card-header">
             ${headerInner}
-            <span class="${chevClass}">▼</span>
+            <button type="button" class="vt-chev-btn" title="Toggle details" onclick="toggleCard(this);event.stopPropagation();">
+                <span class="${chevClass}">▼</span>
+            </button>
         </div>
         <div class="${bodyClass}">${bodyInner}</div>
     </div>`;
@@ -1352,6 +1381,13 @@ function renderIP(ioc, d, collapsed=false) {
     const flag  = countryFlag(a.country);
     const ctry  = a.country || '—';
     const ctryBadge = `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:5px;padding:2px 8px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;color:var(--cyan);flex-shrink:0;">${flag?flag+'\u00a0':''}${escHtml(ctry)}</span>`;
+    const cache = d?._meta?.cache || {};
+    const seenBefore = !!cache?.seenBefore;
+    const stableId = cache?.stableId || '';
+    const seenBadge = seenBefore ? `<span class="vt-seen" title="Already scanned IP">♻️ SCANNED</span>` : '';
+    const cachedBtn = stableId
+        ? `<button type="button" class="vt-cached-btn" title="Open cached result" onclick="openCachedResult(${JSON.stringify(String(stableId))});event.stopPropagation();">↗</button>`
+        : '';
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
@@ -1359,8 +1395,10 @@ function renderIP(ioc, d, collapsed=false) {
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
+        ${seenBadge}
         ${ctryBadge}
-        <span class="verdict ${v.cls}">● ${v.label}</span>`;
+        <span class="verdict ${v.cls}">● ${v.label}</span>
+        ${cachedBtn}`;
     const body = `
         ${detBar(mal, sus, total)}
         <div class="meta-grid">
