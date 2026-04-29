@@ -149,6 +149,25 @@ async function authLogout() {
     setLockedUi(true);
 }
 
+async function ipCachePostCorrelation(corr) {
+    try {
+        if (!corr || typeof corr !== 'object') return;
+        if (corr.type !== 'ip') return;
+        const ip = corr.ioc;
+        if (!ip) return;
+        const r = await fetch('/api/ip-cache/correlation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ ioc: ip, correlation: corr })
+        });
+        if (r.status === 401) {
+            if (_authReady) setLockedUi(true);
+        }
+    } catch (e) {
+        // ignore caching errors
+    }
+}
+
 /* ── DASHBOARD (Recent IP cache) ── */
 function fmtWhen(iso) {
     if (!iso) return '—';
@@ -162,6 +181,7 @@ function dashboardRowHtml(item) {
     const verdict = (item?.vt_verdict || 'unknown').toLowerCase();
     const when = fmtWhen(item?.last_scanned_at);
     const sc = Number(item?.scan_count || 0);
+    const corr = item?.corr_confidence;
     const stats = item?.vt_stats || {};
     const mal = stats?.malicious ?? '';
     const sus = stats?.suspicious ?? '';
@@ -174,6 +194,7 @@ function dashboardRowHtml(item) {
             <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
             <span class="dash-pill">scan: ${escHtml(sc)}</span>
             <span class="dash-pill">det: ${escHtml(det)}</span>
+            <span class="dash-pill">ti: ${escHtml(corr === null || corr === undefined ? '—' : String(corr) + '%')}</span>
             <span class="dash-when">${escHtml(when)}</span>
         </div>
     </div>`;
@@ -1635,6 +1656,8 @@ async function renderScanBatch(lineResults, opts = {}) {
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
+            // Best-effort: persist correlation verdicts to vt_ip_cache
+            ipCachePostCorrelation(corrResult.value);
             const idNum = Number(String(corrId).replace(/^(corr|hcorr|ycorr)-/, ''));
             const it = _vtState.items.find(x => x.id === idNum);
             if (it) {
