@@ -43,7 +43,7 @@
         <button id="tabBtn-formatter" type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-formatter" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button id="tabBtn-merger" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
         <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)" style="display:none">PAC Filter</button>
-        <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
+        <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ IoC Scan</button>
         <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
 
@@ -52,18 +52,12 @@
         <div class="dash-topbar">
             <div class="dash-topbar-brand">
                 <span class="dash-shield">🛡</span>
-                <span class="dash-topbar-title">IOC Watchfloor</span>
+                <span class="dash-topbar-title">Charlie keren</span>
             </div>
             <div class="dash-badges" aria-hidden="true">
                 <span class="dash-pill-mini">public watch</span>
-                <span class="dash-pill-mini">5 engines</span>
-                <span class="dash-pill-mini">cache 15d</span>
+                <span class="dash-pill-mini">4 engines</span>
             </div>
-            <nav class="dash-strip-nav">
-                <a href="#dash-hero-zone" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Home</a>
-                <a href="#dash-recent-feed" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Recent Activity</a>
-                <a href="#dash-search-console" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Search Console</a>
-            </nav>
         </div>
 
         <section id="dash-hero-zone" class="dash-hero-wrap">
@@ -75,16 +69,10 @@
                         <span>SOC Watchfloor</span>
                         <span class="dash-kicker-muted">VT + threat correlation</span>
                     </div>
-                    <h2 class="dash-hero-heading">Triase indikator mencurigakan <span class="dash-hero-accent">sebelum menjadi insiden.</span></h2>
-                    <p class="history-hint compact dash-lead">Korelasi sinyal intel ke satu ringkasan. Cache TTL 15 hari; panah › mengisi tab <strong>VirusTotal Lookup</strong>.</p>
+                    <h2 class="dash-hero-heading">Tools Charlie keren <span class="dash-hero-accent">karena cuma charlie yang kerennnn</span></h2>
                     <div class="dash-cta-row">
-                        <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open Search Console</button>
+                        <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open IoC Scan</button>
                         <button type="button" class="btn btn-secondary" onclick="dashboardScrollToInvestigations()">View Investigations</button>
-                    </div>
-                    <div class="dash-chip-row" aria-hidden="true">
-                        <span class="dash-chip">Single IOC</span>
-                        <span class="dash-chip">Bulk triage</span>
-                        <span class="dash-chip">Cached verdicts</span>
                     </div>
                 </div>
                 <aside class="card dash-live-card" aria-label="Live threat watch">
@@ -121,13 +109,13 @@
                 <div class="dash-console-head">
                     <div class="dash-console-titles">
                         <div class="card-title dash-console-title"><span class="dot"></span> Search Console</div>
-                        <p class="history-hint compact u-mt-0">Lookup VirusTotal &amp; korelasi — buka dari tab utama.</p>
+                        <p class="history-hint compact u-mt-0">IoC Scan &amp; korelasi — buka dari tab utama.</p>
                     </div>
                     <span class="dash-pill-mini dash-lock-pill">Locked</span>
                 </div>
                 <div class="dash-console-body">
-                    <p class="history-hint">Gunakan tombol di bawah untuk membuka konsol penuh (tab VirusTotal Lookup). Kontrol passphrase dapat ditambahkan nanti bersama lapisan auth.</p>
-                    <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open VirusTotal Lookup</button>
+                    <p class="history-hint">Gunakan tombol di bawah untuk membuka konsol penuh (tab IoC Scan). Kontrol passphrase dapat ditambahkan nanti bersama lapisan auth.</p>
+                    <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open IoC Scan</button>
                 </div>
             </div>
         </section>
@@ -137,7 +125,7 @@
                 <div class="dash-invest-head">
                     <div>
                         <div class="card-title"><span class="dot"></span> Investigations</div>
-                        <p class="history-hint compact u-mt-0">15 IP terbaru dari cache DB</p>
+                        <p class="history-hint compact u-mt-0">15 ip terbaru</p>
                     </div>
                     <button type="button" class="btn btn-secondary" onclick="dashboardRefreshRecent()">Refresh</button>
                 </div>
@@ -261,12 +249,12 @@
         </div>
     </div>
 
-    <!-- TAB 3: VIRUSTOTAL LOOKUP -->
+    <!-- TAB 3: IOC SCAN -->
     <div id="tab-vt" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-vt">
         <div class="grid">
 
             <div class="card">
-                <div class="card-title"><span class="dot"></span> VirusTotal Lookup</div>
+                <div class="card-title"><span class="dot"></span> IoC Scan</div>
                 <div class="sg">
 
                     <div class="fg">
@@ -275,7 +263,7 @@
                     </div>
 
                     <div class="btn-row">
-                        <button id="vtRunBtn" class="btn btn-primary" onclick="runVTLookup()">Scan with VirusTotal →</button>
+                        <button id="vtRunBtn" class="btn btn-primary" onclick="runVTLookup()">Run IoC Scan →</button>
                         <button class="btn btn-secondary" onclick="clearVT()">✕ Clear</button>
                     </div>
 
@@ -348,7 +336,7 @@
         <div class="history-layout">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Riwayat tersimpan</div>
-                <p class="history-hint">Setiap scan di tab Lookup dapat disimpan lokal (IOC + hasil VT + korelasi). Klik <strong>Lihat hasil</strong> untuk menampilkan kartu di panel kanan — tanpa request API baru.</p>
+                <p class="history-hint">Setiap scan di tab IoC Scan dapat disimpan lokal (IOC + hasil VT + korelasi). Klik <strong>Lihat hasil</strong> untuk menampilkan kartu di panel kanan — tanpa request API baru.</p>
                 <div class="history-head u-mb-10">
                     <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat setelah scan</label>
                 </div>
@@ -357,7 +345,7 @@
 
             <div class="card u-minw-0">
                 <div class="card-title"><span class="dot"></span> Hasil tersimpan</div>
-                <p class="history-hint top0">Preset kolom CSV/PDF mengikuti pengaturan di tab <strong>VirusTotal Lookup</strong>.</p>
+                <p class="history-hint top0">Preset kolom CSV/PDF mengikuti pengaturan di tab <strong>IoC Scan</strong>.</p>
                 <div id="statusHistory" class="status" role="status" aria-live="polite"></div>
                 <div id="historyScanPlaceholder" class="history-empty history-placeholder-box">
                     Pilih entri riwayat di kiri untuk memuat snapshot hasil IOC di sini.
@@ -366,7 +354,7 @@
                     <div class="history-snapshot-head">
                         <span class="history-snapshot-title">Snapshot</span>
                         <span id="historyResultCount" class="history-result-count"></span>
-                        <button type="button" class="vt-mini-btn u-ml-auto" onclick="historySendIocToLookup()" title="Isi textarea Lookup dengan IOC entri ini">Scan ulang di Lookup →</button>
+                        <button type="button" class="vt-mini-btn u-ml-auto" onclick="historySendIocToLookup()" title="Isi textarea IoC Scan dengan IOC entri ini">Scan ulang di IoC Scan →</button>
                     </div>
                     <div class="vt-toolbar">
                         <div class="vt-toolgroup gap-8">
