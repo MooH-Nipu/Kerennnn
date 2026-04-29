@@ -144,11 +144,15 @@
 
       function getIdFromUrl() {
         // Supports:
-        // - /result/<id> (via rewrite to result.html?id=<id>)
+        // - /result/<id>
         // - /result.html?id=<id>
         const u = new URL(window.location.href);
-        const id = u.searchParams.get('id');
-        return id ? String(id) : '';
+        const qsId = u.searchParams.get('id');
+        if (qsId) return String(qsId);
+
+        const p = String(u.pathname || '');
+        const m = p.match(/^\/result\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/?$/i);
+        return m ? String(m[1]) : '';
       }
 
       function confLabel(score) {
