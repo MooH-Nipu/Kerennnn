@@ -47,13 +47,98 @@
         <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
 
-    <!-- TAB: DASHBOARD (Recent IP cache) -->
-    <div id="tab-dashboard" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-dashboard">
-        <div class="grid">
-            <div class="card">
-                <div class="card-title"><span class="dot"></span> Last 15 scanned IP</div>
-                <p class="history-hint compact">Sumber: cache database (TTL 15 hari). Klik tombol panah di kanan untuk mengisi tab <strong>VirusTotal Lookup</strong>.</p>
-                <div class="btn-row">
+    <!-- TAB: DASHBOARD (Watchfloor-style) -->
+    <div id="tab-dashboard" class="tab-content dash-shell" role="tabpanel" aria-labelledby="tabBtn-dashboard">
+        <div class="dash-topbar">
+            <div class="dash-topbar-brand">
+                <span class="dash-shield">🛡</span>
+                <span class="dash-topbar-title">IOC Watchfloor</span>
+            </div>
+            <div class="dash-badges" aria-hidden="true">
+                <span class="dash-pill-mini">public watch</span>
+                <span class="dash-pill-mini">5 engines</span>
+                <span class="dash-pill-mini">cache 15d</span>
+            </div>
+            <nav class="dash-strip-nav">
+                <a href="#dash-hero-zone" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Home</a>
+                <a href="#dash-recent-feed" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Recent Activity</a>
+                <a href="#dash-search-console" class="dash-strip-link" onclick="return dashboardInTabAnchor(event,this)">Search Console</a>
+            </nav>
+        </div>
+
+        <section id="dash-hero-zone" class="dash-hero-wrap">
+            <div class="dash-hero-bg" aria-hidden="true"></div>
+            <div class="dash-hero-inner">
+                <div class="dash-hero-copy">
+                    <div class="dash-kicker">
+                        <span class="dash-kicker-dot"></span>
+                        <span>SOC Watchfloor</span>
+                        <span class="dash-kicker-muted">VT + threat correlation</span>
+                    </div>
+                    <h2 class="dash-hero-heading">Triase indikator mencurigakan <span class="dash-hero-accent">sebelum menjadi insiden.</span></h2>
+                    <p class="history-hint compact dash-lead">Korelasi sinyal intel ke satu ringkasan. Cache TTL 15 hari; panah › mengisi tab <strong>VirusTotal Lookup</strong>.</p>
+                    <div class="dash-cta-row">
+                        <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open Search Console</button>
+                        <button type="button" class="btn btn-secondary" onclick="dashboardScrollToInvestigations()">View Investigations</button>
+                    </div>
+                    <div class="dash-chip-row" aria-hidden="true">
+                        <span class="dash-chip">Single IOC</span>
+                        <span class="dash-chip">Bulk triage</span>
+                        <span class="dash-chip">Cached verdicts</span>
+                    </div>
+                </div>
+                <aside class="card dash-live-card" aria-label="Live threat watch">
+                    <div class="dash-live-head">
+                        <div>
+                            <div class="dash-live-title"><span class="dot"></span> Live Watch</div>
+                            <p class="history-hint compact u-mt-0">Aktivitas terbaru dari cache</p>
+                        </div>
+                        <button type="button" class="btn btn-secondary dash-refresh-mini" onclick="dashboardRefreshRecent()" title="Refresh" aria-label="Refresh">⟳</button>
+                    </div>
+                    <div class="dash-risk-mix">
+                        <div class="dash-risk-head">
+                            <span class="dash-risk-label">Risk mix</span>
+                            <span class="dash-risk-count" id="dashRiskMixCount">0 items</span>
+                        </div>
+                        <div class="dash-risk-bar" role="presentation">
+                            <span class="dash-risk-seg clean"></span>
+                            <span class="dash-risk-seg susp"></span>
+                            <span class="dash-risk-seg mal"></span>
+                        </div>
+                        <p class="history-hint compact dash-risk-hint">Detail per baris ada di Investigations.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary dash-live-fullrefresh" onclick="dashboardRefreshRecent()">Refresh feed</button>
+                    <div class="dash-live-foot">
+                        <a href="#dash-recent-feed" class="dash-inline-link" onclick="return dashboardInTabAnchor(event,this)">View full investigations</a>
+                        <span class="dash-mini-brand">Charlie kerennnn</span>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <section id="dash-search-console" class="dash-section dash-scroll-target">
+            <div class="card dash-console-card">
+                <div class="dash-console-head">
+                    <div class="dash-console-titles">
+                        <div class="card-title dash-console-title"><span class="dot"></span> Search Console</div>
+                        <p class="history-hint compact u-mt-0">Lookup VirusTotal &amp; korelasi — buka dari tab utama.</p>
+                    </div>
+                    <span class="dash-pill-mini dash-lock-pill">Locked</span>
+                </div>
+                <div class="dash-console-body">
+                    <p class="history-hint">Gunakan tombol di bawah untuk membuka konsol penuh (tab VirusTotal Lookup). Kontrol passphrase dapat ditambahkan nanti bersama lapisan auth.</p>
+                    <button type="button" class="btn btn-primary" onclick="dashboardOpenSearchConsole()">Open VirusTotal Lookup</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="dash-recent-feed" class="dash-section dash-investigations">
+            <div class="card dash-invest-card">
+                <div class="dash-invest-head">
+                    <div>
+                        <div class="card-title"><span class="dot"></span> Investigations</div>
+                        <p class="history-hint compact u-mt-0">15 IP terbaru dari cache DB</p>
+                    </div>
                     <button type="button" class="btn btn-secondary" onclick="dashboardRefreshRecent()">Refresh</button>
                 </div>
                 <div id="statusDashboard" class="status" role="status" aria-live="polite"></div>
@@ -61,7 +146,7 @@
                     <div class="dash-empty">Belum ada data.</div>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
     <!-- TAB 1: IP FORMATTER -->
@@ -312,6 +397,16 @@
             </div>
         </div>
     </div>
+
+    <footer class="site-footer" role="contentinfo">
+        <div class="site-footer-inner">
+            <span class="site-footer-cr">Charlie kerennnn — SOC toolbox</span>
+            <div class="site-footer-links">
+                <a href="https://github.com/MooH-Nipu/Kerennnn" class="site-footer-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+                <span class="site-footer-disabled" aria-disabled="true">Docs — coming soon</span>
+            </div>
+        </div>
+    </footer>
 
 </div>
 <script defer src="app.js"></script>
