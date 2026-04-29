@@ -1,9 +1,4 @@
 const { createClient } = require('@supabase/supabase-js');
-const { requireAuth } = require('../_auth');
-
-function authEnabled() {
-  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
-}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || '';
@@ -27,8 +22,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-
-  if (authEnabled() && !requireAuth(req, res)) return;
 
   const supabase = getSupabase();
   if (!supabase) {

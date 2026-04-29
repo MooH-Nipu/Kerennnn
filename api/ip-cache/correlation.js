@@ -1,10 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('../_ioc');
-const { requireAuth, readJsonBody } = require('../_auth');
-
-function authEnabled() {
-  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
-}
+const { readJsonBody } = require('../_auth');
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || '';
@@ -18,8 +14,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  if (authEnabled() && !requireAuth(req, res)) return;
 
   const supabase = getSupabase();
   if (!supabase) {

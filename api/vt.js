@@ -1,11 +1,6 @@
 const https = require('https');
 const { createClient } = require('@supabase/supabase-js');
 const { extractIOC, detectType } = require('./_ioc');
-const { requireAuth } = require('./_auth');
-
-function authEnabled() {
-  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
-}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || '';
@@ -54,8 +49,6 @@ function httpsGet(url, headers) {
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
-  if (authEnabled() && !requireAuth(req, res)) return;
 
   const apiKeys = getApiKeys();
 

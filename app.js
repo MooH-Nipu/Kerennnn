@@ -82,6 +82,16 @@ let _authReady = false;
 let _isAuthed = false;
 let _loginOverlayDismissed = false;
 
+function setAuthUi(authed) {
+    const yccaBtn = document.getElementById('yccaBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (yccaBtn) yccaBtn.style.display = authed ? 'inline-flex' : 'none';
+    if (logoutBtn) logoutBtn.style.display = authed ? 'inline-flex' : 'none';
+
+    const pacBtn = document.getElementById('tabBtn-merger-db');
+    if (pacBtn) pacBtn.style.display = authed ? '' : 'none';
+}
+
 function setLockedUi(locked) {
     document.body.classList.toggle('app-locked', !!locked);
     const ov = document.getElementById('loginOverlay');
@@ -90,14 +100,7 @@ function setLockedUi(locked) {
         ov.setAttribute('aria-hidden', locked ? 'false' : 'true');
     }
     if (!locked) _loginOverlayDismissed = false;
-
-    const yccaBtn = document.getElementById('yccaBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (yccaBtn) yccaBtn.style.display = locked ? 'none' : 'inline-flex';
-    if (logoutBtn) logoutBtn.style.display = locked ? 'none' : 'inline-flex';
-
-    const pacBtn = document.getElementById('tabBtn-merger-db');
-    if (pacBtn) pacBtn.style.display = locked ? 'none' : '';
+    setAuthUi(!locked);
 }
 
 function authDismissLogin() {
@@ -126,10 +129,9 @@ async function authInit() {
     const ok = await authCheck();
     _authReady = true;
     _isAuthed = ok;
-    setLockedUi(!ok);
-    if (ok) {
-        try { dashboardRefreshRecent(); } catch (e) {}
-    }
+    // Do NOT force a login prompt on page load.
+    setAuthUi(ok);
+    try { if (ok) dashboardRefreshRecent(); } catch (e) {}
 }
 
 async function authLogin() {
@@ -165,7 +167,8 @@ async function authLogin() {
 async function authLogout() {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
     _isAuthed = false;
-    setLockedUi(true);
+    // Logging out should not block public features; just hide YCCA-only UI.
+    setAuthUi(false);
 }
 
 async function ipCachePostCorrelation(corr) {
@@ -1879,6 +1882,6 @@ document.addEventListener('DOMContentLoaded', function() {
         mergerDbUpdateInputPreview();
     }
 
-    // Auth init: lock UI until logged in (if enabled)
+    // Auth init (passive): show YCCA-only UI when logged in, but don't prompt on load.
     try { authInit(); } catch (e) {}
 });
