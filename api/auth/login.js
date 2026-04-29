@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
   if (password !== expected) return res.status(401).json({ error: 'Invalid password.' });
 
   const now = Math.floor(Date.now() / 1000);
-  const ttlSec = 60 * 60 * 24 * 7; // 7 days
+  const ttlSec = 60 * 60 * 8; // 8 hours
   const token = makeSessionToken({ role: 'admin', exp: now + ttlSec }, secret);
 
   res.setHeader('Set-Cookie', buildSetCookie(token, { maxAge: ttlSec }));
