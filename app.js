@@ -85,11 +85,27 @@ let _loginOverlayDismissed = false;
 function setAuthUi(authed) {
     const yccaBtn = document.getElementById('yccaBtn');
     const logoutBtn = document.getElementById('logoutBtn');
-    if (yccaBtn) yccaBtn.style.display = authed ? 'inline-flex' : 'none';
+    if (yccaBtn) {
+        yccaBtn.style.display = 'inline-flex';
+        yccaBtn.title = authed ? 'Logged in (YCCA)' : 'Login YCCA';
+    }
     if (logoutBtn) logoutBtn.style.display = authed ? 'inline-flex' : 'none';
 
     const pacBtn = document.getElementById('tabBtn-merger-db');
     if (pacBtn) pacBtn.style.display = authed ? '' : 'none';
+}
+
+function authShowLogin() {
+    _loginOverlayDismissed = false;
+    const ov = document.getElementById('loginOverlay');
+    if (ov) {
+        ov.style.display = 'flex';
+        ov.setAttribute('aria-hidden', 'false');
+    }
+    try {
+        const inp = document.getElementById('loginPassword');
+        if (inp) inp.focus();
+    } catch (e) {}
 }
 
 function setLockedUi(locked) {
