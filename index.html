@@ -15,18 +15,55 @@
 
     <header>
         <h1><span class="w1">Charlie</span> <span class="w2">kerennnn</span></h1>
+        <div class="header-actions">
+            <button id="logoutBtn" type="button" class="btn btn-secondary" style="display:none" onclick="authLogout()">Logout</button>
+        </div>
     </header>
 
-    <nav class="tab-nav">
-        <button type="button" class="tab-btn active" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
-        <button type="button" class="tab-btn" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
-        <button type="button" class="tab-btn" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)">PAC Filter</button>
-        <button type="button" class="tab-btn" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
-        <button type="button" class="tab-btn" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
+    <!-- LOGIN OVERLAY -->
+    <div id="loginOverlay" class="login-overlay" style="display:none" aria-hidden="true">
+        <div class="login-card" role="dialog" aria-modal="true" aria-label="Login">
+            <div class="card-title"><span class="dot"></span> Login</div>
+            <p class="history-hint compact">Masukkan password untuk membuka akses.</p>
+            <div class="fg">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+            </div>
+            <div class="btn-row">
+                <button id="loginBtn" type="button" class="btn btn-primary" onclick="authLogin()">Login</button>
+            </div>
+            <div id="statusLogin" class="status" role="status" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <nav class="tab-nav" role="tablist" aria-label="Charlie kerennnn tabs">
+        <button id="tabBtn-dashboard" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dashboard" data-tab="tab-dashboard" onclick="openTab('tab-dashboard',this)">🏠 Dashboard</button>
+        <button id="tabBtn-formatter" type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-formatter" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
+        <button id="tabBtn-merger" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
+        <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)">PAC Filter</button>
+        <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ VirusTotal Lookup</button>
+        <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
 
+    <!-- TAB: DASHBOARD (Recent IP cache) -->
+    <div id="tab-dashboard" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-dashboard">
+        <div class="grid">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Last 15 scanned IP</div>
+                <p class="history-hint compact">Sumber: cache database (TTL 15 hari). Klik IP untuk mengisi tab <strong>VirusTotal Lookup</strong>.</p>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="dashboardRefreshRecent()">Refresh</button>
+                </div>
+                <div id="statusDashboard" class="status" role="status" aria-live="polite"></div>
+                <div id="dashboardRecentList" class="dash-list">
+                    <div class="dash-empty">Belum ada data.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- TAB 1: IP FORMATTER -->
-    <div id="tab-formatter" class="tab-content active">
+    <div id="tab-formatter" class="tab-content active" role="tabpanel" aria-labelledby="tabBtn-formatter">
         <div class="grid">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Input IP Baru</div>
@@ -36,12 +73,12 @@
                         <textarea id="rawIps" rows="12" placeholder="8.8.8.8&#10;10.0.0.1&#10;192.168.1.1"></textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processFormatter()">Format ke List →</button>
-                    <div id="statusFormatter" class="status"></div>
+                    <div id="statusFormatter" class="status" role="status" aria-live="polite"></div>
                 </div>
             </div>
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Hasil Format (IP; IP)</div>
-                <div class="output-wrap" style="flex-grow:1;">
+                <div class="output-wrap">
                     <button id="copyBtnList" class="copy-btn" style="display:none" onclick="copyText('outputList','copyBtnList')">COPY</button>
                     <div id="outputList" class="output-code tall result-yellow">Hasil konversi akan muncul di sini...</div>
                 </div>
@@ -50,7 +87,7 @@
     </div>
 
     <!-- TAB 2: JSON MERGER -->
-    <div id="tab-merger" class="tab-content">
+    <div id="tab-merger" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-merger">
         <div class="grid">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Gabung JSON & IP Baru</div>
@@ -64,12 +101,12 @@
                         <textarea id="newIpsMerger" rows="5" placeholder="8.8.8.8&#10;10.0.0.1"></textarea>
                     </div>
                     <button class="btn btn-primary" onclick="processMerger()">Merge JSON →</button>
-                    <div id="statusMerger" class="status"></div>
+                    <div id="statusMerger" class="status" role="status" aria-live="polite"></div>
                 </div>
             </div>
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Hasil JSON Terupdate</div>
-                <div class="output-wrap" style="flex-grow:1;">
+                <div class="output-wrap">
                     <button id="copyBtnJson" class="copy-btn" style="display:none" onclick="copyText('outputJson','copyBtnJson')">COPY</button>
                     <pre id="outputJson" class="output-code tall">{ // Hasil JSON akan muncul di sini... }</pre>
                 </div>
@@ -78,42 +115,42 @@
     </div>
 
     <!-- TAB: PAC Filter (DB-backed) -->
-    <div id="tab-merger-db" class="tab-content">
-        <p class="history-hint" style="margin:0 0 1rem;">Data disimpan di DB (tabel <code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
+    <div id="tab-merger-db" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-merger-db">
+        <p class="history-hint block">Data disimpan di DB (tabel <code>merger_scanned_ips</code>). Jalankan SQL migrasi di folder <code>supabase/</code> dan set env <code>SUPABASE_*</code> di Vercel.</p>
 
         <div class="grid">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Simpan IP ke database</div>
-                <p class="history-hint" style="margin:0;">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. <strong>IP yang sudah ada di database tidak akan disimpan lagi</strong> (dilewati). Hanya IP baru yang ditambahkan.</p>
+                <p class="history-hint compact">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. <strong>IP yang sudah ada di database tidak akan disimpan lagi</strong> (dilewati). Hanya IP baru yang ditambahkan.</p>
                 <div class="fg">
                     <label for="mergerDbItemsInput">Daftar IP</label>
                     <textarea id="mergerDbItemsInput" rows="10" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
-                    <p id="mergerDbInputPreview" class="history-hint" style="margin:0.35rem 0 0;">Pratinjau: belum ada isian.</p>
+                    <p id="mergerDbInputPreview" class="history-hint compact">Pratinjau: belum ada isian.</p>
                 </div>
                 <div class="btn-row">
                     <button type="button" class="btn btn-primary" id="mergerDbPostBtn" onclick="mergerDbPostItems()">Simpan ke DB</button>
                     <button type="button" class="btn btn-secondary" id="mergerDbRefreshBtn" onclick="mergerDbRefreshFromDb()">Refresh dari DB</button>
                 </div>
-                <div id="mergerDbSaveProgressWrap" style="display:none;margin-top:12px;">
-                    <div style="height:9px;background:rgba(0,0,0,0.28);border-radius:7px;overflow:hidden;border:1px solid var(--border);">
-                        <div id="mergerDbSaveProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-hl));transition:width 0.22s ease;"></div>
+                <div id="mergerDbSaveProgressWrap">
+                    <div class="merger-db-progress-track">
+                        <div id="mergerDbSaveProgressFill"></div>
                     </div>
-                    <div id="mergerDbSaveProgressLabel" style="font-size:0.76rem;color:var(--text-sec);margin-top:8px;font-family:'JetBrains Mono',monospace;">0%</div>
+                    <div id="mergerDbSaveProgressLabel">0%</div>
                 </div>
-                <div class="fg" style="margin-top:0.5rem;">
+                <div class="fg u-mt-12">
                     <label for="mergerDbDeleteIps">Hapus IP dari DB (satu per baris)</label>
                     <textarea id="mergerDbDeleteIps" rows="5" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
-                    <div class="btn-row" style="flex-wrap:wrap;">
+                    <div class="btn-row">
                         <button type="button" class="btn btn-secondary" onclick="mergerDbDeleteBatch()">Hapus dari DB</button>
                     </div>
                 </div>
-                <div id="statusMergerDb" class="status"></div>
+                <div id="statusMergerDb" class="status" role="status" aria-live="polite"></div>
             </div>
         </div>
 
-        <div class="card" style="margin-top:1.5rem;">
+        <div class="card u-mt-24">
             <div class="card-title"><span class="dot"></span> Query SIEM (JSON dari database)</div>
-            <p class="history-hint" style="margin:0;">IP dari DB dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
+            <p class="history-hint compact">IP dari DB dibentuk jadi <code>{"query":{"terms":{"&lt;nama_field&gt;":["…"]}}}</code> — sama seperti tab Gabung JSON, tanpa paste query lama.</p>
             <div class="fg">
                 <label for="mergerDbTermsPreset">Field di <code>terms</code></label>
                 <select id="mergerDbTermsPreset">
@@ -130,7 +167,7 @@
             <div class="btn-row">
                 <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildOutputs(_mergerDbLastItems)">Bangun ulang output</button>
             </div>
-            <div class="output-wrap" style="flex-grow:1;margin-top:12px;">
+            <div class="output-wrap u-mt-12">
                 <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
                 <pre id="outputJsonDb" class="output-code tall">{ }</pre>
             </div>
@@ -138,7 +175,7 @@
     </div>
 
     <!-- TAB 3: VIRUSTOTAL LOOKUP -->
-    <div id="tab-vt" class="tab-content">
+    <div id="tab-vt" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-vt">
         <div class="grid">
 
             <div class="card">
@@ -155,30 +192,30 @@
                         <button class="btn btn-secondary" onclick="clearVT()">✕ Clear</button>
                     </div>
 
-                    <div id="statusVT" class="status"></div>
+                    <div id="statusVT" class="status" role="status" aria-live="polite"></div>
 
                     <div class="legend-row">
                         <span class="vt-type-badge badge-ip">IP</span>
                         <span class="vt-type-badge badge-domain">DOMAIN</span>
                         <span class="vt-type-badge badge-hash">HASH</span>
-                        <span style="width:1px;background:var(--border);margin:0 4px;"></span>
+                        <span class="legend-sep"></span>
                         <span class="verdict verdict-clean">● CLEAN</span>
                         <span class="verdict verdict-suspicious">● SUSPICIOUS</span>
                         <span class="verdict verdict-malicious">● MALICIOUS</span>
                         <span class="verdict verdict-unknown">● NOT FOUND</span>
                     </div>
 
-                    <p class="history-hint" style="margin:0;">Riwayat hasil scan (offline) ada di tab <strong>📜 Riwayat Scan</strong>. Untuk scan ulang, tempel IOC di sini lalu jalankan lookup.</p>
+                    <p class="history-hint compact">Riwayat hasil scan (offline) ada di tab <strong>📜 Riwayat Scan</strong>. Untuk scan ulang, tempel IOC di sini lalu jalankan lookup.</p>
                 </div>
             </div>
 
-            <div class="card" style="align-self: flex-start; min-width: 0;">
+            <div class="card u-minw-0">
                 <div class="card-title">
                     <span class="dot"></span> Results
-                    <span id="vtResultCount" style="margin-left:auto;font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
+                    <span id="vtResultCount" class="vt-result-count"></span>
                 </div>
-                <div class="vt-toolbar">
-                    <div class="vt-toolgroup" style="gap:8px;">
+                <div class="vt-toolbar sticky">
+                    <div class="vt-toolgroup gap-8">
                         <span class="vt-chip clean on" onclick="vtToggleFilter('clean', this)"><input id="vtF_clean" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('clean', this.parentElement)"/> CLEAN</span>
                         <span class="vt-chip susp on" onclick="vtToggleFilter('suspicious', this)"><input id="vtF_suspicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('suspicious', this.parentElement)"/> SUSPICIOUS</span>
                         <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="vtF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>
@@ -212,7 +249,7 @@
                     </div>
                 </div>
                 <div id="vtResults">
-                    <div style="color:var(--text-sec);font-family:'JetBrains Mono',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>
+                    <div class="vt-placeholder">Scan results will appear here...</div>
                 </div>
             </div>
 
@@ -220,32 +257,32 @@
     </div>
 
     <!-- TAB: RIWAYAT SCAN (snapshot hasil, tanpa scan ulang) -->
-    <div id="tab-history" class="tab-content">
+    <div id="tab-history" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-history">
         <div class="history-layout">
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Riwayat tersimpan</div>
                 <p class="history-hint">Setiap scan di tab Lookup dapat disimpan lokal (IOC + hasil VT + korelasi). Klik <strong>Lihat hasil</strong> untuk menampilkan kartu di panel kanan — tanpa request API baru.</p>
-                <div class="history-head" style="margin-bottom:10px;">
+                <div class="history-head u-mb-10">
                     <label><input type="checkbox" id="historySaveToggle" checked /> Simpan riwayat setelah scan</label>
                 </div>
                 <div id="historyList" class="history-list"><span class="history-empty">Belum ada riwayat.</span></div>
             </div>
 
-            <div class="card" style="min-width:0;">
+            <div class="card u-minw-0">
                 <div class="card-title"><span class="dot"></span> Hasil tersimpan</div>
-                <p class="history-hint" style="margin-top:0;">Preset kolom CSV/PDF mengikuti pengaturan di tab <strong>VirusTotal Lookup</strong>.</p>
-                <div id="statusHistory" class="status"></div>
-                <div id="historyScanPlaceholder" class="history-empty" style="padding:1.25rem;border:1px dashed var(--border);border-radius:10px;">
+                <p class="history-hint top0">Preset kolom CSV/PDF mengikuti pengaturan di tab <strong>VirusTotal Lookup</strong>.</p>
+                <div id="statusHistory" class="status" role="status" aria-live="polite"></div>
+                <div id="historyScanPlaceholder" class="history-empty history-placeholder-box">
                     Pilih entri riwayat di kiri untuk memuat snapshot hasil IOC di sini.
                 </div>
-                <div id="historyScanSurface" style="display:none;">
-                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                        <span style="font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sec);">Snapshot</span>
-                        <span id="historyResultCount" style="font-size:0.7rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace;"></span>
-                        <button type="button" class="vt-mini-btn" style="margin-left:auto;" onclick="historySendIocToLookup()" title="Isi textarea Lookup dengan IOC entri ini">Scan ulang di Lookup →</button>
+                <div id="historyScanSurface">
+                    <div class="history-snapshot-head">
+                        <span class="history-snapshot-title">Snapshot</span>
+                        <span id="historyResultCount" class="history-result-count"></span>
+                        <button type="button" class="vt-mini-btn u-ml-auto" onclick="historySendIocToLookup()" title="Isi textarea Lookup dengan IOC entri ini">Scan ulang di Lookup →</button>
                     </div>
                     <div class="vt-toolbar">
-                        <div class="vt-toolgroup" style="gap:8px;">
+                        <div class="vt-toolgroup gap-8">
                             <span class="vt-chip clean on" onclick="vtToggleFilter('clean', this)"><input id="hVtF_clean" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('clean', this.parentElement)"/> CLEAN</span>
                             <span class="vt-chip susp on" onclick="vtToggleFilter('suspicious', this)"><input id="hVtF_suspicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('suspicious', this.parentElement)"/> SUSPICIOUS</span>
                             <span class="vt-chip mal on" onclick="vtToggleFilter('malicious', this)"><input id="hVtF_malicious" type="checkbox" checked onclick="event.stopPropagation();vtToggleFilter('malicious', this.parentElement)"/> MALICIOUS</span>

@@ -1,5 +1,10 @@
 const https = require('https');
 const { extractIOC, detectType } = require('./_ioc');
+const { requireAuth } = require('./_auth');
+
+function authEnabled() {
+  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
+}
 
 function getVTKeys() {
   const keys = [];
@@ -306,9 +311,10 @@ function calcConfidence(results) {
 
 // ── Handler ───────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (authEnabled() && !requireAuth(req, res)) return;
 
   const { ioc: rawIoc } = req.query;
   if (!rawIoc) return res.status(400).json({ error: 'Missing ?ioc= param.' });

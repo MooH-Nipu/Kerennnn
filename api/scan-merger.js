@@ -1,5 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('./_ioc');
+const { requireAuth } = require('./_auth');
+
+function authEnabled() {
+  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
+}
 
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
 function currentUpdatedAtIsoWib() {
@@ -62,11 +67,12 @@ async function readJsonBody(req) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Merger-Password');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (authEnabled() && !requireAuth(req, res)) return;
 
   if (!mergerPasswordOk(req)) {
     return res.status(401).json({ error: 'Invalid or missing X-Merger-Password header.' });
