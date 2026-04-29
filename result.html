@@ -52,8 +52,12 @@
 
       .r-grid2 { display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
       @media (min-width: 1000px) { .r-grid2 { grid-template-columns: 1fr 1fr; } }
+      .r-grid2 { align-items: start; }
 
       .r-pre { font-family:'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-code); background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px; overflow:auto; max-height: 360px; }
+      .r-rawToggle { margin-left: auto; border: 1px solid rgba(90,122,168,0.22); background: rgba(255,255,255,0.03); color: var(--text-sec); border-radius: 999px; padding: 6px 10px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase; cursor: pointer; }
+      .r-rawToggle:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); color: var(--text-pri); }
+      .r-rawToggle:focus { outline: none; box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
 
       /* Engine analysis */
       .ea-wrap { margin-top: 14px; }
@@ -167,8 +171,11 @@
               <div id="ctxGrid" class="meta-grid"></div>
             </div>
             <div class="card">
-              <div class="card-title"><span class="dot"></span> Evidence (raw)</div>
-              <div class="r-pre" id="rawJson">—</div>
+              <div class="card-title">
+                <span class="dot"></span> Evidence (raw)
+                <button type="button" class="r-rawToggle" id="rawToggle" aria-controls="rawJson" aria-expanded="false">Show</button>
+              </div>
+              <div class="r-pre" id="rawJson" hidden>—</div>
             </div>
           </div>
 
@@ -426,6 +433,9 @@
         const corr = item.corr_payload || {};
         const srcs = Array.isArray(corr.sources) ? corr.sources : [];
         for (const s of srcs) {
+          // Correlation already includes a VirusTotal source; we render the cached VT summary above.
+          const srcName = String(s && s.source ? s.source : '');
+          if (srcName && srcName.trim().toLowerCase() === 'virustotal') continue;
           engines.push({
             source: s.source || 'Threat Intel',
             verdict: s.skipped ? 'skipped' : s.error ? 'error' : (s.verdict || 'unknown'),
@@ -447,6 +457,8 @@
         renderCounts(engines);
         grid.innerHTML = engines.map((x, i) => engineCardHtml(x, i)).join('');
 
+        if (grid.dataset.eaBound === '1') return;
+        grid.dataset.eaBound = '1';
         grid.addEventListener('click', (ev) => {
           const btn = ev.target && ev.target.closest ? ev.target.closest('[data-ea-toggle]') : null;
           if (!btn) return;
@@ -457,7 +469,7 @@
           const open = detail.classList.toggle('open');
           const chev = btn.querySelector('.ea-chev');
           if (chev) chev.textContent = open ? '▲' : '▼';
-        }, { once: true });
+        });
       }
 
       async function main() {
@@ -530,7 +542,19 @@
             mi('Network', vtPayload.network || '—', '') +
             mi('VT reputation', vtPayload.reputation === undefined ? '—' : vtPayload.reputation, vtPayload.reputation < 0 ? 'red' : vtPayload.reputation > 0 ? 'green' : '');
 
-          document.getElementById('rawJson').innerHTML = escHtml(JSON.stringify(item, null, 2));
+          const rawEl = document.getElementById('rawJson');
+          if (rawEl) rawEl.innerHTML = escHtml(JSON.stringify(item, null, 2));
+
+          const rawBtn = document.getElementById('rawToggle');
+          if (rawBtn && rawEl && rawBtn.dataset.bound !== '1') {
+            rawBtn.dataset.bound = '1';
+            rawBtn.addEventListener('click', () => {
+              const nextHidden = !rawEl.hidden ? true : false;
+              rawEl.hidden = nextHidden;
+              rawBtn.textContent = nextHidden ? 'Show' : 'Hide';
+              rawBtn.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
+            });
+          }
           renderEngineAnalysis(item);
 
           const copyBtn = document.getElementById('copyBtn');
