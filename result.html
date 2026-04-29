@@ -29,7 +29,7 @@
       .tw-joke { margin-top: 8px; font-family:'JetBrains Mono', monospace; font-size:0.72rem; color: var(--text-sec); line-height:1.5; opacity: 0.95; }
 
       .r-summary { display:grid; grid-template-columns: 1fr; gap: 14px; }
-      @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.25fr 0.55fr 1fr; } }
+      @media (min-width: 1000px) { .r-summary { grid-template-columns: 1.25fr 0.75fr; } }
       .r-kv { display:flex; flex-direction:column; gap: 10px; }
       .r-ioc { font-family:'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 900; letter-spacing: 0.2px; color: var(--text-pri); }
       .r-sub { font-size: 0.78rem; color: var(--text-sec); }
@@ -50,20 +50,11 @@
       .r-mini { font-size: 0.74rem; color: var(--text-sec); line-height: 1.5; }
       .r-divider { height:1px; width:100%; background: var(--border); margin: 4px 0 0; opacity: 0.8; }
 
-      .r-evidenceCard { border:1px solid var(--border); border-radius: 14px; padding: 12px 12px; background: rgba(0,0,0,0.18); display:flex; flex-direction:column; gap: 10px; min-width: 0; }
-      .r-evidenceHead { display:flex; align-items:center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid rgba(90,122,168,0.16); }
-      .r-evidenceTitle { font-size: 0.78rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); display:flex; align-items:center; gap: 8px; }
-      .r-evidenceDot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); flex: 0 0 auto; }
-      .r-pre.r-pre--evidence { max-height: 240px; }
-
       .r-grid2 { display:grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
       @media (min-width: 1000px) { .r-grid2 { grid-template-columns: 1fr 1fr; } }
       .r-grid2 { align-items: start; }
 
       .r-pre { font-family:'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-code); background: rgba(0,0,0,0.18); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px; overflow:auto; max-height: 360px; }
-      .r-rawToggle { margin-left: auto; border: 1px solid rgba(90,122,168,0.22); background: rgba(255,255,255,0.03); color: var(--text-sec); border-radius: 999px; padding: 6px 10px; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase; cursor: pointer; }
-      .r-rawToggle:hover { border-color: rgba(47,126,247,0.45); background: rgba(47,126,247,0.06); color: var(--text-pri); }
-      .r-rawToggle:focus { outline: none; box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
 
       .meta-grid.meta-grid--row { display:flex; flex-wrap:nowrap; gap: 8px; overflow-x:auto; padding-bottom: 2px; }
       .meta-grid.meta-grid--row .meta-item { flex: 0 0 auto; min-width: 150px; }
@@ -173,16 +164,6 @@
                   <div class="r-divider"></div>
                   <div class="r-scoreLabel" id="scoreLabel">—</div>
                   <div class="r-mini" id="scoreNote">Correlation score (multi-source TI) — interpret with context.</div>
-                </div>
-
-                <div class="r-evidenceCard">
-                  <div class="r-evidenceHead">
-                    <div class="r-evidenceTitle">
-                      <span class="r-evidenceDot"></span> Evidence (raw)
-                    </div>
-                    <button type="button" class="r-rawToggle" id="rawToggle" aria-controls="rawJson" aria-expanded="false">Show</button>
-                  </div>
-                  <div class="r-pre r-pre--evidence" id="rawJson" hidden>—</div>
                 </div>
               </div>
             </div>
@@ -574,19 +555,6 @@
             mi('Network', vtPayload.network || '—', '') +
             mi('VT reputation', vtPayload.reputation === undefined ? '—' : vtPayload.reputation, vtPayload.reputation < 0 ? 'red' : vtPayload.reputation > 0 ? 'green' : '');
 
-          const rawEl = document.getElementById('rawJson');
-          if (rawEl) rawEl.innerHTML = escHtml(JSON.stringify(item, null, 2));
-
-          const rawBtn = document.getElementById('rawToggle');
-          if (rawBtn && rawEl && rawBtn.dataset.bound !== '1') {
-            rawBtn.dataset.bound = '1';
-            rawBtn.addEventListener('click', () => {
-              const nextHidden = !rawEl.hidden ? true : false;
-              rawEl.hidden = nextHidden;
-              rawBtn.textContent = nextHidden ? 'Show' : 'Hide';
-              rawBtn.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
-            });
-          }
           renderEngineAnalysis(item);
 
           const copyBtn = document.getElementById('copyBtn');
