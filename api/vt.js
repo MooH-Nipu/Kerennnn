@@ -1,5 +1,23 @@
 const https = require('https');
+const { createClient } = require('@supabase/supabase-js');
 const { extractIOC, detectType } = require('./_ioc');
+const { requireAuth } = require('./_auth');
+
+function authEnabled() {
+  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
+}
+
+function getSupabase() {
+  const url = process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+function dateMinusDaysIso(days) {
+  const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
+  return new Date(Date.now() - ms).toISOString();
+}
 
 function getApiKeys() {
   const keys = [];
@@ -34,9 +52,10 @@ function httpsGet(url, headers) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (authEnabled() && !requireAuth(req, res)) return;
 
   const apiKeys = getApiKeys();
 
@@ -113,6 +132,100 @@ module.exports = async function handler(req, res) {
       // Inject meta so frontend knows cleaned IOC + type
       if (status === 200 && data.data) {
         data._meta = { type, ioc, original: rawIoc };
+      }
+
+      // Cache IP scans (Supabase) for "seen before" + recent list
+      if (status === 200 && data.data && type === 'ip') {
+        const supabase = getSupabase();
+        if (supabase) {
+          const ttlDays = 15;
+          const cutoffIso = dateMinusDaysIso(ttlDays);
+          try {
+            // Lazy cleanup TTL
+            await supabase.from('vt_ip_cache').delete().lt('last_scanned_at', cutoffIso);
+          } catch {
+            // ignore cleanup errors (do not block VT response)
+          }
+
+          let existing = null;
+          try {
+            const { data: row } = await supabase
+              .from('vt_ip_cache')
+              .select('ip,scan_count,last_scanned_at,first_scanned_at')
+              .eq('ip', ioc)
+              .maybeSingle();
+            existing = row || null;
+          } catch {
+            existing = null;
+          }
+
+          const lastStats = data?.data?.attributes?.last_analysis_stats || {};
+          const malicious = lastStats.malicious || 0;
+          const suspicious = lastStats.suspicious || 0;
+          const total = Object.values(lastStats).reduce((a, b) => a + b, 0);
+          const vtVerdict =
+            malicious > 3
+              ? 'malicious'
+              : malicious > 0 || suspicious > 3
+                ? 'suspicious'
+                : total === 0
+                  ? 'unknown'
+                  : 'clean';
+
+          const cacheMeta = {
+            enabled: true,
+            ttlDays,
+            seenBefore: !!existing,
+            scanCount: existing ? Number(existing.scan_count || 0) : 0,
+            lastSeen: existing ? existing.last_scanned_at || null : null,
+          };
+          data._meta.cache = cacheMeta;
+
+          // Upsert/insert cache row (best-effort)
+          const nowIso = new Date().toISOString();
+          const vtPayload = {
+            reputation: data?.data?.attributes?.reputation,
+            country: data?.data?.attributes?.country,
+            asn: data?.data?.attributes?.asn,
+            as_owner: data?.data?.attributes?.as_owner,
+            network: data?.data?.attributes?.network,
+            last_analysis_stats: lastStats,
+          };
+          const vtStats = { malicious, suspicious, total, undetected: lastStats.undetected || 0 };
+          try {
+            if (existing) {
+              const nextCount = Number(existing.scan_count || 0) + 1;
+              await supabase
+                .from('vt_ip_cache')
+                .update({
+                  scan_count: nextCount,
+                  last_scanned_at: nowIso,
+                  vt_verdict: vtVerdict,
+                  vt_stats: vtStats,
+                  vt_payload: vtPayload,
+                })
+                .eq('ip', ioc);
+              data._meta.cache.scanCount = nextCount;
+              data._meta.cache.lastSeen = nowIso;
+            } else {
+              await supabase.from('vt_ip_cache').insert({
+                ip: ioc,
+                scan_count: 1,
+                first_scanned_at: nowIso,
+                last_scanned_at: nowIso,
+                vt_verdict: vtVerdict,
+                vt_stats: vtStats,
+                vt_payload: vtPayload,
+              });
+              data._meta.cache.scanCount = 1;
+              data._meta.cache.lastSeen = nowIso;
+            }
+          } catch {
+            // ignore DB errors (do not block VT response)
+          }
+        } else {
+          data._meta.cache = { enabled: false, reason: 'Supabase not configured' };
+        }
       }
 
       if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);

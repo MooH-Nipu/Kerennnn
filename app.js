@@ -7,6 +7,13 @@ function openTab(id, btn) {
     btn.classList.add('active');
     try { localStorage.setItem(LS_TAB, id); } catch (e) {}
 
+    // A11y: keep ARIA tab state in sync with active panel.
+    try {
+        document.querySelectorAll('.tab-btn[role="tab"]').forEach(function (b) {
+            b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+    } catch (e) {}
+
     if (id === 'tab-vt') {
         _vtState = _vtStateLookup;
         _vtActiveResultsId = 'vtResults';
@@ -22,6 +29,8 @@ function openTab(id, btn) {
             _mergerDbDidAutoRefresh = true;
             mergerDbRefreshFromDb();
         }
+    } else if (id === 'tab-dashboard') {
+        try { dashboardRefreshRecent(); } catch (e) {}
     }
     if (id === 'tab-vt' || id === 'tab-history') vtSyncFilterUIs();
 }
@@ -66,6 +75,147 @@ function copyText(elId, btnId) {
         btn.textContent = '✓ COPIED'; btn.classList.add('copied');
         setTimeout(()=>{ btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
     }).catch(e=>alert('Copy failed: '+e));
+}
+
+/* ── AUTH (single password) ── */
+let _authReady = false;
+let _isAuthed = false;
+
+function setLockedUi(locked) {
+    document.body.classList.toggle('app-locked', !!locked);
+    const ov = document.getElementById('loginOverlay');
+    if (ov) {
+        ov.style.display = locked ? 'flex' : 'none';
+        ov.setAttribute('aria-hidden', locked ? 'false' : 'true');
+    }
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.style.display = locked ? 'none' : 'inline-flex';
+}
+
+async function authCheck() {
+    try {
+        const r = await fetch('/api/auth/me', { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) return false;
+        const j = await r.json().catch(() => null);
+        return !!j?.ok;
+    } catch {
+        return false;
+    }
+}
+
+async function authInit() {
+    const ok = await authCheck();
+    _authReady = true;
+    _isAuthed = ok;
+    setLockedUi(!ok);
+    if (ok) {
+        try { dashboardRefreshRecent(); } catch (e) {}
+    }
+}
+
+async function authLogin() {
+    clearStatus('statusLogin');
+    const btn = document.getElementById('loginBtn');
+    const inp = document.getElementById('loginPassword');
+    const pw = (inp && inp.value) ? String(inp.value) : '';
+    if (!pw) { setStatus('statusLogin', '⚠ Password tidak boleh kosong.', 'error'); return; }
+    if (btn) btn.disabled = true;
+    setStatus('statusLogin', '<span class="spinner"></span> Login…', 'loading');
+    try {
+        const r = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ password: pw })
+        });
+        const { data, text } = await readFetchJson(r);
+        if (!r.ok) {
+            const msg = formatApiError(data && data.error) || text || r.status;
+            setStatus('statusLogin', '⚠ ' + escHtml(msg), 'error');
+            return;
+        }
+        if (inp) inp.value = '';
+        setStatus('statusLogin', '✓ Login berhasil.', 'success');
+        await authInit();
+    } catch (e) {
+        setStatus('statusLogin', '⚠ ' + escHtml(e.message || String(e)), 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function authLogout() {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+    _isAuthed = false;
+    setLockedUi(true);
+}
+
+/* ── DASHBOARD (Recent IP cache) ── */
+function fmtWhen(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString();
+}
+
+function dashboardRowHtml(item) {
+    const ip = item?.ip || '';
+    const verdict = (item?.vt_verdict || 'unknown').toLowerCase();
+    const when = fmtWhen(item?.last_scanned_at);
+    const sc = Number(item?.scan_count || 0);
+    const stats = item?.vt_stats || {};
+    const mal = stats?.malicious ?? '';
+    const sus = stats?.suspicious ?? '';
+    const total = stats?.total ?? '';
+    const det = (mal !== '' && total !== '') ? `${mal}/${total}` : '—';
+    const idJs = JSON.stringify(ip);
+    return `<div class="dash-row" onclick='dashboardGoToLookup(${idJs})'>
+        <div class="dash-ip">${escHtml(ip)}</div>
+        <div class="dash-meta">
+            <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
+            <span class="dash-pill">scan: ${escHtml(sc)}</span>
+            <span class="dash-pill">det: ${escHtml(det)}</span>
+            <span class="dash-when">${escHtml(when)}</span>
+        </div>
+    </div>`;
+}
+
+function dashboardGoToLookup(ip) {
+    if (!ip) return;
+    const ta = document.getElementById('vtInput');
+    if (ta) ta.value = String(ip);
+    const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
+    if (tabBtn) openTab('tab-vt', tabBtn);
+    setStatus('statusVT', '✓ IP dari Dashboard ditempelkan — klik <strong>Scan with VirusTotal</strong> untuk scan.', 'success');
+}
+
+async function dashboardRefreshRecent() {
+    clearStatus('statusDashboard');
+    setStatus('statusDashboard', '<span class="spinner"></span> Memuat recent IP…', 'loading');
+    const host = document.getElementById('dashboardRecentList');
+    if (host) host.innerHTML = '<div class="dash-empty">Loading…</div>';
+    try {
+        const r = await fetch('/api/ip-cache/recent?limit=15', { headers: { 'Accept': 'application/json' } });
+        const { data, text } = await readFetchJson(r);
+        if (!r.ok) {
+            if (r.status === 401) {
+                if (_authReady) setLockedUi(true);
+            }
+            const msg = formatApiError(data && data.error) || text || r.status;
+            setStatus('statusDashboard', '⚠ ' + escHtml(msg), 'error');
+            if (host) host.innerHTML = '<div class="dash-empty">Tidak bisa memuat data.</div>';
+            return;
+        }
+        const items = (data && data.items) || [];
+        if (!items.length) {
+            if (host) host.innerHTML = '<div class="dash-empty">Belum ada IP yang tercache (atau semua sudah expired).</div>';
+        } else {
+            if (host) host.innerHTML = items.map(dashboardRowHtml).join('');
+        }
+        setStatus('statusDashboard', `✓ Loaded ${items.length} IP (TTL ${data.ttlDays || 15} hari).`, 'success');
+    } catch (e) {
+        setStatus('statusDashboard', '⚠ ' + escHtml(e.message || String(e)), 'error');
+        if (host) host.innerHTML = '<div class="dash-empty">Tidak bisa memuat data.</div>';
+    }
 }
 
 /* ── TAB 1: IP FORMATTER ── */
@@ -241,7 +391,6 @@ function vtNotify(msg, type) {
     el.innerHTML = msg;
     el.className = 'status ' + type;
 }
-function vtQuickStatus(msg) { vtNotify(msg, 'success'); }
 
 const VT_FILTER_IDS = {
     lookup:  { clean: 'vtF_clean', suspicious: 'vtF_suspicious', malicious: 'vtF_malicious' },
@@ -1117,7 +1266,7 @@ function renderHash(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IOC.');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IOC.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1167,7 +1316,7 @@ function renderIP(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IP.');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IP.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1221,7 +1370,7 @@ function renderDomain(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied domain.');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied domain.','success');">COPY</button>
         </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1284,7 +1433,7 @@ function renderErr(ioc, type, err, collapsed=false, correlationData=null) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtQuickStatus('✓ Copied IOC.');">COPY</button>
+            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IOC.','success');">COPY</button>
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1542,34 +1691,40 @@ async function runVTLookup() {
     const lines = [...new Set(raw.split('\n').map(s=>s.trim()).filter(looksLikeIOC))];
     if (!lines.length) { setStatus('statusVT','⚠ Tidak ada IOC yang valid.','error'); return; }
 
+    const resultsEl = document.getElementById('vtResults');
     btn.disabled = true;
+    if (resultsEl) resultsEl.setAttribute('aria-busy', 'true');
     setStatus('statusVT', `<span class="spinner"></span> Scanning 0 / ${lines.length}…`, 'loading');
 
-    let completed = 0;
-    const lineResults = await vtMapPool(lines, VT_SCAN_CONCURRENCY, async (rawIoc) => {
-        const [vtResult, corrResult] = await Promise.allSettled([
-            vtGet(rawIoc),
-            fetchCorrelation(rawIoc),
-        ]);
-        completed++;
-        setStatus('statusVT', `<span class="spinner"></span> Progress: ${completed} / ${lines.length} IOC(s)…`, 'loading');
-        return { rawIoc, vtResult, corrResult };
-    });
+    try {
+        let completed = 0;
+        const lineResults = await vtMapPool(lines, VT_SCAN_CONCURRENCY, async (rawIoc) => {
+            const [vtResult, corrResult] = await Promise.allSettled([
+                vtGet(rawIoc),
+                fetchCorrelation(rawIoc),
+            ]);
+            completed++;
+            setStatus('statusVT', `<span class="spinner"></span> Progress: ${completed} / ${lines.length} IOC(s)…`, 'loading');
+            return { rawIoc, vtResult, corrResult };
+        });
 
-    await renderScanBatch(lineResults);
+        await renderScanBatch(lineResults);
 
-    btn.disabled = false;
-    setStatus('statusVT', `✓ ${lines.length} IOC(s) scanned.`, 'success');
+        setStatus('statusVT', `✓ ${lines.length} IOC(s) scanned.`, 'success');
 
-    if (historySaveEnabled()) {
-        try { pushHistoryFromLineResults(raw, lineResults); } catch (e) {}
+        if (historySaveEnabled()) {
+            try { pushHistoryFromLineResults(raw, lineResults); } catch (e) {}
+        }
+        renderHistoryListDOM();
+    } finally {
+        btn.disabled = false;
+        if (resultsEl) resultsEl.removeAttribute('aria-busy');
     }
-    renderHistoryListDOM();
 }
 
 function clearVT() {
     document.getElementById('vtInput').value = '';
-    document.getElementById('vtResults').innerHTML = '<div style="color:var(--text-sec);font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;padding:1rem;">Scan results will appear here...</div>';
+    document.getElementById('vtResults').innerHTML = '<div class="vt-placeholder">Scan results will appear here...</div>';
     document.getElementById('vtResultCount').textContent = '';
     _vtStateLookup.items.length = 0;
     Object.assign(_vtStateLookup.filters, { clean: true, suspicious: true, malicious: true });
@@ -1599,6 +1754,24 @@ document.addEventListener('DOMContentLoaded', function() {
     vtInitExportPresetUI();
     vtSyncFilterUIs();
 
+    const vtInput = document.getElementById('vtInput');
+    if (vtInput) {
+        vtInput.addEventListener('keydown', function (ev) {
+            const key = String(ev.key || '');
+            if (key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+                const btn = document.getElementById('vtRunBtn');
+                if (btn && btn.disabled) return;
+                ev.preventDefault();
+                runVTLookup();
+                return;
+            }
+            if (key === 'Escape') {
+                ev.preventDefault();
+                clearVT();
+            }
+        });
+    }
+
     const mergerTermsPreset = document.getElementById('mergerDbTermsPreset');
     if (mergerTermsPreset) {
         mergerTermsPreset.addEventListener('change', function () {
@@ -1626,4 +1799,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         mergerDbUpdateInputPreview();
     }
+
+    // Auth init: lock UI until logged in (if enabled)
+    try { authInit(); } catch (e) {}
 });
