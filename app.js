@@ -317,7 +317,7 @@ function dashboardRowHtml(item) {
                 <span class="dash-when">${escHtml(when)}</span>
             </div>
         </div>
-        <button type="button" class="dash-go" title="Open in VirusTotal Lookup" onclick='dashboardGoToLookup(${idJs})'>›</button>
+        <button type="button" class="dash-go" title="Open in IoC Scan" onclick='dashboardGoToLookup(${idJs})'>›</button>
     </div>`;
 }
 
@@ -327,7 +327,7 @@ function dashboardGoToLookup(ip) {
     if (ta) ta.value = String(ip);
     const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
     if (tabBtn) openTab('tab-vt', tabBtn);
-    setStatus('statusVT', '✓ IP dari Dashboard ditempelkan — klik <strong>Scan with VirusTotal</strong> untuk scan.', 'success');
+    setStatus('statusVT', '✓ IP dari Dashboard ditempelkan — klik <strong>Run IoC Scan</strong> untuk scan.', 'success');
 }
 
 function dashboardOpenResult(stableId) {
@@ -368,7 +368,7 @@ async function dashboardRefreshRecent() {
             if (host) host.innerHTML = items.map(dashboardRowHtml).join('');
         }
         dashboardUpdateRiskMix(items);
-        setStatus('statusDashboard', `✓ Loaded ${items.length} IP (TTL ${data.ttlDays || 15} hari).`, 'success');
+        setStatus('statusDashboard', `✓ Loaded ${items.length} IP.`, 'success');
     } catch (e) {
         setStatus('statusDashboard', '⚠ ' + escHtml(e.message || String(e)), 'error');
         if (host) host.innerHTML = '<div class="dash-empty">Tidak bisa memuat data.</div>';
@@ -1051,7 +1051,7 @@ function historySendIocToLookup() {
     document.getElementById('vtInput').value = txt;
     const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
     if (tabBtn) openTab('tab-vt', tabBtn);
-    setStatus('statusVT', '✓ IOC dari riwayat ditempelkan — jalankan <strong>Scan with VirusTotal</strong> bila ingin scan ulang.', 'success');
+    setStatus('statusVT', '✓ IOC dari riwayat ditempelkan — jalankan <strong>Run IoC Scan</strong> bila ingin scan ulang.', 'success');
 }
 
 function vtGetExportColumnKeys() {
