@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
 
   const ttlDays = clampInt(req.query?.days, 1, 365, 15);
   const cutoffIso = dateMinusDaysIso(ttlDays);
-  const { error } = await supabase.from('vt_ip_cache').delete().lt('last_scanned_at', cutoffIso);
+  const { error } = await supabase.from('vt_ip_cache').delete().lt('first_scanned_at', cutoffIso);
   if (error) return res.status(500).json({ error: error.message || String(error) });
   return res.status(200).json({ ok: true, ttlDays });
 };

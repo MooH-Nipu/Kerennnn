@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
 
   // Lazy cleanup TTL (best-effort)
   try {
-    await supabase.from('vt_ip_cache').delete().lt('last_scanned_at', cutoffIso);
+    await supabase.from('vt_ip_cache').delete().lt('first_scanned_at', cutoffIso);
   } catch {
     // ignore cleanup errors
   }

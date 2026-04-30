@@ -1,6 +1,6 @@
 -- Run in Supabase SQL Editor (public schema).
 -- Stores cached VirusTotal scan metadata for IPs only.
--- TTL is enforced by API cleanup (delete rows older than 15 days by last_scanned_at).
+-- TTL is enforced by API cleanup (delete rows older than 15 days by first_scanned_at).
 
 create table if not exists public.vt_ip_cache (
   id uuid unique not null default gen_random_uuid(),
@@ -19,5 +19,5 @@ create index if not exists vt_ip_cache_last_scanned_at_idx
 create index if not exists vt_ip_cache_id_idx
   on public.vt_ip_cache (id);
 
-comment on table public.vt_ip_cache is 'Cache for VT IP scans (for seen-before + recent list). TTL: 15 days by API cleanup.';
+comment on table public.vt_ip_cache is 'Cache for VT IP scans (for seen-before + recent list). TTL: 15 days from first submission (first_scanned_at), via API cleanup.';
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>IOC Watchfloor · Result</title>
+    <title>Result</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap"
@@ -503,6 +503,7 @@
           }
 
           const ip = item.ip || '—';
+          document.title = 'Result - ' + String(ip);
           const stableId = item.id || id;
           const vtVerdict = String(item.vt_verdict || 'unknown').toLowerCase();
           const score = item.corr_confidence === null || item.corr_confidence === undefined ? null : Number(item.corr_confidence);
