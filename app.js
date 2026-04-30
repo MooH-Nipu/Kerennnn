@@ -1806,7 +1806,7 @@ async function renderScanBatch(lineResults, opts = {}) {
             '</div>\n    </div>',
             `</div>\n    <div class="corr-panel" id="${corrId}"><div class="corr-loading"><span class="spinner"></span> Loading threat intel...</div></div>\n    </div>`
         );
-        cards.push({ html: cardHtml, corrId, corrResult });
+        cards.push({ html: cardHtml, corrId, corrResult, vtResult });
     }
 
     res.innerHTML = cards.map(c => c.html).join('');
@@ -1819,14 +1819,21 @@ async function renderScanBatch(lineResults, opts = {}) {
     vtApplyFilters();
     vtSyncFilterUIs();
 
-    for (const { corrId, corrResult } of cards) {
+    for (const { corrId, corrResult, vtResult } of cards) {
         if (!corrId || !corrResult) continue;
         const panel = document.getElementById(corrId);
         if (!panel) continue;
         if (corrResult.status === 'fulfilled') {
             renderCorrelation(corrResult.value, panel);
-            // Best-effort: persist correlation verdicts to vt_ip_cache
-            ipCachePostCorrelation(corrResult.value);
+            const shouldPostIpCache =
+                vtResult &&
+                vtResult.status === 'fulfilled' &&
+                vtResult.value?._meta?.type === 'ip' &&
+                vtResult.value._meta.cache?.enabled !== false &&
+                !vtResult.value._meta.cache?.seenBefore;
+            if (shouldPostIpCache) {
+                ipCachePostCorrelation(corrResult.value);
+            }
             const idNum = Number(String(corrId).replace(/^(corr|hcorr|ycorr)-/, ''));
             const it = _vtState.items.find(x => x.id === idNum);
             if (it) {

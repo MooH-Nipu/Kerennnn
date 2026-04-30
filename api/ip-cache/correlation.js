@@ -40,12 +40,10 @@ module.exports = async function handler(req, res) {
     corr && corr.confidence !== undefined && corr.confidence !== null ? Number(corr.confidence) : null;
   const corrPayload = corr;
 
-  // Update only correlation fields (row should already exist from /api/vt; but allow upsert)
-  const nowIso = new Date().toISOString();
+  // Merge corr_* only; does not bump last_scanned_at (TTL is keyed off first_scanned_at).
   const { error } = await supabase.from('vt_ip_cache').upsert(
     {
       ip,
-      last_scanned_at: nowIso,
       corr_confidence: Number.isFinite(confidence) ? Math.round(confidence) : null,
       corr_payload: corrPayload,
     },

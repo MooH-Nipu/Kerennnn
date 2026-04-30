@@ -135,7 +135,7 @@ module.exports = async function handler(req, res) {
           const cutoffIso = dateMinusDaysIso(ttlDays);
           try {
             // Lazy cleanup TTL
-            await supabase.from('vt_ip_cache').delete().lt('last_scanned_at', cutoffIso);
+            await supabase.from('vt_ip_cache').delete().lt('first_scanned_at', cutoffIso);
           } catch {
             // ignore cleanup errors (do not block VT response)
           }
@@ -175,7 +175,7 @@ module.exports = async function handler(req, res) {
           };
           data._meta.cache = cacheMeta;
 
-          // Upsert/insert cache row (best-effort)
+          // Insert new IP only (best-effort); repeat lookups do not refresh this row
           const nowIso = new Date().toISOString();
           const vtPayload = {
             reputation: data?.data?.attributes?.reputation,
@@ -187,21 +187,7 @@ module.exports = async function handler(req, res) {
           };
           const vtStats = { malicious, suspicious, total, undetected: lastStats.undetected || 0 };
           try {
-            if (existing) {
-              const nextCount = Number(existing.scan_count || 0) + 1;
-              await supabase
-                .from('vt_ip_cache')
-                .update({
-                  scan_count: nextCount,
-                  last_scanned_at: nowIso,
-                  vt_verdict: vtVerdict,
-                  vt_stats: vtStats,
-                  vt_payload: vtPayload,
-                })
-                .eq('ip', ioc);
-              data._meta.cache.scanCount = nextCount;
-              data._meta.cache.lastSeen = nowIso;
-            } else {
+            if (!existing) {
               const { data: inserted } = await supabase
                 .from('vt_ip_cache')
                 .insert({
