@@ -308,7 +308,6 @@ function dashboardRowHtml(item) {
             <div class="dash-ip">
                 ${escHtml(ip)}
                 <span class="dash-pill ${escHtml(verdict)}">${escHtml(verdict.toUpperCase())}</span>
-                ${stableId ? `<button type="button" class="dash-link" title="Open cached result" onclick='dashboardOpenResult(${sidJs})'>↗</button>` : ``}
             </div>
             <div class="dash-meta">
                 <span class="dash-pill">scan: ${escHtml(sc)}</span>
@@ -317,7 +316,7 @@ function dashboardRowHtml(item) {
                 <span class="dash-when">${escHtml(when)}</span>
             </div>
         </div>
-        <button type="button" class="dash-go" title="Open in IoC Scan" onclick='dashboardGoToLookup(${idJs})'>›</button>
+        <button type="button" class="dash-go" title="${stableId ? 'Open cached result' : 'Open in IoC Scan'}" onclick='dashboardRowOpen(${sidJs}, ${idJs})'>›</button>
     </div>`;
 }
 
@@ -328,6 +327,15 @@ function dashboardGoToLookup(ip) {
     const tabBtn = document.querySelector('.tab-btn[data-tab="tab-vt"]');
     if (tabBtn) openTab('tab-vt', tabBtn);
     setStatus('statusVT', '✓ IP dari Dashboard ditempelkan — klik <strong>Run IoC Scan</strong> untuk scan.', 'success');
+}
+
+/** Recent row: open cached result page when we have a stable id; otherwise paste IP into IoC Scan. */
+function dashboardRowOpen(stableId, ip) {
+    if (stableId) {
+        dashboardOpenResult(stableId);
+        return;
+    }
+    dashboardGoToLookup(ip);
 }
 
 function dashboardOpenResult(stableId) {
