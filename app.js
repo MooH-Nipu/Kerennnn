@@ -338,11 +338,17 @@ function dashboardRowOpen(stableId, ip) {
     dashboardGoToLookup(ip);
 }
 
+/** Pretty URL for cached IOC result page (same path as Dashboard “open result”). */
+function vtCachedResultHref(stableId) {
+    if (!stableId) return '#';
+    const sid = String(stableId);
+    return `/result/${encodeURIComponent(sid)}?id=${encodeURIComponent(sid)}`;
+}
+
 function dashboardOpenResult(stableId) {
     if (!stableId) return;
     const sid = String(stableId);
-    // Prefer pretty route, but include `?id=` so it still works without rewrites (local/dev).
-    const pretty = `/result/${encodeURIComponent(sid)}?id=${encodeURIComponent(sid)}`;
+    const pretty = vtCachedResultHref(stableId);
     const fallback = `/result.html?id=${encodeURIComponent(sid)}`;
     try {
         window.open(pretty, '_blank', 'noopener');
@@ -1409,16 +1415,19 @@ function vtExportPDF() {
     vtNotify(`✓ PDF exported (${items.length} item(s)).`, 'success');
 }
 
-function makeCard(headerInner, bodyInner, collapsed) {
+function makeCard(headerInner, bodyInner, collapsed, trailInner = '') {
     const idx = _cardIdx++;
     const bodyClass = collapsed ? 'vt-card-body collapsed' : 'vt-card-body';
     const chevClass = collapsed ? 'vt-chevron' : 'vt-chevron open';
     return `<div class="vt-card">
         <div class="vt-card-header">
             ${headerInner}
-            <button type="button" class="vt-chev-btn" title="Toggle details" onclick="toggleCard(this);event.stopPropagation();">
-                <span class="${chevClass}">▼</span>
-            </button>
+            <span class="vt-card-header-right">
+                ${trailInner}
+                <button type="button" class="vt-chev-btn" title="Toggle details" onclick="toggleCard(this);event.stopPropagation();">
+                    <span class="${chevClass}">▼</span>
+                </button>
+            </span>
         </div>
         <div class="${bodyClass}">${bodyInner}</div>
     </div>`;
@@ -1490,8 +1499,8 @@ function renderIP(ioc, d, collapsed=false) {
     const seenBefore = !!cache?.seenBefore;
     const stableId = cache?.stableId || '';
     const seenBadge = seenBefore ? `<span class="vt-seen" title="Already scanned IP">♻️ SCANNED</span>` : '';
-    const cachedBtn = stableId
-        ? `<button type="button" class="vt-cached-btn" title="Open cached result" onclick="openCachedResult(${JSON.stringify(String(stableId))});event.stopPropagation();">↗</button>`
+    const cachedTrail = stableId
+        ? `<a class="vt-cached-btn" href="${escHtml(vtCachedResultHref(stableId))}" target="_blank" rel="noopener noreferrer" title="Open cached result" aria-label="Open cached result" onclick="event.stopPropagation()">↗</a>`
         : '';
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
@@ -1502,8 +1511,7 @@ function renderIP(ioc, d, collapsed=false) {
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
         ${seenBadge}
         ${ctryBadge}
-        <span class="verdict ${v.cls}">● ${v.label}</span>
-        ${cachedBtn}`;
+        <span class="verdict ${v.cls}">● ${v.label}</span>`;
     const body = `
         ${detBar(mal, sus, total)}
         <div class="meta-grid">
@@ -1517,7 +1525,7 @@ function renderIP(ioc, d, collapsed=false) {
             ${mi('Reputation', rep, rc)}
         </div>
         <a class="vt-open-link" href="${escHtml(vtUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">&#8599; Open in VirusTotal</a>`;
-    const html = makeCard(header, body, collapsed);
+    const html = makeCard(header, body, collapsed, cachedTrail);
     _vtState.items.push({
         id: _cardIdx - 1,
         ioc, type: 'ip',
