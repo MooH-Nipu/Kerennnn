@@ -67,23 +67,57 @@ async function readFetchJson(r) {
 function escHtml(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-async function copyText(elId, btnId) {
+function copyText(elId, btnId) {
     const el = document.getElementById(elId);
     const btn = document.getElementById(btnId);
     if (!el || !btn) return;
-    const text = el.textContent;
+    const text = el.textContent || '';
+    let copied = false;
+
+    // 1) Same path as selecting all in the output <pre> and pressing Ctrl+C (best for RDP/AnyDesk).
     try {
-        await vtCopyToClipboard(text);
-        const orig = btn.textContent;
-        btn.textContent = '✓ COPIED';
-        btn.classList.add('copied');
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('copied');
-        }, 2000);
-    } catch (e) {
-        alert('Copy failed: ' + e);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        sel.addRange(range);
+        copied = document.execCommand('copy');
+        sel.removeAllRanges();
+    } catch (_) {
+        copied = false;
     }
+
+    // 2) Hidden textarea (sync), still within the click gesture.
+    if (!copied) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        try {
+            copied = document.execCommand('copy');
+        } catch (_) {
+            copied = false;
+        } finally {
+            ta.remove();
+        }
+    }
+
+    if (!copied) {
+        alert('Copy failed. Select the text in the gray box and press Ctrl+C.');
+        return;
+    }
+
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED';
+    btn.classList.add('copied');
+    setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+    }, 2000);
 }
 
 /* ── AUTH (single password) ── */
