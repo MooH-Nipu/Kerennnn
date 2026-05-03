@@ -67,14 +67,23 @@ async function readFetchJson(r) {
 function escHtml(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function copyText(elId, btnId) {
-    const text = document.getElementById(elId).textContent;
-    const btn  = document.getElementById(btnId);
-    navigator.clipboard.writeText(text).then(()=>{
+async function copyText(elId, btnId) {
+    const el = document.getElementById(elId);
+    const btn = document.getElementById(btnId);
+    if (!el || !btn) return;
+    const text = el.textContent;
+    try {
+        await vtCopyToClipboard(text);
         const orig = btn.textContent;
-        btn.textContent = '✓ COPIED'; btn.classList.add('copied');
-        setTimeout(()=>{ btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
-    }).catch(e=>alert('Copy failed: '+e));
+        btn.textContent = '✓ COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('copied');
+        }, 2000);
+    } catch (e) {
+        alert('Copy failed: ' + e);
+    }
 }
 
 /* ── AUTH (single password) ── */
