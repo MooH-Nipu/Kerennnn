@@ -1,0 +1,342 @@
+/**
+ * Combined DCI / BPRKS / PAC / SMI Excel export (port of coba.py subset).
+ * POST multipart: optional fields dci, bprks, pac, daily (CSV); field pic (Shift Name).
+ */
+
+const busboy = require('busboy');
+const { parse } = require('csv-parse/sync');
+const ExcelJS = require('exceljs');
+const { requireAuth } = require('./_auth');
+
+const BPRKS_PAC_RULE = 'Top values of signal.rule.name';
+const BPRKS_PAC_SEV = 'Top values of signal.rule.severity';
+
+const OUTPUT_KEYS = ['Date', 'Alarm Name', 'Severity', 'Alarm Time', 'Alarm Taken', 'Min', 'Shift Name'];
+
+const RULE_CANDIDATES = [
+  BPRKS_PAC_RULE,
+  'kibana.alert.rule.name: Descending',
+  'Rule Name',
+  'rule.name',
+];
+const SEV_CANDIDATES = [
+  BPRKS_PAC_SEV,
+  'kibana.alert.severity: Descending',
+  'signal.rule.severity: Descending',
+  'Severity',
+  'severity',
+];
+const TS_CANDIDATES = ['@timestamp: Descending', 'Time', '@timestamp', 'Timestamp'];
+
+function authEnabled() {
+  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
+}
+
+function todayMMDDYYYY() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const y = d.getFullYear();
+  return `${mm}/${dd}/${y}`;
+}
+
+function sniffDelimiter(sample) {
+  const firstLine = (sample.split(/\r?\n/).find((l) => l.trim()) || '').trim();
+  const commas = (firstLine.match(/,/g) || []).length;
+  const semi = (firstLine.match(/;/g) || []).length;
+  return semi > commas ? ';' : ',';
+}
+
+function parseCsvBuffer(buf) {
+  if (!buf || !buf.length) return [];
+  const text = buf.toString('utf8');
+  if (!text.trim()) return [];
+  const delimiter = sniffDelimiter(text.slice(0, 2048));
+  return parse(text, {
+    columns: true,
+    skip_empty_lines: true,
+    delimiter,
+    relax_column_count: true,
+    bom: true,
+    trim: true,
+  });
+}
+
+function firstPresent(row, names) {
+  if (!row || typeof row !== 'object') return '';
+  for (const name of names) {
+    if (!name) continue;
+    if (Object.prototype.hasOwnProperty.call(row, name) && row[name] !== undefined && row[name] !== '') {
+      return row[name];
+    }
+  }
+  const keys = Object.keys(row);
+  for (const name of names) {
+    if (!name) continue;
+    const found = keys.find((k) => k.trim() === name.trim());
+    if (found !== undefined && row[found] !== undefined && row[found] !== '') return row[found];
+  }
+  return '';
+}
+
+function parseTimestampToDate(tsRaw) {
+  const now = new Date();
+  const s = String(tsRaw ?? '');
+  if (!s || s === 'undefined' || s === 'null') return now;
+
+  if (s.includes('@')) {
+    const part = s.split('@')[1]?.trim() || '';
+    const m = part.match(/^(\d{2}):(\d{2}):(\d{2})(\.\d+)?/);
+    if (m) {
+      const h = Number(m[1]);
+      const mi = Number(m[2]);
+      const sec = Number(m[3]);
+      const sub = m[4] ? parseFloat(m[4]) : 0;
+      const d = new Date(2000, 0, 1, h, mi, sec + sub);
+      return isNaN(d.getTime()) ? now : d;
+    }
+  }
+  const m2 = s.match(/\d{2}:\d{2}:\d{2}/);
+  if (m2) {
+    const [h, mi, sec] = m2[0].split(':').map(Number);
+    const d = new Date(2000, 0, 1, h, mi, sec);
+    return isNaN(d.getTime()) ? now : d;
+  }
+  return now;
+}
+
+function formatHHMMSS(d) {
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const sec = String(d.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
+
+function addMinutesTime(d, mins) {
+  const x = new Date(d.getTime() + mins * 60 * 1000);
+  return formatHHMMSS(x);
+}
+
+function processSeverityLogic(severity) {
+  const n = parseFloat(severity);
+  if (!Number.isNaN(n)) {
+    if (n < 4) return 'LOW';
+    if (n <= 7) return 'MEDIUM';
+    return 'HIGH';
+  }
+  return String(severity ?? '').toUpperCase();
+}
+
+function extractTimeDaily(timestampStr) {
+  const m = String(timestampStr).match(/(\d{2}:\d{2}:\d{2})/);
+  return m ? m[1] : '00:00:00';
+}
+
+function sortDailyById(rows) {
+  if (!rows.length || rows[0].id === undefined) return rows;
+  return [...rows].sort((a, b) => {
+    const ia = Number(a.id);
+    const ib = Number(b.id);
+    if (!Number.isNaN(ia) && !Number.isNaN(ib)) return ia - ib;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+function processDci(rows, picName) {
+  const today = todayMMDDYYYY();
+  const out = [];
+  for (const row of rows) {
+    const tsRaw = String(firstPresent(row, ['@timestamp: Descending']) || '');
+    const ts = parseTimestampToDate(tsRaw);
+    const name = firstPresent(row, ['signal.rule.name: Ascending']);
+    const sev = firstPresent(row, ['signal.rule.severity: Descending']);
+    out.push({
+      Date: today,
+      'Alarm Name': name,
+      Severity: sev,
+      'Alarm Time': formatHHMMSS(ts),
+      'Alarm Taken': addMinutesTime(ts, 5),
+      Min: 5,
+      'Shift Name': picName,
+    });
+  }
+  return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
+}
+
+function processKibanaBprksPac(rows, picName) {
+  const today = todayMMDDYYYY();
+  const out = [];
+  for (const row of rows) {
+    const valRule = firstPresent(row, RULE_CANDIDATES);
+    const valSev = firstPresent(row, SEV_CANDIDATES);
+    const tsRaw = String(firstPresent(row, TS_CANDIDATES) || '');
+    const ts = parseTimestampToDate(tsRaw);
+    out.push({
+      Date: today,
+      'Alarm Name': valRule || 'N/A',
+      Severity: valSev || 'N/A',
+      'Alarm Time': formatHHMMSS(ts),
+      'Alarm Taken': addMinutesTime(ts, 5),
+      Min: 5,
+      'Shift Name': picName,
+    });
+  }
+  return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
+}
+
+function processSmiFromDaily(rows, picName) {
+  const today = todayMMDDYYYY();
+  const sorted = sortDailyById(rows);
+  const out = [];
+  for (const row of sorted) {
+    const tStart = extractTimeDaily(row.startTime ?? row['startTime'] ?? '00:00:00');
+    let alarmTaken = tStart;
+    try {
+      const [h, mi, s] = tStart.split(':').map(Number);
+      const d = new Date(2000, 0, 1, h, mi, s);
+      if (!isNaN(d.getTime())) alarmTaken = addMinutesTime(d, 5);
+    } catch {
+      /* keep tStart */
+    }
+    const desc = String(row.fullDescription ?? row['fullDescription'] ?? '').trim();
+    out.push({
+      Date: today,
+      'Alarm Name': desc,
+      Severity: processSeverityLogic(row.severity ?? row['severity']),
+      'Alarm Time': tStart,
+      'Alarm Taken': alarmTaken,
+      Min: 5,
+      'Shift Name': picName,
+    });
+  }
+  return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
+}
+
+function applySheetStyling(sheet) {
+  const thin = {
+    top: { style: 'thin' },
+    left: { style: 'thin' },
+    bottom: { style: 'thin' },
+    right: { style: 'thin' },
+  };
+  sheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.font = { name: 'Times New Roman', size: 11 };
+      cell.border = thin;
+    });
+  });
+}
+
+function parseMultipart(req) {
+  return new Promise((resolve, reject) => {
+    const fields = {};
+    const files = {};
+    const bb = busboy({
+      headers: req.headers,
+      limits: { fileSize: 12 * 1024 * 1024, files: 8 },
+    });
+
+    bb.on('file', (name, file) => {
+      const chunks = [];
+      file.on('data', (d) => chunks.push(d));
+      file.on('limit', () => file.resume());
+      file.on('end', () => {
+        files[name] = Buffer.concat(chunks);
+      });
+    });
+
+    bb.on('field', (name, val) => {
+      fields[name] = val;
+    });
+
+    bb.on('finish', () => resolve({ fields, files }));
+    bb.on('error', reject);
+    req.pipe(bb);
+  });
+}
+
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (authEnabled() && !requireAuth(req, res)) return;
+
+  let fields;
+  let files;
+  try {
+    ({ fields, files } = await parseMultipart(req));
+  } catch (e) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: e.message || 'Failed to parse multipart body.' });
+  }
+
+  const picRaw = fields.pic != null ? String(fields.pic) : '';
+  const picName = picRaw.trim() || 'Yarid';
+
+  const buffers = {
+    dci: files.dci,
+    bprks: files.bprks,
+    pac: files.pac,
+    daily: files.daily,
+  };
+
+  const anyFile = Object.values(buffers).some((b) => b && b.length);
+  if (!anyFile) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: 'Unggah minimal satu file CSV (DCI, BPRKS, PAC, atau Daily untuk SMI).' });
+  }
+
+  const sheets = [];
+
+  try {
+    if (buffers.dci && buffers.dci.length) {
+      const rows = parseCsvBuffer(buffers.dci);
+      const data = processDci(rows, picName);
+      if (data.length) sheets.push({ name: 'DCI', data });
+    }
+    if (buffers.bprks && buffers.bprks.length) {
+      const rows = parseCsvBuffer(buffers.bprks);
+      const data = processKibanaBprksPac(rows, picName);
+      if (data.length) sheets.push({ name: 'BPRKS', data });
+    }
+    if (buffers.pac && buffers.pac.length) {
+      const rows = parseCsvBuffer(buffers.pac);
+      const data = processKibanaBprksPac(rows, picName);
+      if (data.length) sheets.push({ name: 'PAC', data });
+    }
+    if (buffers.daily && buffers.daily.length) {
+      const rows = parseCsvBuffer(buffers.daily);
+      const data = processSmiFromDaily(rows, picName);
+      if (data.length) sheets.push({ name: 'SMI', data });
+    }
+  } catch (e) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: e.message || 'CSV processing failed.' });
+  }
+
+  if (!sheets.length) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: 'Tidak ada baris data yang valid dari file yang diunggah.' });
+  }
+
+  const wb = new ExcelJS.Workbook();
+  for (const { name, data } of sheets) {
+    const sheet = wb.addWorksheet(name);
+    sheet.columns = OUTPUT_KEYS.map((k) => ({ header: k, key: k, width: 22 }));
+    data.forEach((row) => sheet.addRow(row));
+    applySheetStyling(sheet);
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  const body = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="output_combined.xlsx"');
+  return res.status(200).end(body);
+};

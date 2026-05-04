@@ -43,6 +43,7 @@
         <button id="tabBtn-formatter" type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-formatter" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button id="tabBtn-merger" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
         <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)" style="display:none">PAC Filter</button>
+        <button id="tabBtn-kibana-report" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-kibana-report" data-tab="tab-kibana-report" onclick="openTab('tab-kibana-report',this)" style="display:none">📊 Daily EOD</button>
         <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ IoC Scan</button>
         <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
     </nav>
@@ -250,6 +251,42 @@
             <div class="output-wrap u-mt-12">
                 <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
                 <pre id="outputJsonDb" class="output-code tall">{ }</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Daily EOD report (YCCA) -->
+    <div id="tab-kibana-report" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-kibana-report">
+        <div class="grid">
+            <div class="card">
+                <div class="card-title"><span class="dot"></span> Daily EOD</div>
+                <p class="history-hint compact">Unggah hanya file yang dibutuhkan. Workbook hanya berisi sheet untuk CSV yang diisi: <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong>, <strong>SMI</strong> (dari export <strong>Daily</strong>). Akses sama seperti PAC Filter (login YCCA jika auth di server aktif).</p>
+                <div class="fg">
+                    <label for="kibanaPicName">PIC / Shift Name</label>
+                    <input type="text" id="kibanaPicName" placeholder="Yarid" autocomplete="off" />
+                </div>
+                <div class="kiba-upload-grid">
+                    <div class="fg">
+                        <label for="kibanaFileDci">DCI (.csv)</label>
+                        <input type="file" id="kibanaFileDci" accept=".csv,text/csv" />
+                    </div>
+                    <div class="fg">
+                        <label for="kibanaFileBprks">BPRKS (.csv)</label>
+                        <input type="file" id="kibanaFileBprks" accept=".csv,text/csv" />
+                    </div>
+                    <div class="fg">
+                        <label for="kibanaFilePac">PAC (.csv)</label>
+                        <input type="file" id="kibanaFilePac" accept=".csv,text/csv" />
+                    </div>
+                    <div class="fg">
+                        <label for="kibanaFileDaily">Daily → SMI (.csv)</label>
+                        <input type="file" id="kibanaFileDaily" accept=".csv,text/csv" />
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-primary" id="kibanaSubmitBtn" onclick="kibanaCombinedSubmit()">Unduh output_combined.xlsx</button>
+                </div>
+                <div id="statusKibanaReport" class="status" role="status" aria-live="polite"></div>
             </div>
         </div>
     </div>
