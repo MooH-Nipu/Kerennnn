@@ -1,6 +1,6 @@
 /**
  * Combined DCI / BPRKS / PAC / SMI Excel export (port of coba.py subset).
- * POST multipart: optional fields dci, bprks, pac, daily (CSV); pic (Shift Name); reportDate (YYYY-MM-DD).
+ * POST multipart: dci, bprks, pac, daily (CSV); pic; reportDate (Y-m-d); defaultAlarmTime (HH:MM or HH:MM:SS) for rows without timestamp (DCI / BPRKS / PAC).
  */
 
 const busboy = require('busboy');
@@ -27,7 +27,14 @@ const SEV_CANDIDATES = [
   'Severity',
   'severity',
 ];
-const TS_CANDIDATES = ['@timestamp: Descending', 'Time', '@timestamp', 'Timestamp'];
+const TS_CANDIDATES = [
+  '@timestamp: Descending',
+  'Top values of @timestamp',
+  'Top values of @timestamp: Descending',
+  'Time',
+  '@timestamp',
+  'Timestamp',
+];
 
 function authEnabled() {
   return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
@@ -54,6 +61,18 @@ function resolveReportDate(raw) {
     return `${mm}/${dd}/${us[3]}`;
   }
   return todayMMDDYYYY();
+}
+
+/** HH:MM atau HH:MM:SS dari form → Date anchor untuk Alarm Time jika CSV tanpa timestamp */
+function resolveDefaultAlarmTime(raw) {
+  const s = raw != null ? String(raw).trim() : '';
+  if (!s) return new Date(2000, 0, 1, 0, 0, 0);
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return new Date(2000, 0, 1, 0, 0, 0);
+  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const mi = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  const sec = m[3] !== undefined ? Math.min(59, Math.max(0, parseInt(m[3], 10))) : 0;
+  return new Date(2000, 0, 1, h, mi, sec);
 }
 
 function sniffDelimiter(sample) {
@@ -158,12 +177,13 @@ function sortDailyById(rows) {
   });
 }
 
-function processDci(rows, picName, reportDate) {
+function processDci(rows, picName, reportDate, fallbackAlarmTime) {
   const today = reportDate;
   const out = [];
+  const fb = fallbackAlarmTime || new Date(2000, 0, 1, 0, 0, 0);
   for (const row of rows) {
     const tsRaw = String(firstPresent(row, ['@timestamp: Descending']) || '');
-    const ts = parseTimestampToDate(tsRaw);
+    const ts = tsRaw.trim() ? parseTimestampToDate(tsRaw) : fb;
     const name = firstPresent(row, ['signal.rule.name: Ascending']);
     const sev = firstPresent(row, ['signal.rule.severity: Descending']);
     out.push({
@@ -179,14 +199,15 @@ function processDci(rows, picName, reportDate) {
   return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
 }
 
-function processKibanaBprksPac(rows, picName, reportDate) {
+function processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime) {
   const today = reportDate;
   const out = [];
+  const fb = fallbackAlarmTime || new Date(2000, 0, 1, 0, 0, 0);
   for (const row of rows) {
     const valRule = firstPresent(row, RULE_CANDIDATES);
     const valSev = firstPresent(row, SEV_CANDIDATES);
     const tsRaw = String(firstPresent(row, TS_CANDIDATES) || '');
-    const ts = parseTimestampToDate(tsRaw);
+    const ts = tsRaw.trim() ? parseTimestampToDate(tsRaw) : fb;
     out.push({
       Date: today,
       'Alarm Name': valRule || 'N/A',
@@ -295,6 +316,7 @@ module.exports = async function handler(req, res) {
   const picRaw = fields.pic != null ? String(fields.pic) : '';
   const picName = picRaw.trim() || 'Yarid';
   const reportDate = resolveReportDate(fields.reportDate);
+  const fallbackAlarmTime = resolveDefaultAlarmTime(fields.defaultAlarmTime);
 
   const buffers = {
     dci: files.dci,
@@ -314,17 +336,17 @@ module.exports = async function handler(req, res) {
   try {
     if (buffers.dci && buffers.dci.length) {
       const rows = parseCsvBuffer(buffers.dci);
-      const data = processDci(rows, picName, reportDate);
+      const data = processDci(rows, picName, reportDate, fallbackAlarmTime);
       if (data.length) sheets.push({ name: 'DCI', data });
     }
     if (buffers.bprks && buffers.bprks.length) {
       const rows = parseCsvBuffer(buffers.bprks);
-      const data = processKibanaBprksPac(rows, picName, reportDate);
+      const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
       if (data.length) sheets.push({ name: 'BPRKS', data });
     }
     if (buffers.pac && buffers.pac.length) {
       const rows = parseCsvBuffer(buffers.pac);
-      const data = processKibanaBprksPac(rows, picName, reportDate);
+      const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
       if (data.length) sheets.push({ name: 'PAC', data });
     }
     if (buffers.daily && buffers.daily.length) {
