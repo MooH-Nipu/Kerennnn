@@ -987,6 +987,41 @@ function kibanaUpdateFileName(input, nameSpanId) {
     if (span) span.textContent = f ? f.name : 'No file chosen';
 }
 
+/** Flatpickr popup calendar — nilai riil tetap Y-m-d untuk API */
+let _kibanaFlatpickr = null;
+function kibanaInitFlatpickr() {
+    const el = document.getElementById('kibanaReportDate');
+    if (!el || typeof window.flatpickr !== 'function') return;
+    if (_kibanaFlatpickr) {
+        try { _kibanaFlatpickr.destroy(); } catch (e) {}
+        _kibanaFlatpickr = null;
+    }
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const localeId = window.flatpickr && flatpickr.l10ns && flatpickr.l10ns.id ? flatpickr.l10ns.id : undefined;
+    _kibanaFlatpickr = flatpickr(el, {
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd / m / Y',
+        altInputClass: 'kiba-flatpickr-display',
+        defaultDate: `${y}-${m}-${d}`,
+        locale: localeId,
+        disableMobile: true,
+        monthSelectorType: 'static',
+        weekNumbers: false,
+    });
+    const icon = document.querySelector('#tab-kibana-report .kiba-date-icon');
+    if (icon && _kibanaFlatpickr) {
+        icon.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            _kibanaFlatpickr.open();
+        });
+    }
+}
+
 async function kibanaCombinedSubmit() {
     clearStatus('statusKibanaReport');
     const fd = new FormData();
@@ -1004,7 +1039,7 @@ async function kibanaCombinedSubmit() {
     if (pac?.files?.[0]) fd.append('pac', pac.files[0]);
     if (daily?.files?.[0]) fd.append('daily', daily.files[0]);
 
-    if (![...fd.keys()].some((k) => k !== 'pic')) {
+    if (!fd.has('dci') && !fd.has('bprks') && !fd.has('pac') && !fd.has('daily')) {
         setStatus('statusKibanaReport', '⚠ Pilih minimal satu file CSV.', 'error');
         return;
     }
@@ -2068,15 +2103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     vtInitExportPresetUI();
     vtSyncFilterUIs();
 
-    (function initKibanaReportDate() {
-        const el = document.getElementById('kibanaReportDate');
-        if (!el || el.value) return;
-        const t = new Date();
-        const y = t.getFullYear();
-        const m = String(t.getMonth() + 1).padStart(2, '0');
-        const d = String(t.getDate()).padStart(2, '0');
-        el.value = `${y}-${m}-${d}`;
-    })();
+    kibanaInitFlatpickr();
 
     const vtInput = document.getElementById('vtInput');
     if (vtInput) {
