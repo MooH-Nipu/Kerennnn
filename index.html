@@ -265,7 +265,7 @@
                 <p class="history-hint compact">Unggah hanya file yang dibutuhkan. Workbook hanya berisi sheet untuk CSV yang diisi: <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong>, <strong>SMI</strong> (dari export <strong>Daily</strong>). Akses sama seperti PAC Filter (login YCCA jika auth di server aktif).</p>
                 <div class="kiba-meta-row">
                     <div class="fg">
-                        <label for="kibanaPicName">PIC / Shift Name</label>
+                        <label class="kiba-meta-label" for="kibanaPicName">PIC / Shift Name</label>
                         <input type="text" id="kibanaPicName" placeholder="Yarid" autocomplete="off" />
                     </div>
                     <div class="fg kiba-date-field">
@@ -280,11 +280,11 @@
                         </label>
                     </div>
                     <div class="fg">
-                        <label for="kibanaDefaultAlarmTime">Jam alarm default</label>
+                        <label class="kiba-meta-label" for="kibanaDefaultAlarmTime">Jam alarm default</label>
                         <input type="time" id="kibanaDefaultAlarmTime" step="1" />
-                        <p class="kiba-time-hint">Dipakai untuk <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong> jika baris CSV tidak punya kolom waktu. Kalau CSV ada timestamp, jam tetap dari file.</p>
                     </div>
                 </div>
+                <p class="kiba-time-hint">Dipakai untuk <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong> jika baris CSV tidak punya kolom waktu. Kalau CSV ada timestamp, jam tetap dari file.</p>
                 <div class="kiba-upload-grid">
                     <div class="fg kiba-file-field">
                         <span class="kiba-file-title">DCI (.csv)</span>

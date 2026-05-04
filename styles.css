@@ -658,7 +658,22 @@
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             gap: 1rem 1.25rem;
-            align-items: end;
+            align-items: start;
+        }
+        #tab-kibana-report .kiba-meta-row > .fg {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+        #tab-kibana-report .kiba-meta-label,
+        #tab-kibana-report .kiba-date-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-sec);
+            line-height: 1.25;
         }
         @media (max-width: 960px) {
             .kiba-meta-row {
@@ -685,7 +700,8 @@
             font-size: 0.72rem;
             color: var(--text-sec);
             line-height: 1.4;
-            margin: 6px 0 0;
+            margin: 0 0 0.75rem;
+            max-width: 100%;
         }
 
         .kiba-date-field-label {
@@ -697,11 +713,7 @@
             cursor: pointer;
         }
         .kiba-date-label {
-            font-size: 0.78rem;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--text-sec);
+            display: block;
         }
         .kiba-date-wrap {
             position: relative;
