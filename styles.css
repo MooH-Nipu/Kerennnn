@@ -665,15 +665,120 @@
                 grid-template-columns: 1fr;
             }
         }
-        .kiba-meta-row input[type='date'] {
+
+        .kiba-date-field-label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
             width: 100%;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: rgba(0, 0, 0, 0.25);
-            color: var(--text-pri);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.88rem;
+            margin: 0;
+            cursor: pointer;
+        }
+        .kiba-date-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-sec);
+        }
+        .kiba-date-wrap {
+            position: relative;
+            width: 100%;
+        }
+        #tab-kibana-report input.kiba-flatpickr-display {
+            width: 100% !important;
+            box-sizing: border-box;
+            padding: 10px 42px 10px 12px !important;
+            border-radius: 8px !important;
+            border: 1px solid var(--border) !important;
+            background: rgba(0, 0, 0, 0.28) !important;
+            color: var(--text-pri) !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.88rem !important;
+            min-height: 42px;
+            cursor: pointer;
+        }
+        #tab-kibana-report input.kiba-flatpickr-display:hover {
+            border-color: rgba(47, 126, 247, 0.45) !important;
+        }
+        #tab-kibana-report input.kiba-flatpickr-display:focus {
+            outline: 2px solid rgba(47, 126, 247, 0.45);
+            outline-offset: 1px;
+        }
+        .kiba-date-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: auto;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .kiba-date-icon:hover {
+            color: var(--accent-hl, #93c5fd);
+            background: rgba(47, 126, 247, 0.12);
+        }
+
+        /* Flatpickr popup — dark theme */
+        .flatpickr-calendar {
+            background: var(--bg-card, #151922) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55) !important;
+            color: var(--text-pri) !important;
+        }
+        .flatpickr-months .flatpickr-month {
+            background: transparent !important;
+            color: var(--text-pri) !important;
+        }
+        .flatpickr-current-month .flatpickr-monthDropdown-months,
+        .flatpickr-current-month input.cur-year {
+            background: rgba(0, 0, 0, 0.35) !important;
+            color: var(--text-pri) !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+        }
+        .flatpickr-weekdays {
+            background: transparent !important;
+        }
+        span.flatpickr-weekday {
+            color: var(--text-sec) !important;
+            font-weight: 600 !important;
+        }
+        .flatpickr-day {
+            color: var(--text-pri) !important;
+            border-radius: 6px !important;
+        }
+        .flatpickr-day:hover {
+            background: rgba(47, 126, 247, 0.2) !important;
+            border-color: transparent !important;
+        }
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #fff !important;
+        }
+        .flatpickr-day.today {
+            border-color: rgba(47, 126, 247, 0.7) !important;
+        }
+        .flatpickr-day.flatpickr-disabled {
+            color: rgba(255, 255, 255, 0.25) !important;
+        }
+        .flatpickr-months .flatpickr-prev-month:hover svg,
+        .flatpickr-months .flatpickr-next-month:hover svg {
+            fill: var(--accent-hl, #93c5fd) !important;
+        }
+        .flatpickr-months .flatpickr-prev-month svg,
+        .flatpickr-months .flatpickr-next-month svg {
+            fill: var(--text-sec) !important;
         }
 
         .kiba-file-field { margin-bottom: 0; }
