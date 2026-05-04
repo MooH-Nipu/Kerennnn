@@ -53,7 +53,8 @@
         body.app-locked .tab-content { pointer-events: none; filter: blur(1px); opacity: 0.75; }
         body.app-locked header { filter: blur(1px); opacity: 0.85; }
 
-        .tab-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+        .tab-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start; width: 100%; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+        .tab-nav-spacer { flex: 1 1 auto; min-width: 12px; pointer-events: none; }
         .tab-btn { background: transparent; color: var(--text-sec); border: 1px solid transparent; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; font-family: 'Syne', sans-serif; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
         .tab-btn:hover { color: var(--text-pri); border-color: var(--border); background: rgba(29,106,229,0.06); }
         .tab-btn.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-hl)); border-color: var(--accent-hl); box-shadow: 0 0 16px rgba(47,126,247,0.3); }
@@ -641,6 +642,82 @@
         .merger-db-progress-track { height: 9px; background: rgba(0,0,0,0.28); border-radius: 7px; overflow: hidden; border: 1px solid var(--border); }
         #mergerDbSaveProgressFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-hl)); transition: width 0.22s ease; }
         #mergerDbSaveProgressLabel { font-size: 0.76rem; color: var(--text-sec); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+        #tab-kibana-report .kiba-eod-layout.grid,
+        #tab-kibana-report .kiba-eod-layout {
+            grid-template-columns: 1fr;
+            width: 100%;
+            max-width: 100%;
+        }
+        #tab-kibana-report .kiba-eod-card {
+            width: 100%;
+            max-width: none;
+        }
+
+        .kiba-file-field { margin-bottom: 0; }
+        .kiba-file-title {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-sec);
+            margin-bottom: 6px;
+        }
+        .kiba-file-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .kiba-file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .kiba-file-pill-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid var(--accent);
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.25), rgba(59, 130, 246, 0.08));
+            color: var(--accent-hl, #93c5fd);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+        .kiba-file-pill-btn:hover {
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0.15));
+        }
+        .kiba-file-pill-btn:active {
+            transform: scale(0.98);
+        }
+        .kiba-file-name {
+            flex: 1 1 120px;
+            min-width: 0;
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-sec);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
         /* Daily EOD: labeled CSV slots */
         .kiba-upload-grid {
