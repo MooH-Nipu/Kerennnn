@@ -262,9 +262,15 @@
             <div class="card kiba-eod-card">
                 <div class="card-title"><span class="dot"></span> Daily EOD</div>
                 <p class="history-hint compact">Unggah hanya file yang dibutuhkan. Workbook hanya berisi sheet untuk CSV yang diisi: <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong>, <strong>SMI</strong> (dari export <strong>Daily</strong>). Akses sama seperti PAC Filter (login YCCA jika auth di server aktif).</p>
-                <div class="fg">
-                    <label for="kibanaPicName">PIC / Shift Name</label>
-                    <input type="text" id="kibanaPicName" placeholder="Yarid" autocomplete="off" />
+                <div class="kiba-meta-row">
+                    <div class="fg">
+                        <label for="kibanaPicName">PIC / Shift Name</label>
+                        <input type="text" id="kibanaPicName" placeholder="Yarid" autocomplete="off" />
+                    </div>
+                    <div class="fg">
+                        <label for="kibanaReportDate">Tanggal laporan</label>
+                        <input type="date" id="kibanaReportDate" />
+                    </div>
                 </div>
                 <div class="kiba-upload-grid">
                     <div class="fg kiba-file-field">
