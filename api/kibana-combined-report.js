@@ -15,6 +15,7 @@ const OUTPUT_KEYS = ['Date', 'Alarm Name', 'Severity', 'Alarm Time', 'Alarm Take
 
 const RULE_CANDIDATES = [
   BPRKS_PAC_RULE,
+  'Top values of kibana.alert.rule.name',
   'kibana.alert.rule.name: Descending',
   'Rule Name',
   'rule.name',
