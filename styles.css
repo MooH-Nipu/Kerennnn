@@ -654,6 +654,28 @@
             max-width: none;
         }
 
+        .kiba-meta-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.25rem;
+            align-items: end;
+        }
+        @media (max-width: 640px) {
+            .kiba-meta-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .kiba-meta-row input[type='date'] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--text-pri);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+        }
+
         .kiba-file-field { margin-bottom: 0; }
         .kiba-file-title {
             display: block;

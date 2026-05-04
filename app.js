@@ -992,6 +992,8 @@ async function kibanaCombinedSubmit() {
     const fd = new FormData();
     const picEl = document.getElementById('kibanaPicName');
     if (picEl && picEl.value.trim()) fd.append('pic', picEl.value.trim());
+    const dateEl = document.getElementById('kibanaReportDate');
+    if (dateEl && dateEl.value) fd.append('reportDate', dateEl.value);
 
     const dci = document.getElementById('kibanaFileDci');
     const bprks = document.getElementById('kibanaFileBprks');
@@ -2065,6 +2067,16 @@ document.addEventListener('DOMContentLoaded', function() {
     renderHistoryListDOM();
     vtInitExportPresetUI();
     vtSyncFilterUIs();
+
+    (function initKibanaReportDate() {
+        const el = document.getElementById('kibanaReportDate');
+        if (!el || el.value) return;
+        const t = new Date();
+        const y = t.getFullYear();
+        const m = String(t.getMonth() + 1).padStart(2, '0');
+        const d = String(t.getDate()).padStart(2, '0');
+        el.value = `${y}-${m}-${d}`;
+    })();
 
     const vtInput = document.getElementById('vtInput');
     if (vtInput) {

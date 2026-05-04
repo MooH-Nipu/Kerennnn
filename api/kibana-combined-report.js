@@ -1,6 +1,6 @@
 /**
  * Combined DCI / BPRKS / PAC / SMI Excel export (port of coba.py subset).
- * POST multipart: optional fields dci, bprks, pac, daily (CSV); field pic (Shift Name).
+ * POST multipart: optional fields dci, bprks, pac, daily (CSV); pic (Shift Name); reportDate (YYYY-MM-DD).
  */
 
 const busboy = require('busboy');
@@ -38,6 +38,21 @@ function todayMMDDYYYY() {
   const dd = String(d.getDate()).padStart(2, '0');
   const y = d.getFullYear();
   return `${mm}/${dd}/${y}`;
+}
+
+/** HTML date (YYYY-MM-DD) or MM/DD/YYYY → Date column format MM/DD/YYYY */
+function resolveReportDate(raw) {
+  const s = raw != null ? String(raw).trim() : '';
+  if (!s) return todayMMDDYYYY();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[2]}/${iso[3]}/${iso[1]}`;
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) {
+    const mm = us[1].padStart(2, '0');
+    const dd = us[2].padStart(2, '0');
+    return `${mm}/${dd}/${us[3]}`;
+  }
+  return todayMMDDYYYY();
 }
 
 function sniffDelimiter(sample) {
@@ -142,8 +157,8 @@ function sortDailyById(rows) {
   });
 }
 
-function processDci(rows, picName) {
-  const today = todayMMDDYYYY();
+function processDci(rows, picName, reportDate) {
+  const today = reportDate;
   const out = [];
   for (const row of rows) {
     const tsRaw = String(firstPresent(row, ['@timestamp: Descending']) || '');
@@ -163,8 +178,8 @@ function processDci(rows, picName) {
   return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
 }
 
-function processKibanaBprksPac(rows, picName) {
-  const today = todayMMDDYYYY();
+function processKibanaBprksPac(rows, picName, reportDate) {
+  const today = reportDate;
   const out = [];
   for (const row of rows) {
     const valRule = firstPresent(row, RULE_CANDIDATES);
@@ -184,8 +199,8 @@ function processKibanaBprksPac(rows, picName) {
   return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
 }
 
-function processSmiFromDaily(rows, picName) {
-  const today = todayMMDDYYYY();
+function processSmiFromDaily(rows, picName, reportDate) {
+  const today = reportDate;
   const sorted = sortDailyById(rows);
   const out = [];
   for (const row of sorted) {
@@ -278,6 +293,7 @@ module.exports = async function handler(req, res) {
 
   const picRaw = fields.pic != null ? String(fields.pic) : '';
   const picName = picRaw.trim() || 'Yarid';
+  const reportDate = resolveReportDate(fields.reportDate);
 
   const buffers = {
     dci: files.dci,
@@ -297,22 +313,22 @@ module.exports = async function handler(req, res) {
   try {
     if (buffers.dci && buffers.dci.length) {
       const rows = parseCsvBuffer(buffers.dci);
-      const data = processDci(rows, picName);
+      const data = processDci(rows, picName, reportDate);
       if (data.length) sheets.push({ name: 'DCI', data });
     }
     if (buffers.bprks && buffers.bprks.length) {
       const rows = parseCsvBuffer(buffers.bprks);
-      const data = processKibanaBprksPac(rows, picName);
+      const data = processKibanaBprksPac(rows, picName, reportDate);
       if (data.length) sheets.push({ name: 'BPRKS', data });
     }
     if (buffers.pac && buffers.pac.length) {
       const rows = parseCsvBuffer(buffers.pac);
-      const data = processKibanaBprksPac(rows, picName);
+      const data = processKibanaBprksPac(rows, picName, reportDate);
       if (data.length) sheets.push({ name: 'PAC', data });
     }
     if (buffers.daily && buffers.daily.length) {
       const rows = parseCsvBuffer(buffers.daily);
-      const data = processSmiFromDaily(rows, picName);
+      const data = processSmiFromDaily(rows, picName, reportDate);
       if (data.length) sheets.push({ name: 'SMI', data });
     }
   } catch (e) {
