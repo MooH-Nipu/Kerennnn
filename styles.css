@@ -666,8 +666,46 @@
             gap: 6px;
             min-width: 0;
         }
-        #tab-kibana-report .kiba-meta-label,
-        #tab-kibana-report .kiba-date-label {
+        @media (min-width: 961px) {
+            .kiba-meta-row {
+                gap: 6px 1.25rem;
+                align-items: stretch;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg {
+                display: contents;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(1) > .kiba-meta-label {
+                grid-column: 1;
+                grid-row: 1;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(1) > input {
+                grid-column: 1;
+                grid-row: 2;
+                min-width: 0;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(2) > .kiba-meta-label {
+                grid-column: 2;
+                grid-row: 1;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(2) > .kiba-date-wrap {
+                grid-column: 2;
+                grid-row: 2;
+                min-width: 0;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(3) > .kiba-meta-label {
+                grid-column: 3;
+                grid-row: 1;
+            }
+            #tab-kibana-report .kiba-meta-row > .fg:nth-child(3) > input {
+                grid-column: 3;
+                grid-row: 2;
+                min-width: 0;
+            }
+        }
+        #tab-kibana-report .kiba-meta-row label {
+            margin-bottom: 0;
+        }
+        #tab-kibana-report .kiba-meta-label {
             font-size: 0.78rem;
             font-weight: 600;
             letter-spacing: 0.06em;
@@ -675,13 +713,8 @@
             color: var(--text-sec);
             line-height: 1.25;
         }
-        @media (max-width: 960px) {
-            .kiba-meta-row {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        #tab-kibana-report input[type='time'] {
+        #tab-kibana-report .kiba-meta-row input[type='text'],
+        #tab-kibana-report .kiba-meta-row input[type='time'] {
             width: 100%;
             box-sizing: border-box;
             padding: 10px 12px;
@@ -691,23 +724,19 @@
             color: var(--text-pri);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.88rem;
+            line-height: 1.25;
             min-height: 42px;
         }
-        #tab-kibana-report input[type='time']:hover {
+        #tab-kibana-report .kiba-meta-row input[type='text']:hover,
+        #tab-kibana-report .kiba-meta-row input[type='time']:hover {
             border-color: rgba(47, 126, 247, 0.45);
         }
+        @media (max-width: 960px) {
+            .kiba-meta-row {
+                grid-template-columns: 1fr;
+            }
+        }
 
-        .kiba-date-field-label {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            width: 100%;
-            margin: 0;
-            cursor: pointer;
-        }
-        .kiba-date-label {
-            display: block;
-        }
         .kiba-date-wrap {
             position: relative;
             width: 100%;
@@ -722,6 +751,7 @@
             color: var(--text-pri) !important;
             font-family: 'JetBrains Mono', monospace !important;
             font-size: 0.88rem !important;
+            line-height: 1.25 !important;
             min-height: 42px;
             cursor: pointer;
         }
