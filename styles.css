@@ -656,14 +656,36 @@
 
         .kiba-meta-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 1rem 1.25rem;
             align-items: end;
         }
-        @media (max-width: 640px) {
+        @media (max-width: 960px) {
             .kiba-meta-row {
                 grid-template-columns: 1fr;
             }
+        }
+
+        #tab-kibana-report input[type='time'] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.28);
+            color: var(--text-pri);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            min-height: 42px;
+        }
+        #tab-kibana-report input[type='time']:hover {
+            border-color: rgba(47, 126, 247, 0.45);
+        }
+        .kiba-time-hint {
+            font-size: 0.72rem;
+            color: var(--text-sec);
+            line-height: 1.4;
+            margin: 6px 0 0;
         }
 
         .kiba-date-field-label {

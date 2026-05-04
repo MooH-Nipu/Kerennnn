@@ -1029,6 +1029,8 @@ async function kibanaCombinedSubmit() {
     if (picEl && picEl.value.trim()) fd.append('pic', picEl.value.trim());
     const dateEl = document.getElementById('kibanaReportDate');
     if (dateEl && dateEl.value) fd.append('reportDate', dateEl.value);
+    const timeEl = document.getElementById('kibanaDefaultAlarmTime');
+    if (timeEl && timeEl.value) fd.append('defaultAlarmTime', timeEl.value);
 
     const dci = document.getElementById('kibanaFileDci');
     const bprks = document.getElementById('kibanaFileBprks');
@@ -2104,6 +2106,11 @@ document.addEventListener('DOMContentLoaded', function() {
     vtSyncFilterUIs();
 
     kibanaInitFlatpickr();
+
+    (function initKibanaDefaultAlarmTime() {
+        const t = document.getElementById('kibanaDefaultAlarmTime');
+        if (t && !t.value) t.value = '00:00:00';
+    })();
 
     const vtInput = document.getElementById('vtInput');
     if (vtInput) {
