@@ -136,6 +136,9 @@ function setAuthUi(authed) {
 
     const pacBtn = document.getElementById('tabBtn-merger-db');
     if (pacBtn) pacBtn.style.display = authed ? '' : 'none';
+
+    const kibanaBtn = document.getElementById('tabBtn-kibana-report');
+    if (kibanaBtn) kibanaBtn.style.display = authed ? '' : 'none';
 }
 
 function authShowLogin() {
@@ -978,6 +981,66 @@ async function mergerDbDeleteBatch() {
     }
 }
 
+async function kibanaCombinedSubmit() {
+    clearStatus('statusKibanaReport');
+    const fd = new FormData();
+    const picEl = document.getElementById('kibanaPicName');
+    if (picEl && picEl.value.trim()) fd.append('pic', picEl.value.trim());
+
+    const dci = document.getElementById('kibanaFileDci');
+    const bprks = document.getElementById('kibanaFileBprks');
+    const pac = document.getElementById('kibanaFilePac');
+    const daily = document.getElementById('kibanaFileDaily');
+    if (dci?.files?.[0]) fd.append('dci', dci.files[0]);
+    if (bprks?.files?.[0]) fd.append('bprks', bprks.files[0]);
+    if (pac?.files?.[0]) fd.append('pac', pac.files[0]);
+    if (daily?.files?.[0]) fd.append('daily', daily.files[0]);
+
+    if (![...fd.keys()].some((k) => k !== 'pic')) {
+        setStatus('statusKibanaReport', '⚠ Pilih minimal satu file CSV.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('kibanaSubmitBtn');
+    if (btn) btn.disabled = true;
+    setStatus('statusKibanaReport', '<span class="spinner"></span> Membuat Excel…', 'loading');
+    try {
+        const r = await fetch('/api/kibana-combined-report', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+        });
+        const ct = (r.headers.get('Content-Type') || '').toLowerCase();
+        if (!r.ok) {
+            let msg = r.status + '';
+            if (ct.includes('application/json')) {
+                const { data } = await readFetchJson(r);
+                msg = formatApiError(data && data.error) || msg;
+            } else {
+                const t = await r.text();
+                if (t) msg = t.slice(0, 200);
+            }
+            setStatus('statusKibanaReport', '⚠ ' + escHtml(msg), 'error');
+            return;
+        }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'output_combined.xlsx';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('statusKibanaReport', '✓ Berhasil mengunduh output_combined.xlsx.', 'success');
+    } catch (e) {
+        setStatus('statusKibanaReport', '⚠ ' + escHtml(e.message || String(e)), 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 function errToObj(e) {
     if (!e) return { message: 'Unknown error' };
     return {
@@ -1810,7 +1873,8 @@ async function renderScanBatch(lineResults, opts = {}) {
         const ph = document.getElementById('historyScanPlaceholder');
         const surf = document.getElementById('historyScanSurface');
         if (ph) ph.style.display = 'none';
-        if (surf) surf.style.display = '';
+        // #historyScanSurface defaults to display:none in CSS; empty string does not override — use explicit block.
+        if (surf) surf.style.display = 'block';
     }
 
     const res = document.getElementById(resId);

@@ -642,6 +642,18 @@
         #mergerDbSaveProgressFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-hl)); transition: width 0.22s ease; }
         #mergerDbSaveProgressLabel { font-size: 0.76rem; color: var(--text-sec); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
 
+        /* Daily EOD: labeled CSV slots */
+        .kiba-upload-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        @media (min-width: 720px) {
+            .kiba-upload-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
         /* VT / history counts + placeholders */
         .vt-result-count { margin-left: auto; font-size: 0.7rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; }
         .vt-placeholder { color: var(--text-sec); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; padding: 1rem; }

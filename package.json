@@ -10,7 +10,10 @@
     "format": "prettier --write \"api/**/*.js\""
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1"
+    "@supabase/supabase-js": "^2.49.1",
+    "busboy": "^1.6.0",
+    "csv-parse": "^6.2.1",
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
