@@ -981,6 +981,12 @@ async function mergerDbDeleteBatch() {
     }
 }
 
+function kibanaUpdateFileName(input, nameSpanId) {
+    const span = document.getElementById(nameSpanId);
+    const f = input && input.files && input.files[0];
+    if (span) span.textContent = f ? f.name : 'No file chosen';
+}
+
 async function kibanaCombinedSubmit() {
     clearStatus('statusKibanaReport');
     const fd = new FormData();

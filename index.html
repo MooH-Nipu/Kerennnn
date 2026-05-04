@@ -42,10 +42,11 @@
         <button id="tabBtn-dashboard" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dashboard" data-tab="tab-dashboard" onclick="openTab('tab-dashboard',this)">🏠 Dashboard</button>
         <button id="tabBtn-formatter" type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-formatter" data-tab="tab-formatter" onclick="openTab('tab-formatter',this)">📝 IP Formatter</button>
         <button id="tabBtn-merger" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger" data-tab="tab-merger" onclick="openTab('tab-merger',this)">🔗 JSON Merger</button>
-        <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)" style="display:none">PAC Filter</button>
-        <button id="tabBtn-kibana-report" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-kibana-report" data-tab="tab-kibana-report" onclick="openTab('tab-kibana-report',this)" style="display:none">📊 Daily EOD</button>
         <button id="tabBtn-vt" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-vt" data-tab="tab-vt" onclick="openTab('tab-vt',this)">🛡️ IoC Scan</button>
         <button id="tabBtn-history" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-history" data-tab="tab-history" onclick="openTab('tab-history',this)">📜 Riwayat Scan</button>
+        <span class="tab-nav-spacer" aria-hidden="true"></span>
+        <button id="tabBtn-merger-db" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-merger-db" data-tab="tab-merger-db" onclick="openTab('tab-merger-db',this)" style="display:none">PAC Filter</button>
+        <button id="tabBtn-kibana-report" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-kibana-report" data-tab="tab-kibana-report" onclick="openTab('tab-kibana-report',this)" style="display:none">📊 Daily EOD</button>
     </nav>
 
     <!-- TAB: DASHBOARD (Watchfloor-style) -->
@@ -257,8 +258,8 @@
 
     <!-- TAB: Daily EOD report (YCCA) -->
     <div id="tab-kibana-report" class="tab-content" role="tabpanel" aria-labelledby="tabBtn-kibana-report">
-        <div class="grid">
-            <div class="card">
+        <div class="grid kiba-eod-layout">
+            <div class="card kiba-eod-card">
                 <div class="card-title"><span class="dot"></span> Daily EOD</div>
                 <p class="history-hint compact">Unggah hanya file yang dibutuhkan. Workbook hanya berisi sheet untuk CSV yang diisi: <strong>DCI</strong>, <strong>BPRKS</strong>, <strong>PAC</strong>, <strong>SMI</strong> (dari export <strong>Daily</strong>). Akses sama seperti PAC Filter (login YCCA jika auth di server aktif).</p>
                 <div class="fg">
@@ -266,25 +267,41 @@
                     <input type="text" id="kibanaPicName" placeholder="Yarid" autocomplete="off" />
                 </div>
                 <div class="kiba-upload-grid">
-                    <div class="fg">
-                        <label for="kibanaFileDci">DCI (.csv)</label>
-                        <input type="file" id="kibanaFileDci" accept=".csv,text/csv" />
+                    <div class="fg kiba-file-field">
+                        <span class="kiba-file-title">DCI (.csv)</span>
+                        <div class="kiba-file-row">
+                            <input type="file" id="kibanaFileDci" class="kiba-file-input" accept=".csv,text/csv" onchange="kibanaUpdateFileName(this,'kibanaFileDciName')" />
+                            <label for="kibanaFileDci" class="kiba-file-pill-btn">Browse</label>
+                            <span class="kiba-file-name" id="kibanaFileDciName">No file chosen</span>
+                        </div>
                     </div>
-                    <div class="fg">
-                        <label for="kibanaFileBprks">BPRKS (.csv)</label>
-                        <input type="file" id="kibanaFileBprks" accept=".csv,text/csv" />
+                    <div class="fg kiba-file-field">
+                        <span class="kiba-file-title">BPRKS (.csv)</span>
+                        <div class="kiba-file-row">
+                            <input type="file" id="kibanaFileBprks" class="kiba-file-input" accept=".csv,text/csv" onchange="kibanaUpdateFileName(this,'kibanaFileBprksName')" />
+                            <label for="kibanaFileBprks" class="kiba-file-pill-btn">Browse</label>
+                            <span class="kiba-file-name" id="kibanaFileBprksName">No file chosen</span>
+                        </div>
                     </div>
-                    <div class="fg">
-                        <label for="kibanaFilePac">PAC (.csv)</label>
-                        <input type="file" id="kibanaFilePac" accept=".csv,text/csv" />
+                    <div class="fg kiba-file-field">
+                        <span class="kiba-file-title">PAC (.csv)</span>
+                        <div class="kiba-file-row">
+                            <input type="file" id="kibanaFilePac" class="kiba-file-input" accept=".csv,text/csv" onchange="kibanaUpdateFileName(this,'kibanaFilePacName')" />
+                            <label for="kibanaFilePac" class="kiba-file-pill-btn">Browse</label>
+                            <span class="kiba-file-name" id="kibanaFilePacName">No file chosen</span>
+                        </div>
                     </div>
-                    <div class="fg">
-                        <label for="kibanaFileDaily">Daily → SMI (.csv)</label>
-                        <input type="file" id="kibanaFileDaily" accept=".csv,text/csv" />
+                    <div class="fg kiba-file-field">
+                        <span class="kiba-file-title">Daily → SMI (.csv)</span>
+                        <div class="kiba-file-row">
+                            <input type="file" id="kibanaFileDaily" class="kiba-file-input" accept=".csv,text/csv" onchange="kibanaUpdateFileName(this,'kibanaFileDailyName')" />
+                            <label for="kibanaFileDaily" class="kiba-file-pill-btn">Browse</label>
+                            <span class="kiba-file-name" id="kibanaFileDailyName">No file chosen</span>
+                        </div>
                     </div>
                 </div>
                 <div class="btn-row">
-                    <button type="button" class="btn btn-primary" id="kibanaSubmitBtn" onclick="kibanaCombinedSubmit()">Unduh output_combined.xlsx</button>
+                    <button type="button" class="btn btn-primary" id="kibanaSubmitBtn" onclick="kibanaCombinedSubmit()">Download</button>
                 </div>
                 <div id="statusKibanaReport" class="status" role="status" aria-live="polite"></div>
             </div>
