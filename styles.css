@@ -696,13 +696,6 @@
         #tab-kibana-report input[type='time']:hover {
             border-color: rgba(47, 126, 247, 0.45);
         }
-        .kiba-time-hint {
-            font-size: 0.72rem;
-            color: var(--text-sec);
-            line-height: 1.4;
-            margin: 0 0 0.75rem;
-            max-width: 100%;
-        }
 
         .kiba-date-field-label {
             display: flex;
