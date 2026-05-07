@@ -85,10 +85,27 @@
         .btn:active:not(:disabled) { transform: translateY(1px); }
 
         .output-wrap { position: relative; flex-grow: 1; display: flex; flex-direction: column; }
+        .output-wrap > .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 1;
+        }
         .output-code { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; color: var(--text-code); white-space: pre-wrap; word-break: break-all; flex-grow: 1; min-height: 180px; overflow-y: auto; }
         .output-code.tall { min-height: 340px; }
         .output-code.result-yellow { color: var(--yellow); }
-        .copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.07); color: var(--text-sec); border: 1px solid var(--border); padding: 4px 10px; font-size: 0.72rem; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: 'Syne', sans-serif; }
+        .copy-btn {
+            background: rgba(255,255,255,0.07);
+            color: var(--text-sec);
+            border: 1px solid var(--border);
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Syne', sans-serif;
+        }
         .copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-pri); }
         .copy-btn.copied { background: rgba(15,186,129,0.2); color: var(--green); border-color: var(--green); }
 
@@ -241,8 +258,6 @@
         .vt-dd-sub { font-size: 0.72rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; font-weight: 600; margin-left:auto; }
         .vt-select { width: 16px; height: 16px; }
         .vt-header-actions { display:inline-flex; gap:6px; align-items:center; }
-        .vt-copy-ioc { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-sec); padding: 5px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; font-family: 'Syne', sans-serif; transition: all 0.18s; }
-        .vt-copy-ioc:hover { color: var(--text-pri); border-color: rgba(47,126,247,0.4); background: rgba(47,126,247,0.1); }
 
         .spinner { width: 14px; height: 14px; border: 2px solid rgba(56,189,248,0.25); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }

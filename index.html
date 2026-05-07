@@ -162,7 +162,7 @@
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Hasil Format (IP; IP)</div>
                 <div class="output-wrap">
-                    <button id="copyBtnList" class="copy-btn" style="display:none" onclick="copyText('outputList','copyBtnList')">COPY</button>
+                    <button type="button" id="copyBtnList" class="copy-btn" style="display:none" onclick="copyText('outputList','copyBtnList')">COPY</button>
                     <div id="outputList" class="output-code tall result-yellow">Hasil konversi akan muncul di sini...</div>
                 </div>
             </div>
@@ -190,7 +190,7 @@
             <div class="card">
                 <div class="card-title"><span class="dot"></span> Hasil JSON Terupdate</div>
                 <div class="output-wrap">
-                    <button id="copyBtnJson" class="copy-btn" style="display:none" onclick="copyText('outputJson','copyBtnJson')">COPY</button>
+                    <button type="button" id="copyBtnJson" class="copy-btn" style="display:none" onclick="copyText('outputJson','copyBtnJson')">COPY</button>
                     <pre id="outputJson" class="output-code tall">{ // Hasil JSON akan muncul di sini... }</pre>
                 </div>
             </div>
@@ -251,7 +251,7 @@
                 <button type="button" class="btn btn-secondary" onclick="mergerDbRebuildOutputs(_mergerDbLastItems)">Bangun ulang output</button>
             </div>
             <div class="output-wrap u-mt-12">
-                <button id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
+                <button type="button" id="copyBtnJsonDb" class="copy-btn" style="display:none" onclick="copyText('outputJsonDb','copyBtnJsonDb')">COPY</button>
                 <pre id="outputJsonDb" class="output-code tall">{ }</pre>
             </div>
         </div>

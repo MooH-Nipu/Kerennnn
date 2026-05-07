@@ -1396,6 +1396,21 @@ async function vtCopyToClipboard(text) {
     }
 }
 
+/** Same feedback as copyText(): flash ✓ COPIED on the button (IoC result cards). */
+async function vtCopyFromBtn(ev, text) {
+    ev.stopPropagation();
+    const btn = ev.currentTarget;
+    if (!btn) return;
+    await vtCopyToClipboard(text);
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED';
+    btn.classList.add('copied');
+    setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+    }, 2000);
+}
+
 async function vtCopySelected() {
     const items = vtGetSelectedItems();
     if (!items.length) { vtNotify('⚠ Tidak ada item yang dipilih.', 'error'); return; }
@@ -1599,7 +1614,7 @@ function renderHash(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IOC.','success');">COPY</button>
+            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
         </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1656,7 +1671,7 @@ function renderIP(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IP.','success');">COPY</button>
+            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1711,7 +1726,7 @@ function renderDomain(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied domain.','success');">COPY</button>
+            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
         </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1774,7 +1789,7 @@ function renderErr(ioc, type, err, collapsed=false, correlationData=null) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button class="vt-copy-ioc" onclick="event.stopPropagation();vtCopyToClipboard('${escHtml(ioc)}');vtNotify('✓ Copied IOC.','success');">COPY</button>
+            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
