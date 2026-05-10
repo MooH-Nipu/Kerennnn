@@ -656,6 +656,7 @@ const VT_EXPORT_PRESETS = {
 let _mergerDbLastItems = [];
 let _mergerDbDidAutoRefresh = false;
 const MERGER_DB_POST_CHUNK = 40;
+const LS_MERGER_API_PASSWORD = 'socToolboxMergerApiPassword';
 
 /** Samakan dengan api/_ioc.js — normalisasi sebelum cek duplikat / DB. */
 function mergerDbExtractIoc(raw) {
@@ -767,7 +768,22 @@ function mergerDbHideSaveProgress() {
 }
 
 function mergerDbAuthHeaders() {
-    return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    try {
+        const p = localStorage.getItem(LS_MERGER_API_PASSWORD);
+        if (p != null && String(p).length) h['X-Merger-Password'] = String(p);
+    } catch (e) {}
+    return h;
+}
+
+function mergerDbPersistApiPasswordField() {
+    const el = document.getElementById('mergerDbApiPassword');
+    if (!el) return;
+    const v = el.value != null ? String(el.value) : '';
+    try {
+        if (v) localStorage.setItem(LS_MERGER_API_PASSWORD, v);
+        else localStorage.removeItem(LS_MERGER_API_PASSWORD);
+    } catch (e) {}
 }
 
 function mergerDbSyncTermsCustomVisibility() {
@@ -1614,7 +1630,7 @@ function renderHash(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
+            <button type="button" class="copy-btn" onclick='vtCopyFromBtn(event, ${JSON.stringify(ioc)})'>COPY</button>
         </span>
         <span class="vt-type-badge badge-hash">${hashLabel(ioc.length)}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1671,7 +1687,7 @@ function renderIP(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
+            <button type="button" class="copy-btn" onclick='vtCopyFromBtn(event, ${JSON.stringify(ioc)})'>COPY</button>
         </span>
         <span class="vt-type-badge badge-ip">IP ADDRESS</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1726,7 +1742,7 @@ function renderDomain(ioc, d, collapsed=false) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
+            <button type="button" class="copy-btn" onclick='vtCopyFromBtn(event, ${JSON.stringify(ioc)})'>COPY</button>
         </span>
         <span class="vt-type-badge badge-domain">DOMAIN</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -1789,7 +1805,7 @@ function renderErr(ioc, type, err, collapsed=false, correlationData=null) {
     const header = `
         <span class="vt-header-actions" onclick="event.stopPropagation()">
             <input class="vt-select" type="checkbox" onclick="event.stopPropagation();vtSetSelected(${_cardIdx}, this.checked)"/>
-            <button type="button" class="copy-btn" onclick="vtCopyFromBtn(event, ${JSON.stringify(ioc)})">COPY</button>
+            <button type="button" class="copy-btn" onclick='vtCopyFromBtn(event, ${JSON.stringify(ioc)})'>COPY</button>
         </span>
         <span class="vt-type-badge ${badgeCls}">${badgeLbl}</span>
         <span class="vt-ioc-val">${escHtml(ioc)}</span>
@@ -2143,6 +2159,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearVT();
             }
         });
+    }
+
+    const mergerDbApiPw = document.getElementById('mergerDbApiPassword');
+    if (mergerDbApiPw) {
+        try {
+            const s = localStorage.getItem(LS_MERGER_API_PASSWORD);
+            if (s) mergerDbApiPw.value = s;
+        } catch (e) {}
+        mergerDbApiPw.addEventListener('blur', mergerDbPersistApiPasswordField);
+        mergerDbApiPw.addEventListener('input', mergerDbPersistApiPasswordField);
     }
 
     const mergerTermsPreset = document.getElementById('mergerDbTermsPreset');
