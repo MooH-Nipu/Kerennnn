@@ -656,7 +656,6 @@ const VT_EXPORT_PRESETS = {
 let _mergerDbLastItems = [];
 let _mergerDbDidAutoRefresh = false;
 const MERGER_DB_POST_CHUNK = 40;
-const LS_MERGER_API_PASSWORD = 'socToolboxMergerApiPassword';
 
 /** Samakan dengan api/_ioc.js — normalisasi sebelum cek duplikat / DB. */
 function mergerDbExtractIoc(raw) {
@@ -768,22 +767,7 @@ function mergerDbHideSaveProgress() {
 }
 
 function mergerDbAuthHeaders() {
-    const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    try {
-        const p = localStorage.getItem(LS_MERGER_API_PASSWORD);
-        if (p != null && String(p).length) h['X-Merger-Password'] = String(p);
-    } catch (e) {}
-    return h;
-}
-
-function mergerDbPersistApiPasswordField() {
-    const el = document.getElementById('mergerDbApiPassword');
-    if (!el) return;
-    const v = el.value != null ? String(el.value) : '';
-    try {
-        if (v) localStorage.setItem(LS_MERGER_API_PASSWORD, v);
-        else localStorage.removeItem(LS_MERGER_API_PASSWORD);
-    } catch (e) {}
+    return { 'Content-Type': 'application/json', 'Accept': 'application/json' };
 }
 
 function mergerDbSyncTermsCustomVisibility() {
@@ -2159,16 +2143,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearVT();
             }
         });
-    }
-
-    const mergerDbApiPw = document.getElementById('mergerDbApiPassword');
-    if (mergerDbApiPw) {
-        try {
-            const s = localStorage.getItem(LS_MERGER_API_PASSWORD);
-            if (s) mergerDbApiPw.value = s;
-        } catch (e) {}
-        mergerDbApiPw.addEventListener('blur', mergerDbPersistApiPasswordField);
-        mergerDbApiPw.addEventListener('input', mergerDbPersistApiPasswordField);
     }
 
     const mergerTermsPreset = document.getElementById('mergerDbTermsPreset');
