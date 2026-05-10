@@ -206,6 +206,11 @@
                 <div class="card-title"><span class="dot"></span> Simpan IP ke database</div>
                 <p class="history-hint compact">Satu <strong>IP per baris</strong> (IPv4 / IPv6). Server hanya menyimpan IP yang valid; baris kosong diabaikan. <strong>IP yang sudah ada di database tidak akan disimpan lagi</strong> (dilewati). Hanya IP baru yang ditambahkan.</p>
                 <div class="fg">
+                    <label for="mergerDbApiPassword">Password API PAC Filter (opsional)</label>
+                    <input type="password" id="mergerDbApiPassword" autocomplete="current-password" placeholder="Hanya jika MERGER_API_PASSWORD diset di server" />
+                    <p class="history-hint compact">Jika environment <code>MERGER_API_PASSWORD</code> aktif, isi sama di sini agar Refresh / Simpan / Hapus ke <code>/api/scan-merger</code> berhasil. Disimpan di browser (localStorage).</p>
+                </div>
+                <div class="fg">
                     <label for="mergerDbItemsInput">Daftar IP</label>
                     <textarea id="mergerDbItemsInput" rows="10" placeholder="203.0.113.10&#10;198.51.100.2&#10;2001:db8::1"></textarea>
                     <p id="mergerDbInputPreview" class="history-hint compact">Pratinjau: belum ada isian.</p>
