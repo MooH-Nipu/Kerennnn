@@ -3,7 +3,8 @@ import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, Recen
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: string }).error || `HTTP ${res.status}`);
+  const e = (json as { error?: string | { message?: string } }).error;
+  if (!res.ok) throw new Error(typeof e === 'string' ? e : e?.message || `HTTP ${res.status}`);
   return json as T;
 }
 
