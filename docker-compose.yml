@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      # Set COOKIE_SECURE=false if you're not terminating TLS at this container
+      # (e.g. your reverse proxy handles HTTPS upstream)
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+    restart: unless-stopped

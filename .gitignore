@@ -5,3 +5,10 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# AI / IDE tooling — local dev only
+CLAUDE.md
+.claude/
+.wolf/
+.cursor/
+.codegraph/

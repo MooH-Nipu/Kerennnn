@@ -133,6 +133,17 @@ function requireAuth(req, res) {
   return true;
 }
 
+function requireRole(req, res, allowedRoles) {
+  if (!requireAuth(req, res)) return false;
+  if (!allowedRoles.includes(req.auth.role)) {
+    res.statusCode = 403;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Forbidden' }));
+    return false;
+  }
+  return true;
+}
+
 async function readJsonBody(req) {
   if (req.body != null && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
     return req.body;
@@ -162,6 +173,7 @@ module.exports = {
   makeSessionToken,
   verifySessionToken,
   requireAuth,
+  requireRole,
   readJsonBody,
 };
 
