@@ -1526,6 +1526,130 @@
   color: var(--accent, #3b82f6);
 }
 
+/* ============================================================
+   PAC Filter — sections + SIEM query builder
+   ============================================================ */
+.pac-section {
+  margin-bottom: 1.5rem;
+}
+
+.pac-section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f9a);
+  margin-bottom: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pac-section-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--accent, #3b82f6);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.siem-section {
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: var(--bg-surface, #0d1525);
+}
+
+/* Field selector row */
+.siem-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.siem-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted, #6b7f9a);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.siem-field-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.siem-field-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  padding: 0.3rem 0.625rem;
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #a3b3cc);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.siem-field-option:has(input:checked) {
+  border-color: var(--accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-primary, #e8f0fe);
+}
+
+.siem-field-option input[type="radio"] {
+  accent-color: var(--accent, #3b82f6);
+  width: 13px;
+  height: 13px;
+}
+
+.siem-custom-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  max-width: 220px;
+  padding: 0.3rem 0.625rem;
+}
+
+/* Query output header */
+.siem-query-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.siem-query-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7f9a);
+}
+
+.siem-active-field {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.siem-query-output {
+  font-size: 0.75rem !important;
+  line-height: 1.55 !important;
+}
+
+.siem-empty {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7f9a);
+  padding: 0.5rem 0;
+}
+
 /* ---------- Dashboard table cleanup ---------- */
 .dash-table th {
   text-align: left;
