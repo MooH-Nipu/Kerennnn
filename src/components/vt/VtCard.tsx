@@ -8,9 +8,11 @@ import { CopyButton } from '../shared/CopyButton';
 
 interface Props {
   item: ScanItem;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function VtCard({ item }: Props) {
+export function VtCard({ item, selected, onToggleSelect }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (item.pending) {
@@ -24,33 +26,50 @@ export function VtCard({ item }: Props) {
     );
   }
 
-  if (item.error) {
-    return <ErrorCard item={item} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />;
-  }
+  const shellProps = {
+    collapsed,
+    onToggle: () => setCollapsed(c => !c),
+    selected,
+    onToggleSelect,
+  };
 
-  const type = item.type;
-  if (type === 'ip')     return <IpCard     item={item} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />;
-  if (type === 'hash')   return <HashCard   item={item} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />;
-  if (type === 'domain') return <DomainCard item={item} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />;
-  return <ErrorCard item={item} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />;
+  if (item.error)        return <ErrorCard  item={item} {...shellProps} />;
+  if (item.type === 'ip')     return <IpCard     item={item} {...shellProps} />;
+  if (item.type === 'hash')   return <HashCard   item={item} {...shellProps} />;
+  if (item.type === 'domain') return <DomainCard item={item} {...shellProps} />;
+  return <ErrorCard item={item} {...shellProps} />;
 }
 
 interface CardProps {
   item: ScanItem;
   collapsed: boolean;
   onToggle: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-function CardShell({ header, body, corr, collapsed, onToggle }: {
+function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggleSelect }: {
   header: React.ReactNode;
   body: React.ReactNode;
   corr: ScanItem;
   collapsed: boolean;
   onToggle: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   return (
-    <div className="vt-card">
+    <div className={`vt-card${selected ? ' vt-card--selected' : ''}`}>
       <div className="vt-card-header" onClick={onToggle}>
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            className="vt-select"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            onClick={e => e.stopPropagation()}
+            title="Select for copy"
+          />
+        )}
         <span className={`vt-chevron${collapsed ? '' : ' open'}`}>›</span>
         {header}
       </div>
@@ -64,7 +83,7 @@ function CardShell({ header, body, corr, collapsed, onToggle }: {
   );
 }
 
-function IpCard({ item, collapsed, onToggle }: CardProps) {
+function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
@@ -90,7 +109,16 @@ function IpCard({ item, collapsed, onToggle }: CardProps) {
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" className="copy-btn-small" />
         {stableId && (
-          <a className="vt-cached-btn" href={`/result/${stableId}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>↗</a>
+          <a
+            className="vt-detail-btn"
+            href={`/result/${stableId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            title={`UUID: ${stableId}`}
+          >
+            🔍 Analisa Mendalam
+          </a>
         )}
       </span>
     </>
@@ -116,10 +144,10 @@ function IpCard({ item, collapsed, onToggle }: CardProps) {
     </>
   );
 
-  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} />;
+  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function HashCard({ item, collapsed, onToggle }: CardProps) {
+function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
@@ -163,10 +191,10 @@ function HashCard({ item, collapsed, onToggle }: CardProps) {
     </>
   );
 
-  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} />;
+  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function DomainCard({ item, collapsed, onToggle }: CardProps) {
+function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
@@ -211,10 +239,10 @@ function DomainCard({ item, collapsed, onToggle }: CardProps) {
     </>
   );
 
-  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} />;
+  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function ErrorCard({ item, collapsed, onToggle }: CardProps) {
+function ErrorCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const type = item.type ?? 'unknown';
   const badgeCls = type === 'ip' ? 'badge-ip' : type === 'domain' ? 'badge-domain' : 'badge-hash';
 
@@ -235,5 +263,5 @@ function ErrorCard({ item, collapsed, onToggle }: CardProps) {
     </div>
   );
 
-  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} />;
+  return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }

@@ -30,9 +30,9 @@ export function useMergerDb() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.mergerDb.get(password || undefined) as { data?: MergerItem[] };
-      setItems(res.data ?? []);
-      setStatusMsg(`✓ ${(res.data ?? []).length} IP dimuat dari DB.`);
+      const res = await api.mergerDb.get(password || undefined) as { items?: MergerItem[] };
+      setItems(res.items ?? []);
+      setStatusMsg(`✓ ${(res.items ?? []).length} IP dimuat dari DB.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

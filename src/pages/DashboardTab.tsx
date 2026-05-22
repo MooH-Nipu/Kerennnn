@@ -27,7 +27,7 @@ export function DashboardTab({ onScanIp }: Props) {
     setLoading(true);
     try {
       const res = await api.ipCache.recent(50);
-      setItems(res.data ?? []);
+      setItems(res.items ?? []);
       setLastRefreshed(new Date());
     } catch { /* ignore */ }
     finally { setLoading(false); }
