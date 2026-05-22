@@ -610,6 +610,7 @@
 
 /* ---------- Tab Content ---------- */
 .tab-content {
+  display: block; /* override legacy styles.css display:none — React renders only the active tab */
   color: var(--text-secondary, #a3b3cc);
 }
 
