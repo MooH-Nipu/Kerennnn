@@ -70,7 +70,7 @@ export const api = {
           'Content-Type': 'application/json',
           ...(password ? { 'X-Merger-Password': password } : {}),
         },
-        body: JSON.stringify({ ips }),
+        body: JSON.stringify({ items: ips.map(ip => ({ ip })) }),
       }),
     delete: (ips: string[], password?: string) =>
       apiFetch<Record<string, unknown>>('/api/scan-merger', {
