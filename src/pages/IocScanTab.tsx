@@ -158,13 +158,15 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
               )}
             </div>
           </form>
+
+          {/* Status lives in the left panel — never pushes the results column */}
+          {statusMsg && (
+            <div className={`ioc-status-inline ioc-status-inline--${statusType}`}>{statusMsg}</div>
+          )}
         </aside>
 
         {/* ── RIGHT: results ──────────────────────────────────── */}
         <section className="ioc-scan-results" ref={resultsRef}>
-          {statusMsg && (
-            <div className={`scan-status scan-status--${statusType}`}>{statusMsg}</div>
-          )}
 
           {!hasResults && !scanning && (
             <div className="ioc-scan-empty">

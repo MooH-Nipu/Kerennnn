@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { fmtWhen, fmtDate } from '../lib/utils';
 import type { RecentIp } from '../types/api';
 import { Spinner } from '../components/shared/Spinner';
@@ -20,7 +19,6 @@ function verdictCls(v: string | null): string {
 export function DashboardTab({ onScanIp }: Props) {
   const [items, setItems] = useState<RecentIp[]>([]);
   const [loading, setLoading] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const fetchRecent = useCallback(async () => {
@@ -35,8 +33,6 @@ export function DashboardTab({ onScanIp }: Props) {
 
   useEffect(() => { fetchRecent(); }, [fetchRecent]);
 
-  useAutoRefresh(fetchRecent, 60_000, autoRefresh);
-
   const malCount   = items.filter(i => i.vt_verdict === 'malicious').length;
   const susCount   = items.filter(i => i.vt_verdict === 'suspicious').length;
   const cleanCount = items.filter(i => i.vt_verdict === 'clean').length;
@@ -48,20 +44,14 @@ export function DashboardTab({ onScanIp }: Props) {
         {lastRefreshed && (
           <span className="line-count">Updated {fmtWhen(lastRefreshed.toISOString())}</span>
         )}
-      </div>
-
-      <div className="dash-controls">
-        <button className="btn btn-ghost" onClick={fetchRecent} disabled={loading}>
-          {loading ? <Spinner size={14} /> : '↻'} Refresh
+        <button
+          className="btn btn-ghost"
+          onClick={fetchRecent}
+          disabled={loading}
+          style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.78rem' }}
+        >
+          {loading ? <Spinner size={12} /> : '↻ Refresh'}
         </button>
-        <label className="dash-toggle">
-          <input
-            type="checkbox"
-            checked={autoRefresh}
-            onChange={e => setAutoRefresh(e.target.checked)}
-          />
-          Auto-refresh (60s)
-        </label>
       </div>
 
       {items.length > 0 && (
@@ -76,10 +66,10 @@ export function DashboardTab({ onScanIp }: Props) {
         <table className="dash-table">
           <thead>
             <tr>
-              <th>IP Address</th>
-              <th>Verdict</th>
-              <th>Confidence</th>
-              <th>First Scanned</th>
+              <th style={{ width: '36%' }}>IP Address</th>
+              <th style={{ width: '16%' }}>Verdict</th>
+              <th style={{ width: '14%' }}>Confidence</th>
+              <th style={{ width: '34%' }}>First Scanned</th>
             </tr>
           </thead>
           <tbody>
@@ -88,29 +78,35 @@ export function DashboardTab({ onScanIp }: Props) {
                 key={item.ip}
                 className="dash-row"
                 onClick={() => onScanIp?.(item.ip)}
-                title={`Klik untuk scan ${item.ip}`}
+                title={`Klik untuk scan ulang ${item.ip}`}
               >
-                <td className="dash-ip">
-                  <span className="mono">{item.ip}</span>
-                </td>
+                <td className="mono" style={{ color: 'var(--text-primary, #e8f0fe)' }}>{item.ip}</td>
                 <td>
                   <span className={verdictCls(item.vt_verdict)}>
                     {(item.vt_verdict ?? 'unknown').toUpperCase()}
                   </span>
                 </td>
-                <td>
-                  {item.corr_confidence !== null
-                    ? <span className="mono">{item.corr_confidence}%</span>
-                    : <span className="text-muted">—</span>
-                  }
+                <td className="mono" style={{ color: 'var(--text-secondary, #a3b3cc)' }}>
+                  {item.corr_confidence !== null ? `${item.corr_confidence}%` : '—'}
                 </td>
-                <td className="dash-when">
+                <td style={{ color: 'var(--text-muted, #6b7f9a)', fontSize: '0.8rem' }}>
                   <span title={fmtDate(item.first_scanned_at)}>{fmtWhen(item.first_scanned_at)}</span>
                 </td>
               </tr>
             ))}
             {!loading && items.length === 0 && (
-              <tr><td colSpan={4} className="dash-empty">Belum ada data. Scan IP untuk melihat riwayat.</td></tr>
+              <tr>
+                <td colSpan={4} className="dash-empty">
+                  Belum ada data. Scan IP untuk melihat riwayat.
+                </td>
+              </tr>
+            )}
+            {loading && items.length === 0 && (
+              <tr>
+                <td colSpan={4} className="dash-empty">
+                  <Spinner size={16} />
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

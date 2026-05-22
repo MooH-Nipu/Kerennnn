@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function VtCard({ item, selected, onToggleSelect }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (item.pending) {
     return (
