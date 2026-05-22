@@ -19,7 +19,7 @@ export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'merger':      null,
   'ioc-scan':    null,
   'history':     null,
-  'pac-filter':  ['pac', 'charlie'],
+  'pac-filter':  ['admin', 'pac', 'charlie'],
   'daily-eod':   null,
   'admin-users': ['admin'],
 };
@@ -39,8 +39,8 @@ export type Action =
 
 export const ACTION_ACCESS: Record<Action, Role[] | null> = {
   'manage:users':     ['admin'],
-  'write:pac-filter': ['pac', 'charlie'],
-  'read:pac-filter':  ['pac', 'charlie'],
+  'write:pac-filter': ['admin', 'pac', 'charlie'],
+  'read:pac-filter':  ['admin', 'pac', 'charlie'],
   'export:pdf':       null,
   'export:csv':       null,
 };

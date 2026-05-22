@@ -1497,3 +1497,50 @@
   filter: brightness(1.15);
   transform: translateY(-1px);
 }
+
+/* ---------- IoC scan inline status (left panel, never pushes results) ---------- */
+.ioc-status-inline {
+  margin-top: 0.625rem;
+  padding: 0.4rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  border-left: 3px solid transparent;
+}
+
+.ioc-status-inline--success {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: #10b981;
+  color: #10b981;
+}
+
+.ioc-status-inline--error {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: #ef4444;
+  color: #ef4444;
+}
+
+.ioc-status-inline--loading {
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: var(--accent, #3b82f6);
+  color: var(--accent, #3b82f6);
+}
+
+/* ---------- Dashboard table cleanup ---------- */
+.dash-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f9a);
+  border-bottom: 1px solid var(--border, #1a2a45);
+  white-space: nowrap;
+}
+
+.dash-table td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(26, 42, 69, 0.5);
+}
