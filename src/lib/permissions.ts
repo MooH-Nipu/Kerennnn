@@ -3,7 +3,6 @@ import type { Role } from '../types/api';
 export const ROLES = ['admin', 'pac', 'charlie', 'l1', 'l2'] as const;
 
 export type TabId =
-  | 'dashboard'
   | 'formatter'
   | 'merger'
   | 'ioc-scan'
@@ -14,7 +13,6 @@ export type TabId =
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
-  'dashboard':   null,
   'formatter':   null,
   'merger':      null,
   'ioc-scan':    null,
