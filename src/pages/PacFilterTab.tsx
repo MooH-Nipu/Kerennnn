@@ -62,15 +62,6 @@ export function PacFilterTab({ onCountChange }: Props) {
       <div className="section-header">
         <h2>PAC Filter</h2>
         {itemCount > 0 && <span className="line-count">{itemCount} IP</span>}
-        <button
-          className="btn btn-ghost btn-sm pac-refresh-btn"
-          onClick={refresh}
-          disabled={loading}
-          title="Refresh DB"
-          aria-label="Refresh DB"
-        >
-          {loading ? <Spinner size={12} /> : '↻'}
-        </button>
       </div>
 
       {(error || statusMsg) && (
@@ -81,89 +72,107 @@ export function PacFilterTab({ onCountChange }: Props) {
         />
       )}
 
-      <div className="pac-section">
-        <div className="pac-section-title">Tambah IP</div>
-        <div className="form-group" style={{ marginBottom: '0.5rem' }}>
-          <textarea
-            className="form-textarea"
-            placeholder={'192.168.1.1\n10.0.0.2'}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            rows={3}
-            disabled={posting}
-          />
-        </div>
-        <div className="tab-actions">
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting}>
-            {posting && progress ? `Posting… (${progress.done}/${progress.total})` : 'Submit ke DB'}
-          </button>
-          {items.length > 0 && (
+      <div className="pac-layout">
+        <aside className="pac-input-panel">
+          <div className="pac-section-title">Tambah IP</div>
+          <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+            <textarea
+              className="form-textarea"
+              placeholder={'192.168.1.1\n10.0.0.2'}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              rows={12}
+              disabled={posting}
+            />
+          </div>
+          <div className="tab-actions">
+            <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting}>
+              {posting && progress ? `Posting… (${progress.done}/${progress.total})` : 'Submit ke DB'}
+            </button>
             <button
               className="btn btn-ghost"
-              onClick={() => setDeleteModal(true)}
-              disabled={loading}
-              style={{ color: '#f87171' }}
+              onClick={refresh}
+              disabled={loading || posting}
+              title="Refresh DB"
             >
-              Hapus semua
+              {loading ? <Spinner size={14} /> : '↻ Refresh'}
+            </button>
+          </div>
+          {items.length > 0 && (
+            <button
+              type="button"
+              className="pac-delete-link"
+              onClick={() => setDeleteModal(true)}
+              disabled={loading || posting}
+            >
+              Hapus semua IP di DB
             </button>
           )}
-        </div>
-      </div>
+        </aside>
 
-      {items.length > 0 && (
-        <div className="pac-section siem-section">
+        <section className="pac-siem-panel">
           <div className="pac-section-title">
             SIEM Query
-            <span className="pac-section-hint">semua {itemCount} IP</span>
-          </div>
-
-          <div className="siem-field-row">
-            <span className="siem-field-label">Field</span>
-            <div className="siem-field-options">
-              {PRESET_FIELDS.map(opt => (
-                <label key={opt.value} className="siem-field-option">
-                  <input
-                    type="radio"
-                    name="siem-field"
-                    value={opt.value}
-                    checked={siemField === opt.value}
-                    onChange={() => setSiemField(opt.value)}
-                  />
-                  <code>{opt.label}</code>
-                </label>
-              ))}
-            </div>
-            {isCustom && (
-              <input
-                type="text"
-                className="form-input siem-custom-input"
-                placeholder="e.g. destination.ip"
-                value={customField}
-                onChange={e => setCustomField(e.target.value)}
-                autoFocus
-              />
+            {itemCount > 0 && (
+              <span className="pac-section-hint">semua {itemCount} IP</span>
             )}
           </div>
 
-          {siemQuery ? (
-            <>
-              <div className="siem-query-meta">
-                <code className="siem-active-field">{activeField}</code>
-                &nbsp;·&nbsp;{queryIps.length} IP
-              </div>
-              <OutputBox
-                value={siemQuery}
-                rows={12}
-                className="siem-query-output"
-              />
-            </>
+          {items.length === 0 ? (
+            <div className="pac-siem-empty">
+              Belum ada IP di database. Tambahkan IP di kiri lalu klik <strong>Submit ke DB</strong>.
+            </div>
           ) : (
-            isCustom && !customField.trim() && (
-              <div className="siem-empty">Masukkan nama field untuk generate query.</div>
-            )
+            <>
+              <div className="siem-field-row">
+                <span className="siem-field-label">Field</span>
+                <div className="siem-field-options">
+                  {PRESET_FIELDS.map(opt => (
+                    <label key={opt.value} className="siem-field-option">
+                      <input
+                        type="radio"
+                        name="siem-field"
+                        value={opt.value}
+                        checked={siemField === opt.value}
+                        onChange={() => setSiemField(opt.value)}
+                      />
+                      <code>{opt.label}</code>
+                    </label>
+                  ))}
+                </div>
+                {isCustom && (
+                  <input
+                    type="text"
+                    className="form-input siem-custom-input"
+                    placeholder="e.g. destination.ip"
+                    value={customField}
+                    onChange={e => setCustomField(e.target.value)}
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              {siemQuery ? (
+                <>
+                  <div className="siem-query-meta">
+                    <code className="siem-active-field">{activeField}</code>
+                    &nbsp;·&nbsp;{queryIps.length} IP
+                  </div>
+                  <OutputBox
+                    value={siemQuery}
+                    rows={16}
+                    className="siem-query-output"
+                  />
+                </>
+              ) : (
+                isCustom && !customField.trim() && (
+                  <div className="siem-empty">Masukkan nama field untuk generate query.</div>
+                )
+              )}
+            </>
           )}
-        </div>
-      )}
+        </section>
+      </div>
 
       <Modal
         open={deleteModal}
