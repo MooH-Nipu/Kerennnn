@@ -15,7 +15,8 @@ export function extractIOC(raw: string): string {
   }
 
   s = s.split('/')[0].split('?')[0].split('#')[0];
-  s = s.replace(/:(\d+)$/, '');
+  // Only strip port (`:digits`) for IPv4/domain — IPv6 has multiple colons so skip
+  if ((s.match(/:/g) ?? []).length <= 1) s = s.replace(/:(\d+)$/, '');
   s = s.replace(/\.$/, '');
   return s.toLowerCase();
 }
