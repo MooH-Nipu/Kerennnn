@@ -4,6 +4,7 @@ import { StatusMessage } from '../components/shared/StatusMessage';
 import { Modal } from '../components/shared/Modal';
 import { Spinner } from '../components/shared/Spinner';
 import { OutputBox } from '../components/shared/OutputBox';
+import { extractIOC, detectType } from '../lib/ioc';
 
 const PRESET_FIELDS = [
   { label: 'data.real_ip', value: 'data.real_ip' },
@@ -48,6 +49,19 @@ export function PacFilterTab({ onCountChange }: Props) {
 
   const queryIps = useMemo(() => items.map(i => i.ip), [items]);
 
+  // IP preview: parse input and classify each as new vs already in DB
+  const existingSet = useMemo(() => new Set(items.map(i => i.ip)), [items]);
+  const parsedInputIps = useMemo(() => {
+    if (!input.trim()) return [];
+    return [...new Set(
+      input.split('\n')
+        .map(s => extractIOC(s.trim()))
+        .filter((s): s is string => !!s && detectType(s) === 'ip')
+    )];
+  }, [input]);
+  const newIps = useMemo(() => parsedInputIps.filter(ip => !existingSet.has(ip)), [parsedInputIps, existingSet]);
+  const dupIps = useMemo(() => parsedInputIps.filter(ip => existingSet.has(ip)), [parsedInputIps, existingSet]);
+
   const siemQuery = useMemo(() => {
     if (!activeField || queryIps.length === 0) return '';
     return JSON.stringify(
@@ -85,9 +99,26 @@ export function PacFilterTab({ onCountChange }: Props) {
               disabled={posting}
             />
           </div>
+          {parsedInputIps.length > 0 && (
+            <div className="pac-ip-preview">
+              <div className="pac-ip-preview-summary">
+                {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} baru akan disimpan</span>}
+                {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} sudah ada di DB</span>}
+              </div>
+              <div className="pac-ip-chips">
+                {newIps.map(ip => (
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--new" title="Akan disimpan">{ip}</span>
+                ))}
+                {dupIps.map(ip => (
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Sudah ada di DB">{ip}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="tab-actions">
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting}>
-              {posting && progress ? `Posting… (${progress.done}/${progress.total})` : 'Submit ke DB'}
+            <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting || newIps.length === 0}>
+              {posting && progress ? `Posting… (${progress.done}/${progress.total})` : `Submit ${newIps.length > 0 ? `${newIps.length} IP` : ''} ke DB`}
             </button>
             <button
               className="btn btn-ghost"

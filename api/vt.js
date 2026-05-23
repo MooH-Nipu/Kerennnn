@@ -88,6 +88,43 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  // For IPs: short-circuit from DB cache — skip VT API call entirely
+  if (type === 'ip') {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const cutoffIso = dateMinusDaysIso(15);
+        const { data: cached } = await supabase
+          .from('vt_ip_cache')
+          .select('id,ip,vt_payload,vt_stats,vt_verdict,scan_count,first_scanned_at,last_scanned_at')
+          .eq('ip', ioc)
+          .gt('first_scanned_at', cutoffIso)
+          .maybeSingle();
+
+        if (cached && cached.vt_payload) {
+          return res.status(200).json({
+            data: { attributes: cached.vt_payload },
+            _meta: {
+              type: 'ip',
+              ioc,
+              original: rawIoc,
+              cache: {
+                enabled: true,
+                seenBefore: true,
+                stableId: cached.id || null,
+                scanCount: cached.scan_count || 0,
+                lastSeen: cached.last_scanned_at,
+                fromCache: true,
+              },
+            },
+          });
+        }
+      } catch {
+        // DB error — fall through to VT API
+      }
+    }
+  }
+
   const urlMap = {
     hash: `https://www.virustotal.com/api/v3/files/${encodeURIComponent(ioc)}`,
     ip: `https://www.virustotal.com/api/v3/ip_addresses/${encodeURIComponent(ioc)}`,

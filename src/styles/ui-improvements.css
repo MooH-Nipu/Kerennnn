@@ -1323,6 +1323,73 @@
   cursor: not-allowed;
 }
 
+/* ---------- PAC Filter — IP preview chips ---------- */
+.pac-ip-preview {
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255,255,255,0.03);
+}
+
+.pac-ip-preview-summary {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pac-ip-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 99px;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.pac-ip-badge--new {
+  background: rgba(20, 184, 166, 0.15);
+  color: #5eead4;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+.pac-ip-badge--dup {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-muted, #6b7f9a);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.pac-ip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.pac-ip-chip {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.pac-ip-chip--new {
+  background: rgba(20, 184, 166, 0.12);
+  color: #5eead4;
+  border: 1px solid rgba(20, 184, 166, 0.25);
+}
+
+.pac-ip-chip--dup {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-muted, #6b7f9a);
+  border: 1px solid rgba(255,255,255,0.07);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
 .pac-filter-tab .output-box {
   max-width: none;
 }
