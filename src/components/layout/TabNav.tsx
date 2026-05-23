@@ -12,14 +12,13 @@ interface TabDef {
 }
 
 const ALL_TABS: TabDef[] = [
-  { id: 'dashboard',   label: 'Dashboard',  shortLabel: 'Dash',   icon: '▣',  shortcut: 1 },
-  { id: 'formatter',   label: 'Formatter',  shortLabel: 'Fmt',    icon: '≋',  shortcut: 2 },
-  { id: 'merger',      label: 'Merger',     shortLabel: 'Merge',  icon: '⇄',  shortcut: 3 },
-  { id: 'ioc-scan',    label: 'IoC Scan',   shortLabel: 'Scan',   icon: '◎',  shortcut: 4 },
-  { id: 'history',     label: 'Riwayat',    shortLabel: 'Log',    icon: '≡',  shortcut: 5 },
-  { id: 'pac-filter',  label: 'PAC Filter', shortLabel: 'PAC',    icon: '⬡',  shortcut: 6 },
-  { id: 'daily-eod',   label: 'Daily EOD',  shortLabel: 'EOD',    icon: '▨',  shortcut: 7 },
-  { id: 'admin-users', label: 'Users',      shortLabel: 'Users',  icon: '⊕',  shortcut: 8 },
+  { id: 'formatter',   label: 'Formatter',  shortLabel: 'Fmt',    icon: '≋',  shortcut: 1 },
+  { id: 'merger',      label: 'Merger',     shortLabel: 'Merge',  icon: '⇄',  shortcut: 2 },
+  { id: 'ioc-scan',    label: 'IoC Scan',   shortLabel: 'Scan',   icon: '◎',  shortcut: 3 },
+  { id: 'history',     label: 'Riwayat',    shortLabel: 'Log',    icon: '≡',  shortcut: 4 },
+  { id: 'pac-filter',  label: 'PAC Filter', shortLabel: 'PAC',    icon: '⬡',  shortcut: 5 },
+  { id: 'daily-eod',   label: 'Daily EOD',  shortLabel: 'EOD',    icon: '▨',  shortcut: 6 },
+  { id: 'admin-users', label: 'Users',      shortLabel: 'Users',  icon: '⊕',  shortcut: 7 },
 ];
 
 function isTabVisible(tab: TabDef, role: Role): boolean {
@@ -100,5 +99,5 @@ export function getRestoredTab(role: Role): TabId {
       return saved;
     }
   } catch { /* ignore */ }
-  return 'dashboard';
+  return 'formatter';
 }

@@ -7,7 +7,6 @@ import { Spinner } from './components/shared/Spinner';
 import { useUiPrefs } from './hooks/useUiPrefs';
 import { getRestoredTab } from './components/layout/TabNav';
 import type { TabId } from './lib/permissions';
-import { DashboardTab } from './pages/DashboardTab';
 import { FormatterTab } from './pages/FormatterTab';
 import { MergerTab } from './pages/MergerTab';
 import { IocScanTab } from './pages/IocScanTab';
@@ -20,7 +19,7 @@ import { ResultPage } from './pages/ResultPage';
 function AppInner() {
   const { ready, authed, role, username } = useAuthState();
   const { compact, sidebar, toggleCompact, toggleSidebar } = useUiPrefs();
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('formatter');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
 
@@ -55,7 +54,6 @@ function AppInner() {
 
   function renderTabContent() {
     switch (activeTab) {
-      case 'dashboard':   return <DashboardTab onScanIp={ip => { setPendingIoc(ip); setActiveTab('ioc-scan'); }} />;
       case 'formatter':   return <FormatterTab />;
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
@@ -63,7 +61,7 @@ function AppInner() {
       case 'pac-filter':  return <PacFilterTab onCountChange={setPacFilterCount} />;
       case 'daily-eod':   return <DailyEodTab />;
       case 'admin-users': return <AdminUsersTab />;
-      default:            return <DashboardTab />;
+      default:            return <FormatterTab />;
     }
   }
 
