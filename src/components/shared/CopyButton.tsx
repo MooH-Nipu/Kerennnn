@@ -6,9 +6,16 @@ interface Props {
   label?: string;
   labelDone?: string;
   className?: string;
+  variant?: 'default' | 'overlay';
 }
 
-export function CopyButton({ text, label = 'Copy', labelDone = 'Copied!', className }: Props) {
+export function CopyButton({
+  text,
+  label = 'Copy',
+  labelDone = 'Copied!',
+  className,
+  variant = 'default',
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -19,9 +26,15 @@ export function CopyButton({ text, label = 'Copy', labelDone = 'Copied!', classN
     }
   }
 
+  const baseClass =
+    variant === 'overlay'
+      ? `copy-btn${copied ? ' copied' : ''}`
+      : `btn btn-ghost${copied ? ' btn-ghost--done' : ''}`;
+
   return (
     <button
-      className={`btn btn-ghost ${copied ? 'btn-ghost--done' : ''} ${className ?? ''}`}
+      type="button"
+      className={`${baseClass}${className ? ` ${className}` : ''}`}
       onClick={handleCopy}
       disabled={!text}
     >
