@@ -235,10 +235,10 @@
   flex-direction: column;
   width: 200px;
   flex-shrink: 0;
-  padding: 0.75rem 0.5rem;
+  padding: 0.625rem 0.5rem;
   background: var(--bg-surface, #0d1525);
   border-right: 1px solid var(--border, #1a2a45);
-  gap: 0.125rem;
+  gap: 0;
   overflow-y: auto;
 }
 
@@ -276,9 +276,26 @@
   border-radius: 6px 6px 0 0;
 }
 
+.tab-nav--sidebar .tab-btn {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  border-bottom: 1px solid rgba(26, 42, 69, 0.55);
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.125rem;
+}
+
+.tab-nav--sidebar .tab-btn:last-child {
+  border-bottom: 1px solid transparent;
+  margin-bottom: 0;
+}
+
 .tab-nav--sidebar .tab-btn--active {
-  border-left: 2px solid var(--accent, #3b82f6);
-  border-radius: 0 6px 6px 0;
+  color: var(--text-primary, #e8f0fe);
+  background: var(--bg-card, #111c30);
+  border-color: var(--border, #1a2a45);
+  border-bottom-color: var(--border, #1a2a45);
+  box-shadow: inset 3px 0 0 var(--accent, #3b82f6);
 }
 
 .tab-btn__icon {
@@ -1247,16 +1264,76 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* ---------- PAC Filter ---------- */
-.pac-filter-tab .section-header {
-  align-items: center;
+/* ---------- PAC Filter — side-by-side layout ---------- */
+.pac-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  align-items: start;
 }
 
-.pac-refresh-btn {
-  margin-left: auto;
-  min-width: 2rem;
-  padding: 0.25rem 0.5rem !important;
-  line-height: 1;
+.pac-input-panel {
+  position: sticky;
+  top: 1rem;
+  background: var(--bg-surface, #0d1525);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.pac-siem-panel {
+  min-width: 0;
+  background: var(--bg-surface, #0d1525);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.pac-siem-empty {
+  border: 1px dashed var(--border, #1a2a45);
+  border-radius: 8px;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted, #6b7f9a);
+  font-size: 0.85rem;
+}
+
+.pac-delete-link {
+  display: block;
+  width: 100%;
+  margin-top: 0.625rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 0.72rem;
+  font-family: 'Syne', sans-serif;
+  cursor: pointer;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.pac-delete-link:hover:not(:disabled) {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.pac-delete-link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pac-filter-tab .output-box {
+  max-width: none;
+}
+
+@media (max-width: 980px) {
+  .pac-layout {
+    grid-template-columns: 1fr;
+  }
+  .pac-input-panel {
+    position: static;
+  }
 }
 
 /* ---------- Daily EOD ---------- */
@@ -1564,14 +1641,6 @@
   color: var(--accent, #3b82f6);
   text-transform: none;
   letter-spacing: 0;
-}
-
-.siem-section {
-  max-width: 42rem;
-  border: 1px solid var(--border, #1a2a45);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  background: var(--bg-surface, #0d1525);
 }
 
 /* Field selector row */
