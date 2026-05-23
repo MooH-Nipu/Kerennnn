@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CopyButton } from '../components/shared/CopyButton';
+import { OutputBox } from '../components/shared/OutputBox';
 import { StatusMessage } from '../components/shared/StatusMessage';
 
 interface StatusMsg {
@@ -120,13 +120,8 @@ export function MergerTab() {
         </div>
 
         <div className="form-group merger-output-col">
-          <div className="output-header">
-            <label className="form-label">Output JSON</label>
-            {output && <CopyButton text={output} />}
-          </div>
-          <textarea
-            className="form-textarea form-textarea--output"
-            readOnly
+          <label className="form-label">Output JSON</label>
+          <OutputBox
             value={output}
             placeholder="Hasil merge muncul di sini…"
             rows={12}

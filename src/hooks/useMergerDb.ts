@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '../lib/api';
 import { extractIOC, detectType } from '../lib/ioc';
 
 const CHUNK = 40;
-const LS_PW_KEY = 'socToolboxMergerPassword';
 
 export interface MergerItem {
   ip: string;
@@ -11,34 +10,47 @@ export interface MergerItem {
   updated_at: string;
 }
 
+/** Session cache — survives tab unmount (same pattern as app.js _mergerDbLastItems). */
+let sessionItems: MergerItem[] = [];
+let sessionAutoFetched = false;
+
+function syncSession(items: MergerItem[]) {
+  sessionItems = items;
+}
+
 export function useMergerDb() {
-  const [items, setItems] = useState<MergerItem[]>([]);
-  const [password, setPassword] = useState<string>(() => localStorage.getItem(LS_PW_KEY) ?? '');
+  const [items, setItems] = useState<MergerItem[]>(() => sessionItems);
   const [loading, setLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  function savePassword(pw: string) {
-    setPassword(pw);
-    if (pw) localStorage.setItem(LS_PW_KEY, pw);
-    else localStorage.removeItem(LS_PW_KEY);
-  }
-
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.mergerDb.get(password || undefined) as { items?: MergerItem[] };
-      setItems(res.items ?? []);
-      setStatusMsg(`✓ ${(res.items ?? []).length} IP dimuat dari DB.`);
+      const res = await api.mergerDb.get() as { items?: MergerItem[] };
+      const loaded = res.items ?? [];
+      syncSession(loaded);
+      setItems(loaded);
+      sessionAutoFetched = true;
+      setStatusMsg(`✓ ${loaded.length} IP dimuat dari DB.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, []);
+
+  // Auto-fetch once per session on first mount; later visits reuse sessionItems.
+  useEffect(() => {
+    if (sessionAutoFetched) {
+      setItems(sessionItems);
+      return;
+    }
+    refresh();
+  }, [refresh]);
 
   const submitIps = useCallback(async (rawInput: string) => {
     const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip');
@@ -63,7 +75,7 @@ export function useMergerDb() {
     let done = 0;
     for (const chunk of chunks) {
       try {
-        await api.mergerDb.post(chunk, password || undefined);
+        await api.mergerDb.post(chunk);
         done += chunk.length;
         setProgress({ done, total: toPost.length });
       } catch (err) {
@@ -74,28 +86,34 @@ export function useMergerDb() {
 
     setPosting(false);
     setProgress(null);
-    setStatusMsg(`✓ ${done} IP dikirim. Klik Refresh untuk melihat data terbaru.`);
-  }, [items, password]);
+
+    if (done > 0) {
+      await refresh();
+      setStatusMsg(`✓ ${done} IP dikirim. Data terbaru dimuat (${sessionItems.length} IP di DB).`);
+    }
+  }, [items, refresh]);
 
   const deleteIps = useCallback(async (ips: string[]) => {
     setLoading(true);
     setError(null);
     try {
-      await api.mergerDb.delete(ips, password || undefined);
-      setItems(prev => prev.filter(i => !ips.includes(i.ip)));
+      await api.mergerDb.delete(ips);
+      setItems(prev => {
+        const next = prev.filter(i => !ips.includes(i.ip));
+        syncSession(next);
+        return next;
+      });
       setStatusMsg(`✓ ${ips.length} IP dihapus.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, []);
 
   return {
     items,
     itemCount: items.length,
-    password,
-    savePassword,
     loading,
     posting,
     progress,

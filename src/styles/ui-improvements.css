@@ -681,6 +681,24 @@
   background: var(--bg-base, #080d17);
 }
 
+/* ---------- Output box (copy top-right) ---------- */
+.output-box {
+  position: relative;
+  max-width: 42rem;
+  width: 100%;
+}
+
+.output-box__copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
+.output-box .form-textarea {
+  padding-top: 2.25rem;
+}
+
 /* ---------- Output header (label + copy btn inline) ---------- */
 .output-header {
   display: flex;
@@ -1071,7 +1089,8 @@
   flex-wrap: wrap;
 }
 
-.dash-table-wrap, .pac-table-wrap {
+.dash-table-wrap,
+.pac-table-wrap {
   overflow-x: auto;
 }
 
@@ -1229,22 +1248,15 @@
 }
 
 /* ---------- PAC Filter ---------- */
-.pac-controls {
-  display: flex;
+.pac-filter-tab .section-header {
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
 }
 
-.pac-view-toggle {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.btn-ghost--active {
-  border-color: var(--accent, #3b82f6);
-  color: var(--accent, #3b82f6);
+.pac-refresh-btn {
+  margin-left: auto;
+  min-width: 2rem;
+  padding: 0.25rem 0.5rem !important;
+  line-height: 1;
 }
 
 /* ---------- Daily EOD ---------- */
@@ -1555,6 +1567,7 @@
 }
 
 .siem-section {
+  max-width: 42rem;
   border: 1px solid var(--border, #1a2a45);
   border-radius: 10px;
   padding: 1rem 1.25rem;
@@ -1617,17 +1630,10 @@
   padding: 0.3rem 0.625rem;
 }
 
-/* Query output header */
-.siem-query-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
 .siem-query-meta {
   font-size: 0.75rem;
   color: var(--text-muted, #6b7f9a);
+  margin-bottom: 0.5rem;
 }
 
 .siem-active-field {
