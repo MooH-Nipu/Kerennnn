@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMergerDb } from '../hooks/useMergerDb';
 import { StatusMessage } from '../components/shared/StatusMessage';
-import { Modal } from '../components/shared/Modal';
 import { Spinner } from '../components/shared/Spinner';
 import { OutputBox } from '../components/shared/OutputBox';
 import { extractIOC, detectType } from '../lib/ioc';
@@ -25,7 +24,7 @@ export function PacFilterTab({ onCountChange }: Props) {
   } = useMergerDb();
 
   const [input, setInput] = useState('');
-  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
 
   const [siemField, setSiemField] = useState('data.real_ip');
   const [customField, setCustomField] = useState('');
@@ -36,15 +35,16 @@ export function PacFilterTab({ onCountChange }: Props) {
     onCountChange?.(itemCount);
   }, [itemCount, onCountChange]);
 
-  async function handleDelete() {
-    await deleteIps(items.map(i => i.ip));
-    setDeleteModal(false);
-  }
-
   async function handleSubmit() {
     if (!input.trim()) return;
     await submitIps(input);
     setInput('');
+  }
+
+  async function handleDeleteSelected() {
+    if (!toDelete.length) return;
+    await deleteIps(toDelete);
+    setDeleteInput('');
   }
 
   const queryIps = useMemo(() => items.map(i => i.ip), [items]);
@@ -61,6 +61,18 @@ export function PacFilterTab({ onCountChange }: Props) {
   }, [input]);
   const newIps = useMemo(() => parsedInputIps.filter(ip => !existingSet.has(ip)), [parsedInputIps, existingSet]);
   const dupIps = useMemo(() => parsedInputIps.filter(ip => existingSet.has(ip)), [parsedInputIps, existingSet]);
+
+  // Delete preview: classify delete-input IPs as found-in-DB vs not-found
+  const parsedDeleteIps = useMemo(() => {
+    if (!deleteInput.trim()) return [];
+    return [...new Set(
+      deleteInput.split('\n')
+        .map(s => extractIOC(s.trim()))
+        .filter((s): s is string => !!s && detectType(s) === 'ip')
+    )];
+  }, [deleteInput]);
+  const toDelete  = useMemo(() => parsedDeleteIps.filter(ip => existingSet.has(ip)),  [parsedDeleteIps, existingSet]);
+  const notInDb   = useMemo(() => parsedDeleteIps.filter(ip => !existingSet.has(ip)), [parsedDeleteIps, existingSet]);
 
   const siemQuery = useMemo(() => {
     if (!activeField || queryIps.length === 0) return '';
@@ -129,16 +141,43 @@ export function PacFilterTab({ onCountChange }: Props) {
               {loading ? <Spinner size={14} /> : '↻ Refresh'}
             </button>
           </div>
-          {items.length > 0 && (
+          <div className="pac-delete-section">
+            <div className="pac-section-title pac-section-title--danger">Hapus IP</div>
+            <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+              <textarea
+                className="form-textarea"
+                placeholder={'192.168.1.1\n10.0.0.2\n2001:db8::1'}
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                rows={5}
+                disabled={loading || posting}
+              />
+            </div>
+            {parsedDeleteIps.length > 0 && (
+              <div className="pac-ip-preview">
+                <div className="pac-ip-preview-summary">
+                  {toDelete.length > 0 && <span className="pac-ip-badge pac-ip-badge--del">{toDelete.length} akan dihapus</span>}
+                  {notInDb.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{notInDb.length} tidak ada di DB</span>}
+                </div>
+                <div className="pac-ip-chips">
+                  {toDelete.map(ip => (
+                    <span key={ip} className="pac-ip-chip pac-ip-chip--del" title="Akan dihapus">{ip}</span>
+                  ))}
+                  {notInDb.map(ip => (
+                    <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Tidak ada di DB">{ip}</span>
+                  ))}
+                </div>
+              </div>
+            )}
             <button
               type="button"
-              className="pac-delete-link"
-              onClick={() => setDeleteModal(true)}
-              disabled={loading || posting}
+              className="btn btn-danger"
+              onClick={handleDeleteSelected}
+              disabled={toDelete.length === 0 || loading || posting}
             >
-              Hapus semua IP di DB
+              {toDelete.length > 0 ? `Hapus ${toDelete.length} IP dari DB` : 'Hapus dari DB'}
             </button>
-          )}
+          </div>
         </aside>
 
         <section className="pac-siem-panel">
@@ -205,15 +244,6 @@ export function PacFilterTab({ onCountChange }: Props) {
         </section>
       </div>
 
-      <Modal
-        open={deleteModal}
-        title="Konfirmasi Hapus"
-        message={`Hapus semua ${items.length} IP dari database PAC Filter? Tindakan ini tidak dapat dibatalkan.`}
-        confirmLabel="Ya, Hapus"
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteModal(false)}
-        danger
-      />
     </div>
   );
 }
