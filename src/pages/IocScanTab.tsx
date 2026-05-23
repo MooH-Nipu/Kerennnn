@@ -4,7 +4,7 @@ import { useScanHistory } from '../hooks/useScanHistory';
 import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { parseIocList } from '../lib/ioc';
-import { copyToClipboard } from '../lib/utils';
+import { CopyButton } from '../components/shared/CopyButton';
 
 interface Props {
   pendingIoc?: string;
@@ -19,7 +19,6 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
 
   // Selection state for multi-copy
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // Track the input that started the current scan so we can persist it on completion
   const lastScanInputRef = useRef<string>('');
@@ -98,20 +97,10 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     });
   }, [visibleItems]);
 
-  async function copySelectedAs(filterType?: 'ip' | 'domain' | 'hash') {
-    const iocs = items
-      .filter(it => selected.has(it.id))
-      .filter(it => !filterType || it.type === filterType)
-      .map(it => it.ioc);
-    if (!iocs.length) {
-      setCopyFeedback('Tidak ada IOC cocok untuk disalin.');
-      setTimeout(() => setCopyFeedback(null), 2000);
-      return;
-    }
-    const ok = await copyToClipboard(iocs.join('\n'));
-    setCopyFeedback(ok ? `✓ ${iocs.length} IOC disalin` : 'Gagal menyalin');
-    setTimeout(() => setCopyFeedback(null), 2000);
-  }
+  const selectedIocsText = items
+    .filter(it => selected.has(it.id))
+    .map(it => it.ioc)
+    .join('\n');
 
   const lineCount = parseIocList(input).length;
   const hasResults = items.length > 0;
@@ -193,15 +182,18 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                 </label>
                 <span className="ioc-multi-count">{selectedCount} terpilih</span>
                 <div className="ioc-multi-actions">
-                  <button className="btn btn-ghost btn-sm" disabled={!selectedCount} onClick={() => copySelectedAs()}>Copy IOC</button>
-                  <button className="btn btn-ghost btn-sm" disabled={!selectedCount} onClick={() => copySelectedAs('ip')}>Copy IP</button>
-                  <button className="btn btn-ghost btn-sm" disabled={!selectedCount} onClick={() => copySelectedAs('hash')}>Copy Hash</button>
-                  <button className="btn btn-ghost btn-sm" disabled={!selectedCount} onClick={() => copySelectedAs('domain')}>Copy Domain</button>
+                  <CopyButton
+                    text={selectedIocsText}
+                    label="Copy"
+                    labelDone="✓ Copied"
+                    className="btn btn-ghost btn-sm"
+                  />
                   {selectedCount > 0 && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>
+                      Clear
+                    </button>
                   )}
                 </div>
-                {copyFeedback && <span className="ioc-multi-feedback">{copyFeedback}</span>}
               </div>
 
               <div className="vt-cards">
