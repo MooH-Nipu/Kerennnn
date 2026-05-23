@@ -69,6 +69,14 @@ export function confClass(score: number | null): string {
   return 'conf-low';
 }
 
+export function confToVerdict(score: number | null): { label: string; cls: string } {
+  if (score === null || score === undefined) return { label: 'UNKNOWN', cls: 'verdict-unknown' };
+  if (score >= 70) return { label: 'MALICIOUS',  cls: 'verdict-malicious' };
+  if (score >= 40) return { label: 'SUSPICIOUS', cls: 'verdict-suspicious' };
+  if (score >= 15) return { label: 'LOW RISK',   cls: 'verdict-unknown' };
+  return { label: 'CLEAN', cls: 'verdict-clean' };
+}
+
 export function hashLabel(len: number): string {
   if (len === 32) return 'MD5';
   if (len === 40) return 'SHA1';

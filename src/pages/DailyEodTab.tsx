@@ -20,6 +20,7 @@ export function DailyEodTab() {
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [shiftName, setShiftName] = useState('');
+  const [defaultAlarmTime, setDefaultAlarmTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export function DailyEodTab() {
     setFiles({});
     setError(null);
     setSuccess(null);
+    setDefaultAlarmTime('');
     Object.values(inputRefs.current).forEach(ref => { if (ref) ref.value = ''; });
   }, []);
 
@@ -50,6 +52,7 @@ export function DailyEodTab() {
       const fd = new FormData();
       fd.append('report_date', date);
       if (shiftName) fd.append('shift_name', shiftName);
+      if (defaultAlarmTime) fd.append('default_alarm_time', defaultAlarmTime);
       for (const slot of SLOTS) {
         const f = files[slot.id];
         if (f) fd.append(slot.id, f, f.name);
@@ -112,6 +115,17 @@ export function DailyEodTab() {
             placeholder="e.g. Pagi / Siang / Malam"
             value={shiftName}
             onChange={e => setShiftName(e.target.value)}
+          />
+        </div>
+        <div className="form-group" style={{ flex: '0 0 140px' }}>
+          <label className="form-label" htmlFor="eod-alarm-time">Default Alarm Time</label>
+          <input
+            id="eod-alarm-time"
+            type="time"
+            className="form-input"
+            value={defaultAlarmTime}
+            onChange={e => setDefaultAlarmTime(e.target.value)}
+            title="Fallback jam alarm untuk baris CSV yang tidak memiliki timestamp"
           />
         </div>
       </div>

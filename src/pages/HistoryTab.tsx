@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useScanHistory } from '../hooks/useScanHistory';
 import { VtCard } from '../components/vt/VtCard';
+import { CopyButton } from '../components/shared/CopyButton';
 import { fmtWhen } from '../lib/utils';
 
 interface Props {
@@ -10,8 +11,33 @@ interface Props {
 export function HistoryTab({ onReScan }: Props) {
   const { entries, search, setSearch, removeEntry, clearAll } = useScanHistory();
   const [selected, setSelected] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const activeEntry = entries.find(e => e.id === selected) ?? null;
+
+  // Reset selection when switching entries
+  useEffect(() => { setCheckedIds(new Set()); }, [selected]);
+
+  const toggleCheck = useCallback((id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    if (!activeEntry) return;
+    const ids = activeEntry.items.filter(i => !i.pending && !i.error).map(i => i.id);
+    setCheckedIds(prev => {
+      const allOn = ids.every(id => prev.has(id));
+      return allOn ? new Set() : new Set(ids);
+    });
+  }, [activeEntry]);
+
+  const selectedText = activeEntry
+    ? activeEntry.items.filter(i => checkedIds.has(i.id)).map(i => i.ioc).join('\n')
+    : '';
 
   return (
     <div className="tab-content history-tab">
@@ -89,9 +115,39 @@ export function HistoryTab({ onReScan }: Props) {
                 )}
               </div>
 
+              <div className="ioc-multi-bar">
+                <label className="ioc-multi-selectall">
+                  <input
+                    type="checkbox"
+                    checked={checkedIds.size > 0 && activeEntry.items.filter(i => !i.pending && !i.error).every(i => checkedIds.has(i.id))}
+                    onChange={selectAll}
+                  />
+                  Pilih semua
+                </label>
+                <span className="ioc-multi-count">{checkedIds.size} terpilih</span>
+                <div className="ioc-multi-actions">
+                  <CopyButton
+                    text={selectedText}
+                    label="Copy"
+                    labelDone="✓ Copied"
+                    className="btn btn-ghost btn-sm"
+                  />
+                  {checkedIds.size > 0 && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCheckedIds(new Set())}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="vt-cards">
                 {activeEntry.items.map(item => (
-                  <VtCard key={item.id} item={item} />
+                  <VtCard
+                    key={item.id}
+                    item={item}
+                    selected={checkedIds.has(item.id)}
+                    onToggleSelect={() => toggleCheck(item.id)}
+                  />
                 ))}
               </div>
             </>

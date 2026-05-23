@@ -65,10 +65,15 @@ export interface VtResult {
 }
 
 export interface CorrelationSource {
-  name: string;
-  verdict: string;
+  source: string;
+  verdict?: string;
   detail?: string;
   weight: number;
+  score?: number;
+  meta?: Record<string, string | number>;
+  skipped?: boolean;
+  error?: string;
+  link?: string;
 }
 
 export interface CorrelationResult {

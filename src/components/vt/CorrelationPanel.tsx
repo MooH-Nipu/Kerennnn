@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { confClass, confLabel } from '../../lib/ioc';
 import { Spinner } from '../shared/Spinner';
 
@@ -8,6 +9,8 @@ interface Source {
   error?: string;
   detail?: string;
   weight?: number;
+  score?: number;
+  meta?: Record<string, string | number>;
 }
 
 interface CorrData {
@@ -30,6 +33,16 @@ function sourceVerdict(s: Source): string {
 }
 
 export function CorrelationPanel({ loading, data }: Props) {
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+
+  const toggleSource = (name: string) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  };
+
   if (loading) {
     return (
       <div className="corr-panel">
@@ -73,19 +86,43 @@ export function CorrelationPanel({ loading, data }: Props) {
         />
       </div>
 
-      {(data.sources ?? []).map((src, i) => (
-        <div className="source-row" key={i}>
-          <div className="source-row-main">
-            <span className="source-name">{src.source}</span>
-            <span className={`source-verdict sv-${sourceVerdict(src).toLowerCase().replace(/[^a-z]/g, '_')}`}>
-              {sourceVerdict(src).toUpperCase()}
-            </span>
+      {(data.sources ?? []).map((src, i) => {
+        const verdict = sourceVerdict(src);
+        const expanded = expandedSources.has(src.source);
+        const hasMeta = !!src.meta && Object.keys(src.meta).length > 0;
+        const isExpandable = !src.skipped && !src.error && hasMeta;
+
+        return (
+          <div className="source-row" key={i}>
+            <div
+              className={`source-row-main${isExpandable ? ' source-row-main--clickable' : ''}`}
+              onClick={isExpandable ? () => toggleSource(src.source) : undefined}
+            >
+              {isExpandable
+                ? <span className={`source-chevron${expanded ? ' open' : ''}`}>›</span>
+                : <span className="source-chevron-placeholder" />
+              }
+              <span className="source-name">{src.source}</span>
+              <span className={`source-verdict sv-${verdict.toLowerCase().replace(/[^a-z]/g, '_')}`}>
+                {verdict.toUpperCase()}
+              </span>
+            </div>
+            {expanded && hasMeta && (
+              <div className="source-meta">
+                {Object.entries(src.meta!).map(([k, v]) => (
+                  <div key={k} className="source-meta-item">
+                    <span className="source-meta-key">{k}</span>
+                    <span className="source-meta-val">{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {src.detail && !expanded && (
+              <div className="source-detail">{src.detail}</div>
+            )}
           </div>
-          {src.detail && (
-            <div className="source-detail">{src.detail}</div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -230,7 +230,7 @@ export function PacFilterTab({ onCountChange }: Props) {
                   </div>
                   <OutputBox
                     value={siemQuery}
-                    rows={16}
+                    rows={4}
                     className="siem-query-output"
                   />
                 </>
