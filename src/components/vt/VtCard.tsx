@@ -107,7 +107,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
       {flag && <span className="ctry-badge">{flag} {ctry}</span>}
       <span className={`verdict ${v.cls}`}>● {v.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" className="copy-btn-small" />
+        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
         {stableId && (
           <a
             className="vt-detail-btn"
@@ -169,7 +169,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
       <span className="vt-ioc-val">{item.ioc}</span>
       <span className={`verdict ${v.cls}`}>● {v.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" className="copy-btn-small" />
+        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
       </span>
     </>
   );
@@ -217,7 +217,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
       <span className="vt-ioc-val">{item.ioc}</span>
       <span className={`verdict ${v.cls}`}>● {v.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" className="copy-btn-small" />
+        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
       </span>
     </>
   );
@@ -252,7 +252,7 @@ function ErrorCard({ item, collapsed, onToggle, selected, onToggleSelect }: Card
       <span className="vt-ioc-val">{item.ioc}</span>
       <span className="verdict verdict-unknown">● VT: ERROR</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" className="copy-btn-small" />
+        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
       </span>
     </>
   );
