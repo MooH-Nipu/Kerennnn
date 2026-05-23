@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScanItem } from '../../types/vt';
-import { calcVerdict, countryFlag, hashLabel } from '../../lib/ioc';
+import { calcVerdict, confToVerdict, countryFlag, hashLabel } from '../../lib/ioc';
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
 import { CorrelationPanel } from './CorrelationPanel';
@@ -92,6 +92,9 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
+  const blendedV = (!item.correlationLoading && item.correlation !== null)
+    ? confToVerdict(item.correlation.confidence)
+    : v;
   const flag = countryFlag(String(a.country ?? ''));
   const ctry = String(a.country ?? '—');
   const meta = raw?._meta as Record<string, unknown> | undefined;
@@ -105,7 +108,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
       <span className="vt-ioc-val">{item.ioc}</span>
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       {flag && <span className="ctry-badge">{flag} {ctry}</span>}
-      <span className={`verdict ${v.cls}`}>● {v.label}</span>
+      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
         {stableId && (
@@ -134,6 +137,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
         { label: 'Malicious',  value: mal,                       color: mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: sus,                       color: sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: s.undetected ?? 0 },
+        { label: 'VT Verdict', value: v.label,                   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'Country',    value: (flag ? flag + ' ' : '') + ctry, color: 'cyan' },
         { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
         { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
@@ -156,6 +160,9 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
+  const blendedV = (!item.correlationLoading && item.correlation !== null)
+    ? confToVerdict(item.correlation.confidence)
+    : v;
 
   const names = ((a.names as string[] | undefined) ?? []).slice(0, 3).join(', ') || '—';
   const ftype = String(a.type_description ?? a.magic ?? '—');
@@ -167,7 +174,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
     <>
       <span className={`vt-type-badge badge-hash`}>{hashLabel(item.ioc.length)}</span>
       <span className="vt-ioc-val">{item.ioc}</span>
-      <span className={`verdict ${v.cls}`}>● {v.label}</span>
+      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
       </span>
@@ -181,6 +188,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
         { label: 'Malicious',  value: mal,   color: mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: sus,   color: sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: s.undetected ?? 0 },
+        { label: 'VT Verdict', value: v.label, color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'File Type',  value: ftype, color: 'purple' },
         { label: 'Size',       value: size },
         { label: 'File Names', value: names },
@@ -203,6 +211,9 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
+  const blendedV = (!item.correlationLoading && item.correlation !== null)
+    ? confToVerdict(item.correlation.confidence)
+    : v;
 
   const registrar = String(a.registrar ?? '—');
   const created = typeof a.creation_date    === 'number' ? new Date(a.creation_date    * 1000).toLocaleDateString('en-GB') : '—';
@@ -215,7 +226,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
     <>
       <span className="vt-type-badge badge-domain">DOMAIN</span>
       <span className="vt-ioc-val">{item.ioc}</span>
-      <span className={`verdict ${v.cls}`}>● {v.label}</span>
+      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
       </span>
@@ -229,6 +240,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
         { label: 'Malicious',  value: mal,       color: mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: sus,       color: sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: s.undetected ?? 0 },
+        { label: 'VT Verdict', value: v.label,   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'Registrar',  value: registrar, color: 'purple' },
         { label: 'Created',    value: created,   color: 'cyan' },
         { label: 'Updated',    value: updated },

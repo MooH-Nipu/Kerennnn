@@ -313,16 +313,16 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: e.message || 'Failed to parse multipart body.' });
   }
 
-  const picRaw = fields.pic != null ? String(fields.pic) : '';
-  const picName = picRaw.trim() || 'Yarid';
-  const reportDate = resolveReportDate(fields.reportDate);
-  const fallbackAlarmTime = resolveDefaultAlarmTime(fields.defaultAlarmTime);
+  const picRaw = fields.shift_name != null ? String(fields.shift_name) : '';
+  const picName = picRaw.trim();
+  const reportDate = resolveReportDate(fields.report_date);
+  const fallbackAlarmTime = resolveDefaultAlarmTime(fields.default_alarm_time);
 
   const buffers = {
     dci: files.dci,
     bprks: files.bprks,
     pac: files.pac,
-    daily: files.daily,
+    smi: files.smi,
   };
 
   const anyFile = Object.values(buffers).some((b) => b && b.length);
@@ -349,8 +349,8 @@ module.exports = async function handler(req, res) {
       const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
       if (data.length) sheets.push({ name: 'PAC', data });
     }
-    if (buffers.daily && buffers.daily.length) {
-      const rows = parseCsvBuffer(buffers.daily);
+    if (buffers.smi && buffers.smi.length) {
+      const rows = parseCsvBuffer(buffers.smi);
       const data = processSmiFromDaily(rows, picName, reportDate);
       if (data.length) sheets.push({ name: 'SMI', data });
     }
