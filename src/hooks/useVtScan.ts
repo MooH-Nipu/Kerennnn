@@ -92,6 +92,7 @@ function reducer(state: VtScanState, action: Action): VtScanState {
 export function useVtScan() {
   const [state, dispatch] = useReducer(reducer, initial);
   const abortRef = useRef(false);
+  const cacheRef = useRef<Map<string, ScanItem['result']>>(new Map());
 
   const runScan = useCallback(async (rawInput: string) => {
     const parsed = parseIocList(rawInput);
@@ -115,7 +116,15 @@ export function useVtScan() {
         dispatch({ type: 'ADD_PENDING', id, ioc, iocType: type });
 
         try {
-          const result = await api.scan.vt(ioc) as unknown as ScanItem['result'];
+          // Check local cache first
+          let result = cacheRef.current.get(ioc);
+
+          if (!result) {
+            // Not cached, call API and cache the result
+            result = await api.scan.vt(ioc) as unknown as ScanItem['result'];
+            cacheRef.current.set(ioc, result);
+          }
+
           dispatch({ type: 'RESOLVE', id, result });
         } catch (err) {
           dispatch({ type: 'RESOLVE_ERROR', id, error: err instanceof Error ? err.message : String(err) });
