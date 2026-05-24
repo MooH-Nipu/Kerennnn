@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse } from '../types/api';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
@@ -56,6 +56,37 @@ export const api = {
   ipCache: {
     recent: (limit = 50) => apiFetch<RecentResponse>(`/api/ip-cache/recent?limit=${limit}`),
     byId: (id: string) => apiFetch<Record<string, unknown>>(`/api/ip-cache/by-id?id=${encodeURIComponent(id)}`),
+  },
+
+  irCases: {
+    list: (q = '', offset = 0) =>
+      apiFetch<IrCasesListResponse>(`/api/ir-cases?q=${encodeURIComponent(q)}&offset=${offset}`),
+    detail: (id: string) =>
+      apiFetch<IrCaseDetailResponse>(`/api/ir-cases/detail?id=${encodeURIComponent(id)}`),
+    create: (title: string, description: string) =>
+      apiFetch<IrCasesMutateResponse>('/api/ir-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      }),
+    bulkCreate: (rows: Array<{ title: string; description: string }>) =>
+      apiFetch<IrCasesMutateResponse>('/api/ir-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rows),
+      }),
+    update: (id: string, title: string, description: string) =>
+      apiFetch<IrCasesMutateResponse>('/api/ir-cases', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title, description }),
+      }),
+    delete: (id: string) =>
+      apiFetch<{ ok: boolean }>('/api/ir-cases', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      }),
   },
 
   mergerDb: {

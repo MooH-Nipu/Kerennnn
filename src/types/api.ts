@@ -38,3 +38,29 @@ export interface RecentResponse {
   ttlDays?: number;
   items: RecentIp[];
 }
+
+export interface IrCase {
+  id: string;
+  title: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  description?: string;
+}
+
+export interface IrCasesListResponse {
+  ok: boolean;
+  cases: IrCase[];
+  total: number;
+}
+
+export interface IrCaseDetailResponse {
+  ok: boolean;
+  case: IrCase & { description: string };
+}
+
+export interface IrCasesMutateResponse {
+  ok: boolean;
+  cases?: IrCase[];
+  case?: IrCase;
+}
