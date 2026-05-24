@@ -95,7 +95,7 @@ export function DailyEodTab() {
       {error && <StatusMessage type="error" message={error} onDismiss={() => setError(null)} />}
       {success && <StatusMessage type="success" message={success} onDismiss={() => setSuccess(null)} />}
 
-      <div className="eod-controls">
+      <div className="eod-controls" style={{ alignItems: 'flex-end' }}>
         <div className="form-group" style={{ flex: '0 0 180px' }}>
           <label className="form-label" htmlFor="eod-date">Tanggal Laporan</label>
           <input
@@ -117,11 +117,12 @@ export function DailyEodTab() {
             onChange={e => setShiftName(e.target.value)}
           />
         </div>
-        <div className="form-group" style={{ flex: '0 0 140px' }}>
+        <div className="form-group" style={{ flex: '0 0 165px' }}>
           <label className="form-label" htmlFor="eod-alarm-time">Default Alarm Time</label>
           <input
             id="eod-alarm-time"
             type="time"
+            step="1"
             className="form-input"
             value={defaultAlarmTime}
             onChange={e => setDefaultAlarmTime(e.target.value)}
