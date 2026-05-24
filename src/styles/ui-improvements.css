@@ -1678,6 +1678,256 @@
   gap: 0.75rem;
 }
 
+/* ============================================================
+   IR Manager Tab
+   ============================================================ */
+.ir-search-row {
+  margin-bottom: 1rem;
+  max-width: 480px;
+}
+
+/* ── Add form ── */
+.ir-add-form {
+  background: var(--bg-surface, #0d1525);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ir-add-form__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── Case list ── */
+.ir-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.ir-case-card {
+  background: var(--bg-card, #111c30);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.ir-case-card--expanded {
+  border-color: var(--accent, #3b82f6);
+}
+
+.ir-case-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ir-case-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ir-chevron {
+  color: var(--text-muted, #6b7f9a);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+}
+
+.ir-case-title {
+  font-size: 0.83rem;
+  color: var(--text-primary, #e8f0fe);
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ir-case-meta {
+  font-size: 0.68rem;
+  color: var(--text-muted, #6b7f9a);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ir-case-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+/* ── Expanded body ── */
+.ir-case-body {
+  padding: 0.875rem 1rem 1rem;
+  border-top: 1px solid var(--border, #1a2a45);
+}
+
+.ir-case-body__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ir-description {
+  font-size: 0.78rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary, #a3b3cc);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  background: var(--bg-base, #080d17);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 8px;
+  padding: 0.875rem;
+  max-height: 420px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+/* ── Edit form ── */
+.ir-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.ir-edit-form__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Import wizard overlay ── */
+.ir-import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ir-import-box {
+  background: var(--bg-surface, #0d1525);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 800px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.ir-import-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #e8f0fe);
+  margin: 0;
+}
+
+.ir-import-step {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f9a);
+}
+
+/* ── Preview table ── */
+.ir-preview-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 8px;
+}
+
+.ir-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.ir-preview-table th {
+  padding: 0.4rem 0.625rem;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f9a);
+  background: var(--bg-base, #080d17);
+  border-bottom: 1px solid var(--border, #1a2a45);
+  white-space: nowrap;
+}
+
+.ir-preview-table td {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid rgba(26, 42, 69, 0.5);
+  color: var(--text-secondary, #a3b3cc);
+  font-family: 'JetBrains Mono', monospace;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Column mapping grid ── */
+.ir-col-map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .ir-col-map-grid { grid-template-columns: 1fr; }
+}
+
+.ir-col-map-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ir-col-map-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7f9a);
+  font-family: 'Syne', sans-serif;
+}
+
+.ir-import-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+/* ── Load more ── */
+.ir-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .ioc-scan-empty {
   border: 1px dashed var(--border, #1a2a45);
   border-radius: 10px;

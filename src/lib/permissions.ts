@@ -9,7 +9,8 @@ export type TabId =
   | 'history'
   | 'pac-filter'
   | 'daily-eod'
-  | 'admin-users';
+  | 'admin-users'
+  | 'ir-manager';
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
@@ -20,6 +21,7 @@ export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'pac-filter':  ['admin', 'pac', 'charlie'],
   'daily-eod':   null,
   'admin-users': ['admin'],
+  'ir-manager':  null,
 };
 
 export function canViewTab(role: Role, tab: TabId): boolean {

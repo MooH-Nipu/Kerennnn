@@ -14,6 +14,7 @@ import { HistoryTab } from './pages/HistoryTab';
 import { PacFilterTab } from './pages/PacFilterTab';
 import { DailyEodTab } from './pages/DailyEodTab';
 import { AdminUsersTab } from './pages/AdminUsersTab';
+import { IrManagerTab } from './pages/IrManagerTab';
 import { ResultPage } from './pages/ResultPage';
 
 function AppInner() {
@@ -61,6 +62,7 @@ function AppInner() {
       case 'pac-filter':  return <PacFilterTab onCountChange={setPacFilterCount} />;
       case 'daily-eod':   return <DailyEodTab />;
       case 'admin-users': return <AdminUsersTab />;
+      case 'ir-manager':  return <IrManagerTab />;
       default:            return <FormatterTab />;
     }
   }
