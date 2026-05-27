@@ -1920,6 +1920,105 @@
   margin-top: 0.5rem;
 }
 
+/* ── Step 2: preview & row editor ── */
+.ir-import-box--wide {
+  max-width: 960px;
+}
+
+.ir-preview-table-wrap--editable {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.ir-preview-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ir-preview-stats__removed {
+  color: var(--accent-red, #e55);
+}
+
+.ir-preview-cell-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  padding: 0;
+}
+.ir-preview-cell-input:focus {
+  outline: 1px solid var(--accent, #4f8ef7);
+  border-radius: 2px;
+}
+
+.ir-preview-row--removed td {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+.ir-preview-row--removed .ir-preview-cell-input {
+  pointer-events: none;
+}
+
+.ir-preview-edit-btn,
+.ir-preview-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+}
+.ir-preview-edit-btn {
+  color: var(--text-muted);
+}
+.ir-preview-edit-btn:hover {
+  color: var(--text-base, #e0e6f0);
+  background: rgba(255,255,255,0.06);
+}
+.ir-preview-remove-btn {
+  color: var(--text-muted);
+}
+.ir-preview-remove-btn:hover {
+  color: var(--accent-red, #e55);
+  background: rgba(238,85,85,0.08);
+}
+.ir-preview-remove-btn--undo:hover {
+  color: #4caf50;
+  background: rgba(76,175,80,0.08);
+}
+
+.ir-preview-num {
+  text-align: right;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  min-width: 2rem;
+  padding-right: 0.5rem;
+}
+
+.ir-preview-edit-row td {
+  border-bottom: none;
+  padding-top: 0;
+}
+
+.ir-preview-edit-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem;
+  background: var(--bg-surface2, #111828);
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+}
+
 /* ── Load more ── */
 .ir-load-more {
   display: flex;
