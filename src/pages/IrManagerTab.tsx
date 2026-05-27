@@ -29,6 +29,8 @@ const COLUMN_ALIASES: Record<IrField, string[]> = {
   preventive:  ['preventive','preventive_action','preventive action','prevention','mitigation','tindakan preventif'],
 };
 
+type PreviewRow = Record<IrField, string> & { _id: string; _removed: boolean };
+
 function autoDetectColumns(headers: string[]): Record<string, string> {
   const result: Record<string, string> = {};
   const normalized = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
@@ -116,12 +118,14 @@ export function IrManagerTab() {
   const [deleteTarget, setDeleteTarget] = useState<IrCase | null>(null);
   const [deleting, setDeleting]         = useState(false);
 
-  // Import wizard: 0=hidden, 1=preview+map
-  const [importStep, setImportStep]       = useState<0 | 1>(0);
-  const [importHeaders, setImportHeaders] = useState<string[]>([]);
-  const [importRows, setImportRows]       = useState<string[][]>([]);
-  const [colMap, setColMap]               = useState<Partial<Record<IrField, string>>>({});
-  const [importing, setImporting]         = useState(false);
+  // Import wizard: 0=hidden, 1=map columns, 2=preview rows
+  const [importStep, setImportStep]           = useState<0 | 1 | 2>(0);
+  const [importHeaders, setImportHeaders]     = useState<string[]>([]);
+  const [importRows, setImportRows]           = useState<string[][]>([]);
+  const [colMap, setColMap]                   = useState<Partial<Record<IrField, string>>>({});
+  const [importing, setImporting]             = useState(false);
+  const [previewRows, setPreviewRows]         = useState<PreviewRow[]>([]);
+  const [editingPreviewId, setEditingPreviewId] = useState<string | null>(null);
 
   // Status
   const [error, setError]     = useState<string | null>(null);
@@ -258,20 +262,44 @@ export function IrManagerTab() {
     }
   }
 
-  async function handleImportConfirm() {
+  function cancelImport() {
+    setImportStep(0);
+    setImportHeaders([]); setImportRows([]); setColMap({});
+    setPreviewRows([]); setEditingPreviewId(null);
+  }
+
+  function applyMappingToPreview() {
     const get = (field: IrField, row: string[]) => {
       const col = colMap[field] ?? '';
       const idx = importHeaders.indexOf(col);
       return idx >= 0 ? (row[idx] ?? '') : '';
     };
+    const rows: PreviewRow[] = importRows.map((row, i) => {
+      const r = { _id: String(i), _removed: false } as PreviewRow;
+      for (const f of IR_FIELDS) r[f] = get(f, row);
+      return r;
+    });
+    setPreviewRows(rows);
+    setEditingPreviewId(null);
+    setImportStep(2);
+  }
 
-    const toInsert = importRows
-      .map(row => {
+  function updatePreviewField(id: string, field: IrField, value: string) {
+    setPreviewRows(prev => prev.map(r => r._id === id ? { ...r, [field]: value } : r));
+  }
+
+  function toggleRemoveRow(id: string) {
+    setPreviewRows(prev => prev.map(r => r._id === id ? { ...r, _removed: !r._removed } : r));
+  }
+
+  async function handleImportConfirm() {
+    const toInsert = previewRows
+      .filter(r => !r._removed && r.event_name.trim())
+      .map(r => {
         const v: Record<string, string> = {};
-        for (const f of IR_FIELDS) v[f] = get(f, row);
+        for (const f of IR_FIELDS) v[f] = r[f];
         return { title: v.event_name.trim(), description: formatEmailTemplate(v) };
-      })
-      .filter(r => r.title);
+      });
 
     if (!toInsert.length) { setError('No valid rows to import (event_name column required).'); return; }
 
@@ -280,8 +308,7 @@ export function IrManagerTab() {
     try {
       await api.irCases.bulkCreate(toInsert);
       setSuccess(`${toInsert.length} case(s) imported.`);
-      setImportStep(0);
-      setImportHeaders([]); setImportRows([]); setColMap({});
+      cancelImport();
       await fetchCases(0, searchQ);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -360,7 +387,7 @@ export function IrManagerTab() {
           <div className="ir-import-box">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <h3 className="ir-import-title">Import IR Cases</h3>
-              <span className="ir-import-step">Step 1 of 1 — Map Columns</span>
+              <span className="ir-import-step">Step 1 of 2 — Map Columns</span>
             </div>
 
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
@@ -401,16 +428,117 @@ export function IrManagerTab() {
             </div>
 
             <div className="ir-import-actions">
-              <button className="btn btn-secondary" onClick={() => { setImportStep(0); setImportHeaders([]); setImportRows([]); }}>
+              <button className="btn btn-secondary" onClick={cancelImport}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleImportConfirm} disabled={importing}>
-                {importing ? <Spinner size={14} /> : `Import ${importRows.length} row${importRows.length !== 1 ? 's' : ''}`}
+              <button className="btn btn-primary" onClick={applyMappingToPreview}>
+                Preview Rows →
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Import wizard step 2: row preview & editor ── */}
+      {importStep === 2 && (() => {
+        const readyCount   = previewRows.filter(r => !r._removed && r.event_name.trim()).length;
+        const removedCount = previewRows.filter(r => r._removed).length;
+        return (
+          <div className="ir-import-overlay" onClick={e => { if (e.target === e.currentTarget) cancelImport(); }}>
+            <div className="ir-import-box ir-import-box--wide">
+
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <h3 className="ir-import-title">Import IR Cases</h3>
+                <span className="ir-import-step">Step 2 of 2 — Review Rows</span>
+              </div>
+
+              {/* Stats bar */}
+              <div className="ir-preview-stats">
+                <span>{readyCount} row{readyCount !== 1 ? 's' : ''} ready</span>
+                {removedCount > 0 && (
+                  <span className="ir-preview-stats__removed">· {removedCount} removed</span>
+                )}
+              </div>
+
+              {/* Row table */}
+              <div className="ir-preview-table-wrap ir-preview-table-wrap--editable">
+                <table className="ir-preview-table">
+                  <thead>
+                    <tr>
+                      <th className="ir-preview-num">#</th>
+                      <th>Event Name</th>
+                      <th style={{ width: '5rem' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, i) => (
+                      <>
+                        <tr key={row._id} className={row._removed ? 'ir-preview-row--removed' : ''}>
+                          <td className="ir-preview-num">{i + 1}</td>
+                          <td>
+                            <input
+                              className="ir-preview-cell-input"
+                              value={row.event_name}
+                              onChange={e => updatePreviewField(row._id, 'event_name', e.target.value)}
+                            />
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <button
+                              className="ir-preview-edit-btn"
+                              title="Expand / collapse"
+                              onClick={() => setEditingPreviewId(prev => prev === row._id ? null : row._id)}
+                            >✎</button>
+                            <button
+                              className={`ir-preview-remove-btn${row._removed ? ' ir-preview-remove-btn--undo' : ''}`}
+                              title={row._removed ? 'Undo remove' : 'Remove row'}
+                              onClick={() => toggleRemoveRow(row._id)}
+                            >{row._removed ? '↩' : '×'}</button>
+                          </td>
+                        </tr>
+
+                        {editingPreviewId === row._id && (
+                          <tr key={`${row._id}-edit`} className="ir-preview-edit-row">
+                            <td />
+                            <td colSpan={2}>
+                              <div className="ir-preview-edit-panel">
+                                {IR_FIELDS.filter(f => f !== 'event_name').map(f => (
+                                  <div key={f}>
+                                    <label className="ir-col-map-label">{FIELD_LABELS[f]}</label>
+                                    <textarea
+                                      className="form-textarea"
+                                      rows={2}
+                                      value={row[f]}
+                                      onChange={e => updatePreviewField(row._id, f, e.target.value)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Actions */}
+              <div className="ir-import-actions">
+                <button className="btn btn-secondary" onClick={cancelImport}>Cancel</button>
+                <button className="btn btn-secondary" onClick={() => setImportStep(1)}>← Back</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleImportConfirm}
+                  disabled={importing || readyCount === 0}
+                >
+                  {importing ? <Spinner size={14} /> : `Import ${readyCount} row${readyCount !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Search ── */}
       <div className="ir-search-row">
