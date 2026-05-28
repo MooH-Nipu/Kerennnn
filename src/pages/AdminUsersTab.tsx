@@ -126,35 +126,42 @@ export function AdminUsersTab() {
         <h3 className="admin-section-title">Daftar User</h3>
         <div className="pac-table-wrap">
           <table className="dash-table admin-users-table">
+            <colgroup>
+              <col />
+              <col style={{ width: 160 }} />
+              <col style={{ width: 120 }} />
+              <col style={{ width: 90 }} />
+            </colgroup>
             <thead>
               <tr>
-                <th className="col-username">Username</th>
-                <th className="col-role">Role</th>
-                <th className="col-created">Created</th>
-                <th className="col-actions">Aksi</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th style={{ textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {users.map(user => (
                 <tr key={user.id} className="dash-row">
-                  <td className="mono col-username">
+                  <td className="mono">
                     {user.username}
                     {user.username === selfUsername && <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: '0.4rem' }}>(you)</span>}
                   </td>
-                  <td className="col-role">
+                  <td>
                     <select
                       className="role-select"
                       value={user.role}
                       onChange={e => handleRoleChange(user, e.target.value as Role)}
                       disabled={user.username === selfUsername}
+                      style={{ width: '100%' }}
                     >
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </td>
-                  <td className="dash-when col-created">
+                  <td className="dash-when">
                     {new Date(user.created_at).toLocaleDateString('id-ID')}
                   </td>
-                  <td className="col-actions">
+                  <td style={{ textAlign: 'right' }}>
                     <button
                       className="btn btn-ghost btn-delete"
                       onClick={() => setDeleteTarget(user)}
