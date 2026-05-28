@@ -1718,6 +1718,51 @@
   cursor: pointer;
 }
 
+.admin-table-card {
+  background: var(--bg-surface, #0d1525);
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.admin-table-card .pac-table-wrap {
+  border: 1px solid var(--border, #1a2a45);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-users-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.admin-users-table .col-username { width: auto; }
+.admin-users-table .col-role     { width: 140px; }
+.admin-users-table .col-created  { width: 140px; }
+.admin-users-table .col-actions  { width: 100px; text-align: right; }
+
+.admin-users-table td.col-role .role-select { width: 100%; }
+
+.admin-users-table .btn-delete {
+  color: #f87171;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 6px;
+}
+
+.admin-users-table .btn-delete:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.admin-users-table .dash-row { cursor: default; }
+
+@media (max-width: 700px) {
+  .admin-users-table .col-role     { width: 120px; }
+  .admin-users-table .col-created  { width: 110px; }
+  .admin-users-table .col-actions  { width: 90px; }
+}
+
 /* ============================================================
    IoC Scan — side-by-side layout + multi-select
    ============================================================ */

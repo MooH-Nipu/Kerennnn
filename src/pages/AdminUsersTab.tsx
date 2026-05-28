@@ -90,69 +90,19 @@ export function AdminUsersTab() {
       {error   && <StatusMessage type="error"   message={error}   onDismiss={() => setError(null)} />}
       {success && <StatusMessage type="success" message={success} onDismiss={() => setSuccess(null)} />}
 
-      {/* User table */}
-      <div className="pac-table-wrap" style={{ marginBottom: '1.5rem' }}>
-        <table className="dash-table">
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Role</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(user => (
-              <tr key={user.id} className="dash-row">
-                <td className="mono">
-                  {user.username}
-                  {user.username === selfUsername && <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: '0.4rem' }}>(you)</span>}
-                </td>
-                <td>
-                  <select
-                    className="role-select"
-                    value={user.role}
-                    onChange={e => handleRoleChange(user, e.target.value as Role)}
-                    disabled={user.username === selfUsername}
-                  >
-                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </td>
-                <td className="dash-when">
-                  {new Date(user.created_at).toLocaleDateString('id-ID')}
-                </td>
-                <td>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ color: '#f87171', fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                    onClick={() => setDeleteTarget(user)}
-                    disabled={user.username === selfUsername}
-                  >
-                    Hapus
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!loading && users.length === 0 && (
-              <tr><td colSpan={4} className="dash-empty">Tidak ada user.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
       {/* Create user */}
-      <div className="admin-create-card">
+      <div className="admin-create-card" style={{ marginBottom: '1.5rem' }}>
         <h3 className="admin-section-title">Tambah User Baru</h3>
         <div className="admin-create-form">
-          <div className="form-group" style={{ flex: 1 }}>
+          <div className="form-group" style={{ flex: 1, minWidth: 180 }}>
             <label className="form-label">Username</label>
             <input className="form-input" type="text" placeholder="username" value={newUsername} onChange={e => setNewUsername(e.target.value)} />
           </div>
-          <div className="form-group" style={{ flex: 1 }}>
+          <div className="form-group" style={{ flex: 1, minWidth: 180 }}>
             <label className="form-label">Password</label>
             <input className="form-input" type="password" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ minWidth: 140 }}>
             <label className="form-label">Role</label>
             <select className="form-input role-select" value={newRole} onChange={e => setNewRole(e.target.value as Role)}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -169,6 +119,58 @@ export function AdminUsersTab() {
           </div>
         </div>
         {newRole && <div style={{ marginTop: '0.5rem' }}><RoleBadge role={newRole} size="sm" /></div>}
+      </div>
+
+      {/* User table */}
+      <div className="admin-table-card">
+        <h3 className="admin-section-title">Daftar User</h3>
+        <div className="pac-table-wrap">
+          <table className="dash-table admin-users-table">
+            <thead>
+              <tr>
+                <th className="col-username">Username</th>
+                <th className="col-role">Role</th>
+                <th className="col-created">Created</th>
+                <th className="col-actions">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id} className="dash-row">
+                  <td className="mono col-username">
+                    {user.username}
+                    {user.username === selfUsername && <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: '0.4rem' }}>(you)</span>}
+                  </td>
+                  <td className="col-role">
+                    <select
+                      className="role-select"
+                      value={user.role}
+                      onChange={e => handleRoleChange(user, e.target.value as Role)}
+                      disabled={user.username === selfUsername}
+                    >
+                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </td>
+                  <td className="dash-when col-created">
+                    {new Date(user.created_at).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="col-actions">
+                    <button
+                      className="btn btn-ghost btn-delete"
+                      onClick={() => setDeleteTarget(user)}
+                      disabled={user.username === selfUsername}
+                    >
+                      Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!loading && users.length === 0 && (
+                <tr><td colSpan={4} className="dash-empty">Tidak ada user.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal
