@@ -1733,6 +1733,12 @@
 
 .admin-users-table {
   width: 100%;
+  table-layout: fixed;
+}
+
+.admin-users-table thead tr th,
+.admin-users-table tbody tr td {
+  display: table-cell;
 }
 
 .admin-users-table .btn-delete {
