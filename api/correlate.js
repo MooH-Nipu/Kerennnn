@@ -191,16 +191,14 @@ async function checkAbuseIPDB(ip) {
     const d = data.data;
     const score = d.abuseConfidenceScore || 0;
     const reports = d.totalReports || 0;
-    // Consider both confidence score AND reporting volume — many reports with
-    // low individual confidence still signal community concern.
+    // Reports boost the confidence score as an amplifier, not an independent trigger.
+    // This prevents 0% confidence + 30 reports from jumping straight to malicious.
+    const reportBoost = reports >= 25 ? 20 : reports >= 10 ? 10 : reports >= 3 ? 5 : 0;
+    const adjustedScore = Math.min(100, score + reportBoost);
     const verdict =
-      (score >= 50 || reports >= 25)
-        ? 'malicious'
-        : (score >= 25 || reports >= 10)
-          ? 'suspicious'
-          : (score >= 10 || reports >= 3)
-            ? 'suspicious'
-            : 'clean';
+      adjustedScore >= 50 ? 'malicious' :
+      adjustedScore >= 20 ? 'suspicious' :
+      'clean';
     return {
       source: 'AbuseIPDB',
       verdict,

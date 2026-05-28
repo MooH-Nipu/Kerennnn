@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useRef } from 'react';
-import { parseIocList } from '../lib/ioc';
+import { parseIocList, confToVerdict } from '../lib/ioc';
 import { api } from '../lib/api';
 import type { ScanItem } from '../types/vt';
 import type { IocType } from '../types/vt';
@@ -160,6 +160,16 @@ export function useVtScan() {
 
   const visibleItems = state.items.filter(item => {
     if (item.pending || item.error) return true;
+    // Use blended verdict from correlation when available — stays visible while loading.
+    if (item.correlationLoading) return true;
+    if (item.correlation !== null) {
+      const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
+      const { label } = confToVerdict(conf);
+      if (label === 'MALICIOUS')  return state.filters.malicious;
+      if (label === 'SUSPICIOUS') return state.filters.suspicious;
+      return state.filters.clean; // LOW RISK / CLEAN / UNKNOWN
+    }
+    // Fallback: VT-only verdict when correlation unavailable.
     const result = item.result as Record<string, unknown> | null;
     const attrs = result?.data as Record<string, unknown> | null;
     const stats = (attrs?.attributes as Record<string, unknown>)?.last_analysis_stats as Record<string, number> | undefined;
@@ -167,8 +177,8 @@ export function useVtScan() {
     const sus = stats?.suspicious ?? 0;
     const total = Object.values(stats ?? {}).reduce((a, b) => a + b, 0);
     if (!total) return state.filters.clean;
-    if (mal > 3) return state.filters.malicious;
-    if (mal > 0 || sus > 3) return state.filters.suspicious;
+    if (mal >= 5) return state.filters.malicious;
+    if (mal >= 1 || sus >= 3) return state.filters.suspicious;
     return state.filters.clean;
   });
 
