@@ -121,56 +121,64 @@ export function AdminUsersTab() {
         {newRole && <div style={{ marginTop: '0.5rem' }}><RoleBadge role={newRole} size="sm" /></div>}
       </div>
 
-      {/* User table */}
-      <div className="admin-table-card">
-        <h3 className="admin-section-title">Daftar User</h3>
-        <div className="pac-table-wrap">
-          <table className="dash-table admin-users-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th style={{ width: 170 }}>Role</th>
-                <th style={{ width: 115 }}>Created</th>
-                <th style={{ width: 88, textAlign: 'right' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="dash-row">
-                  <td className="mono">
-                    {user.username}
-                    {user.username === selfUsername && <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: '0.4rem' }}>(you)</span>}
-                  </td>
-                  <td>
+      {/* User list */}
+      <div className="user-list-section">
+        <div className="user-list-header">
+          <h3 className="admin-section-title" style={{ margin: 0 }}>Daftar User</h3>
+          <span className="user-count">{users.length} user</span>
+        </div>
+
+        {!loading && users.length === 0 && (
+          <div className="user-empty">Tidak ada user.</div>
+        )}
+
+        <div className="user-grid">
+          {users.map(user => {
+            const isSelf = user.username === selfUsername;
+            const initials = user.username.slice(0, 2).toUpperCase();
+            return (
+              <div key={user.id} className={`user-card${isSelf ? ' user-card--self' : ''}`}>
+                <div className="user-card__head">
+                  <div className={`user-avatar user-avatar--${user.role}`}>{initials}</div>
+                  <div className="user-card__identity">
+                    <div className="user-card__name">
+                      {user.username}
+                      {isSelf && <span className="user-card__self-tag">YOU</span>}
+                    </div>
+                    <div className="user-card__meta">
+                      Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                  <RoleBadge role={user.role} size="sm" />
+                </div>
+
+                <div className="user-card__body">
+                  <label className="user-card__field">
+                    <span className="user-card__field-label">Ubah Role</span>
                     <select
-                      className="role-select"
+                      className="form-input role-select"
                       value={user.role}
                       onChange={e => handleRoleChange(user, e.target.value as Role)}
-                      disabled={user.username === selfUsername}
-                      style={{ width: '100%' }}
+                      disabled={isSelf}
                     >
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                  </td>
-                  <td className="dash-when">
-                    {new Date(user.created_at).toLocaleDateString('id-ID')}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="btn btn-ghost btn-delete"
-                      onClick={() => setDeleteTarget(user)}
-                      disabled={user.username === selfUsername}
-                    >
-                      Hapus
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {!loading && users.length === 0 && (
-                <tr><td colSpan={4} className="dash-empty">Tidak ada user.</td></tr>
-              )}
-            </tbody>
-          </table>
+                  </label>
+                </div>
+
+                <div className="user-card__actions">
+                  <button
+                    className="btn btn-ghost btn-delete-user"
+                    onClick={() => setDeleteTarget(user)}
+                    disabled={isSelf}
+                    title={isSelf ? 'Tidak dapat menghapus akun sendiri' : 'Hapus user'}
+                  >
+                    Hapus User
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
