@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { confClass, confLabel } from '../../lib/ioc';
 import { Spinner } from '../shared/Spinner';
+import type { RiskFactor, RiskSeverity } from '../../types/vt';
 
 interface Source {
   source: string;
@@ -17,8 +18,18 @@ interface CorrData {
   confidence: number;
   verdict?: string;
   sources?: Source[];
+  riskFactors?: RiskFactor[];
+  baselineConfidence?: number | null;
+  floor?: number;
+  bonus?: number;
   error?: string;
 }
+
+const SEVERITY_LABEL: Record<RiskSeverity, string> = {
+  high: 'HIGH',
+  med: 'MED',
+  low: 'LOW',
+};
 
 interface Props {
   loading: boolean;
@@ -85,6 +96,20 @@ export function CorrelationPanel({ loading, data }: Props) {
           style={{ width: `${Math.min(data.confidence, 100)}%`, background: barColor }}
         />
       </div>
+
+      {data.riskFactors && data.riskFactors.length > 0 && (
+        <div className="risk-factors-section">
+          <div className="risk-factors-title">Why this verdict</div>
+          <div className="risk-factors-list">
+            {data.riskFactors.map((f, idx) => (
+              <span key={idx} className={`risk-chip risk-chip-${f.severity}`} title={f.source}>
+                <span className="risk-chip-sev">{SEVERITY_LABEL[f.severity]}</span>
+                <span className="risk-chip-msg">{f.message}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {(data.sources ?? []).map((src, i) => {
         const verdict = sourceVerdict(src);

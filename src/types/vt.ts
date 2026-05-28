@@ -76,10 +76,24 @@ export interface CorrelationSource {
   link?: string;
 }
 
+export type RiskSeverity = 'high' | 'med' | 'low';
+
+export interface RiskFactor {
+  type: string;
+  severity: RiskSeverity;
+  source: string;
+  message: string;
+  bonus?: number;
+}
+
 export interface CorrelationResult {
   confidence: number;
   verdict: string;
   sources: CorrelationSource[];
+  riskFactors?: RiskFactor[];
+  baselineConfidence?: number | null;
+  floor?: number;
+  bonus?: number;
 }
 
 export interface ScanItem {
