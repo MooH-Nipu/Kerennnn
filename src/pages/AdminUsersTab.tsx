@@ -126,18 +126,12 @@ export function AdminUsersTab() {
         <h3 className="admin-section-title">Daftar User</h3>
         <div className="pac-table-wrap">
           <table className="dash-table admin-users-table">
-            <colgroup>
-              <col />
-              <col style={{ width: 160 }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 90 }} />
-            </colgroup>
             <thead>
               <tr>
                 <th>Username</th>
-                <th>Role</th>
-                <th>Created</th>
-                <th style={{ textAlign: 'right' }}>Aksi</th>
+                <th style={{ width: 170 }}>Role</th>
+                <th style={{ width: 115 }}>Created</th>
+                <th style={{ width: 88, textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
