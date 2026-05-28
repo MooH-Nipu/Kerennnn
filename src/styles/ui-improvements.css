@@ -1142,6 +1142,72 @@
   font-weight: 600;
 }
 
+/* ---------- Risk factors (Why this verdict) ---------- */
+.risk-factors-section {
+  margin: 0.5rem 0 0.7rem;
+  padding: 0.5rem 0.55rem 0.55rem;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.35rem;
+}
+
+.risk-factors-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f9a);
+  margin-bottom: 0.35rem;
+}
+
+.risk-factors-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.risk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  line-height: 1.25;
+  border: 1px solid transparent;
+}
+
+.risk-chip-sev {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 0.58rem;
+  opacity: 0.85;
+}
+
+.risk-chip-msg {
+  font-weight: 500;
+}
+
+.risk-chip-high {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.risk-chip-med {
+  background: rgba(234, 88, 12, 0.15);
+  color: #fdba74;
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+.risk-chip-low {
+  background: rgba(202, 138, 4, 0.12);
+  color: #fde047;
+  border-color: rgba(202, 138, 4, 0.4);
+}
+
 .verdict--pending {
   opacity: 0.55;
 }

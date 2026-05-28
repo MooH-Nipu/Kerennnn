@@ -75,6 +75,24 @@ function getTrustFactor(envKey, defaultValue = 1) {
   return n;
 }
 
+// ── High-risk hosting providers (commonly abused for malicious infra) ─────
+// Substring match, case-insensitive, against AbuseIPDB `isp` field.
+const HIGH_RISK_HOSTERS = [
+  'digitalocean', 'ovh', 'vultr', 'choopa', 'linode', 'akamai connected cloud',
+  'hetzner', 'm247', 'quadranet', 'frantech', 'buyvm', 'worldstream',
+  'nforce', 'cogent', 'leaseweb', 'datacamp', 'psychz', 'constant company',
+  'serverius', 'host sailor', 'shock hosting', 'colocrossing', 'incognet',
+];
+
+function ispIsHighRiskHoster(isp) {
+  if (!isp) return null;
+  const lower = String(isp).toLowerCase();
+  for (const needle of HIGH_RISK_HOSTERS) {
+    if (lower.includes(needle)) return needle;
+  }
+  return null;
+}
+
 // ── Source: VirusTotal ────────────────────────────────────────────────────
 async function checkVT(ioc, type) {
   const keys = getVTKeys();
@@ -111,11 +129,11 @@ async function checkVT(ioc, type) {
       const total = Object.values(s).reduce((a, b) => a + b, 0);
       const ratio = total > 0 ? (mal + sus) / total : 0;
       const score = Math.round(ratio * 100);
-      // Malicious: VT malicious engines > 3; else suspicious/clean/unknown
+      // More sensitive: any malicious detection raises alarm; use ratio for high-density flagging.
       const verdict =
-        mal > 3
+        (mal >= 5 || score >= 10)
           ? 'malicious'
-          : mal > 0 || sus > 3
+          : (mal >= 1 || sus >= 3 || score >= 5)
             ? 'suspicious'
             : total === 0
               ? 'unknown'
@@ -172,14 +190,26 @@ async function checkAbuseIPDB(ip) {
       };
     const d = data.data;
     const score = d.abuseConfidenceScore || 0;
+    const reports = d.totalReports || 0;
+    // Consider both confidence score AND reporting volume — many reports with
+    // low individual confidence still signal community concern.
+    const verdict =
+      (score >= 50 || reports >= 25)
+        ? 'malicious'
+        : (score >= 25 || reports >= 10)
+          ? 'suspicious'
+          : (score >= 10 || reports >= 3)
+            ? 'suspicious'
+            : 'clean';
     return {
       source: 'AbuseIPDB',
-      verdict: score >= 50 ? 'malicious' : score >= 25 ? 'suspicious' : 'clean',
+      verdict,
       score,
       weight: 0.25 * getTrustFactor('TRUST_ABUSEIPDB'),
       meta: {
         'Abuse Score': score + '%',
-        'Total Reports': d.totalReports,
+        'Total Reports': reports,
+        'Distinct Reporters': d.numDistinctUsers ?? '—',
         'Last Reported': d.lastReportedAt ? d.lastReportedAt.slice(0, 10) : '—',
         ISP: d.isp || '—',
         'Usage Type': d.usageType || '—',
@@ -267,18 +297,32 @@ async function checkOTX(ioc, type) {
     );
     if (status !== 200) return { source: 'AlienVault OTX', error: `OTX: HTTP ${status}` };
     const pulseCount = data.pulse_info?.count || 0;
-    const verdict = pulseCount >= 10 ? 'malicious' : pulseCount >= 1 ? 'suspicious' : 'clean';
+    const families = data.pulse_info?.related?.malware_families || [];
+    const pulses = data.pulse_info?.pulses || [];
+    const recentPulse = pulses.some((p) => {
+      const ts = p.modified || p.created;
+      if (!ts) return false;
+      const days = (Date.now() - new Date(ts).getTime()) / 86400000;
+      return Number.isFinite(days) && days <= 30;
+    });
+    // Recency + malware family weight more than raw count.
+    const verdict =
+      (pulseCount >= 5 || (families.length > 0 && recentPulse))
+        ? 'malicious'
+        : pulseCount >= 1
+          ? 'suspicious'
+          : 'clean';
     return {
       source: 'AlienVault OTX',
       verdict,
-      score: Math.min(pulseCount * 10, 100),
+      score: Math.min(pulseCount * 10 + (recentPulse ? 10 : 0) + (families.length > 0 ? 10 : 0), 100),
       weight: 0.25 * getTrustFactor('TRUST_OTX'),
       meta: {
         'Pulse Count': pulseCount,
+        'Recent Pulse (<30d)': recentPulse ? 'yes' : 'no',
         Reputation: data.reputation ?? '—',
         'Type Tags': (data.type_tags || []).slice(0, 3).join(', ') || '—',
-        'Malware Families':
-          (data.pulse_info?.related?.malware_families || []).slice(0, 2).join(', ') || '—',
+        'Malware Families': families.slice(0, 2).join(', ') || '—',
       },
       link: `https://otx.alienvault.com/indicator/${otxType}/${ioc}`,
     };
@@ -287,21 +331,150 @@ async function checkOTX(ioc, type) {
   }
 }
 
-// ── Weighted confidence score ─────────────────────────────────────────────
-// verdictScore maps verdict → risk level 0.0–1.0
-// unknown gets 0.2 (slight risk, not zero) so it still nudges the score
-function calcConfidence(results) {
+// ── Risk factor collection ────────────────────────────────────────────────
+// Each factor: { type, severity ('high'|'med'|'low'), source, message, bonus }
+function collectRiskFactors(results) {
+  const factors = [];
+  for (const r of results) {
+    if (r.skipped || r.error) continue;
+    const m = r.meta || {};
+
+    if (r.source === 'VirusTotal') {
+      const mal = Number(m.Malicious) || 0;
+      if (mal >= 1) {
+        const total = Number(m['Total Engines']) || 0;
+        factors.push({
+          type: 'vt_detection',
+          severity: mal >= 5 ? 'high' : 'med',
+          source: 'VirusTotal',
+          message: `${mal}/${total} engine flag malicious`,
+          bonus: mal >= 5 ? 10 : 5,
+        });
+      }
+    }
+
+    if (r.source === 'AbuseIPDB') {
+      const reports = Number(m['Total Reports']) || 0;
+      if (reports >= 25) {
+        factors.push({
+          type: 'many_reports',
+          severity: 'high',
+          source: 'AbuseIPDB',
+          message: `${reports} laporan abuse (90 hari)`,
+          bonus: 15,
+        });
+      } else if (reports >= 10) {
+        factors.push({
+          type: 'many_reports',
+          severity: 'med',
+          source: 'AbuseIPDB',
+          message: `${reports} laporan abuse (90 hari)`,
+          bonus: 10,
+        });
+      }
+      const hoster = ispIsHighRiskHoster(m.ISP);
+      if (hoster) {
+        factors.push({
+          type: 'hosting_provider',
+          severity: 'med',
+          source: 'AbuseIPDB',
+          message: `Hosted di ${m.ISP} (sering disalahgunakan)`,
+          bonus: 10,
+        });
+      }
+      const usage = String(m['Usage Type'] || '').toLowerCase();
+      if (
+        !hoster &&
+        (usage.includes('data center') ||
+          usage.includes('hosting') ||
+          usage.includes('colocrossing') ||
+          usage.includes('transit'))
+      ) {
+        factors.push({
+          type: 'datacenter_usage',
+          severity: 'low',
+          source: 'AbuseIPDB',
+          message: `Usage type: ${m['Usage Type']}`,
+          bonus: 5,
+        });
+      }
+    }
+
+    if (r.source === 'AlienVault OTX') {
+      const families = String(m['Malware Families'] || '');
+      if (families && families !== '—') {
+        factors.push({
+          type: 'malware_family',
+          severity: 'high',
+          source: 'AlienVault OTX',
+          message: `Terkait keluarga malware: ${families}`,
+          bonus: 10,
+        });
+      }
+      if (m['Recent Pulse (<30d)'] === 'yes') {
+        factors.push({
+          type: 'recent_pulse',
+          severity: 'med',
+          source: 'AlienVault OTX',
+          message: 'Pulse aktif dalam 30 hari terakhir',
+          bonus: 5,
+        });
+      }
+    }
+
+    if (r.source === 'Abuse.ch') {
+      const online = Number(m['Online URLs']) || 0;
+      if (online > 0) {
+        factors.push({
+          type: 'urlhaus_online',
+          severity: 'high',
+          source: 'Abuse.ch',
+          message: `${online} URL malicious aktif di URLhaus`,
+          bonus: 10,
+        });
+      }
+    }
+  }
+  return factors;
+}
+
+// ── Weighted confidence + risk floors + factor bonus ──────────────────────
+// Prevents alarm dilution: a single confirmed source still raises verdict.
+// verdictScore: malicious=1.0, suspicious=0.5, unknown=0.2, clean=0.0
+function calcConfidenceWithFloors(results, factors) {
   const verdictScore = { malicious: 1.0, suspicious: 0.5, unknown: 0.2, clean: 0.0 };
   let weightedSum = 0;
   let totalWeight = 0;
+  let maliciousCount = 0;
+  let suspiciousCount = 0;
   for (const r of results) {
     if (r.skipped || r.error || r.verdict === undefined) continue;
     const vs = verdictScore[r.verdict] ?? 0;
     weightedSum += vs * r.weight;
     totalWeight += r.weight;
+    if (r.verdict === 'malicious') maliciousCount++;
+    else if (r.verdict === 'suspicious') suspiciousCount++;
   }
-  if (totalWeight === 0) return null;
-  return Math.round((weightedSum / totalWeight) * 100);
+  if (totalWeight === 0) {
+    return { baseline: null, floor: 0, bonus: 0, confidence: null };
+  }
+  const baseline = Math.round((weightedSum / totalWeight) * 100);
+
+  // Risk floor: prevent strong single-source signals from being diluted.
+  let floor = 0;
+  if (maliciousCount >= 2) floor = 70;
+  else if (maliciousCount >= 1) floor = 40;
+  else if (suspiciousCount >= 3) floor = 40;
+  else if (suspiciousCount >= 2) floor = 25;
+
+  // Risk factor bonus, capped to avoid runaway scoring.
+  const bonus = Math.min(
+    (factors || []).reduce((sum, f) => sum + (f.bonus || 0), 0),
+    25,
+  );
+
+  const confidence = Math.min(100, Math.max(baseline, floor) + bonus);
+  return { baseline, floor, bonus, confidence };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────
@@ -323,12 +496,23 @@ module.exports = async function handler(req, res) {
   checks.push(checkOTX(ioc, type)); // all types
 
   const results = await Promise.all(checks);
-  const confidence = calcConfidence(results);
+  const riskFactors = collectRiskFactors(results);
+  const { baseline, floor, bonus, confidence } = calcConfidenceWithFloors(results, riskFactors);
 
   // Total weights of active (non-skipped, non-error) sources
   const activeWeights = results
     .filter((r) => !r.skipped && !r.error && r.verdict !== undefined)
     .reduce((sum, r) => sum + r.weight, 0);
 
-  return res.status(200).json({ ioc, type, confidence, activeWeights, sources: results });
+  return res.status(200).json({
+    ioc,
+    type,
+    confidence,
+    baselineConfidence: baseline,
+    floor,
+    bonus,
+    activeWeights,
+    riskFactors,
+    sources: results,
+  });
 };
