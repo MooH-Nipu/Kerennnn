@@ -1732,16 +1732,8 @@
 }
 
 .admin-users-table {
-  table-layout: fixed;
   width: 100%;
 }
-
-.admin-users-table .col-username { width: auto; }
-.admin-users-table .col-role     { width: 140px; }
-.admin-users-table .col-created  { width: 140px; }
-.admin-users-table .col-actions  { width: 100px; text-align: right; }
-
-.admin-users-table td.col-role .role-select { width: 100%; }
 
 .admin-users-table .btn-delete {
   color: #f87171;
@@ -1757,11 +1749,6 @@
 
 .admin-users-table .dash-row { cursor: default; }
 
-@media (max-width: 700px) {
-  .admin-users-table .col-role     { width: 120px; }
-  .admin-users-table .col-created  { width: 110px; }
-  .admin-users-table .col-actions  { width: 90px; }
-}
 
 /* ============================================================
    IoC Scan — side-by-side layout + multi-select
