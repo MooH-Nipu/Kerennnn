@@ -13,6 +13,25 @@ const BPRKS_PAC_SEV = 'Top values of signal.rule.severity';
 
 const OUTPUT_KEYS = ['Date', 'Alarm Name', 'Severity', 'Alarm Time', 'Alarm Taken', 'Min', 'Shift Name'];
 
+// Columns 3-7: Severity, Alarm Time, Alarm Taken, Min, Shift Name
+const EOD_CENTER_COLS = new Set([3, 4, 5, 6, 7]);
+
+const SMI_COLUMN_DEFS = [
+  { header: 'id',                  key: 'id',            width: 10 },
+  { header: 'fullDescription',     key: 'fullDescription', width: 40 },
+  { header: 'severity',            key: 'severity',      width: 12 },
+  { header: '',                    key: '_blank1',       width: 10 },
+  { header: 'attacker',            key: 'attacker',      width: 20 },
+  { header: 'target',              key: 'target',        width: 20 },
+  { header: '',                    key: '_na1',          width: 10 },
+  { header: 'usernameOrderBy',     key: 'usernameOrderBy', width: 20 },
+  { header: '',                    key: '_blank2',       width: 10 },
+  { header: '',                    key: '_blank3',       width: 10 },
+  { header: '',                    key: '_na2',          width: 10 },
+  { header: '',                    key: '_blank4',       width: 10 },
+  { header: 'startTime - endTime', key: 'timeRange',     width: 22 },
+];
+
 const RULE_CANDIDATES = [
   BPRKS_PAC_RULE,
   'Top values of kibana.alert.rule.name',
@@ -152,6 +171,11 @@ function addMinutesTime(d, mins) {
   return formatHHMMSS(x);
 }
 
+function processUsernameOrderBy(val) {
+  const s = String(val ?? '').trim();
+  return !s || s.toLowerCase() === 'null' ? 'N/A' : s;
+}
+
 function processSeverityLogic(severity) {
   const n = parseFloat(severity);
   if (!Number.isNaN(n)) {
@@ -221,35 +245,30 @@ function processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime) {
   return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
 }
 
-function processSmiFromDaily(rows, picName, reportDate) {
-  const today = reportDate;
+function processSmiFromDaily(rows) {
   const sorted = sortDailyById(rows);
-  const out = [];
-  for (const row of sorted) {
-    const tStart = extractTimeDaily(row.startTime ?? row['startTime'] ?? '00:00:00');
-    let alarmTaken = tStart;
-    try {
-      const [h, mi, s] = tStart.split(':').map(Number);
-      const d = new Date(2000, 0, 1, h, mi, s);
-      if (!isNaN(d.getTime())) alarmTaken = addMinutesTime(d, 5);
-    } catch {
-      /* keep tStart */
-    }
-    const desc = String(row.fullDescription ?? row['fullDescription'] ?? '').trim();
-    out.push({
-      Date: today,
-      'Alarm Name': desc,
-      Severity: processSeverityLogic(row.severity ?? row['severity']),
-      'Alarm Time': tStart,
-      'Alarm Taken': alarmTaken,
-      Min: 5,
-      'Shift Name': picName,
-    });
-  }
-  return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
+  return sorted.map((row) => {
+    const tStart = extractTimeDaily(row.startTime ?? '00:00:00');
+    const tEnd   = extractTimeDaily(row.endTime   ?? '00:00:00');
+    return {
+      id:              row.id ?? '',
+      fullDescription: String(row.fullDescription ?? '').trim(),
+      severity:        processSeverityLogic(row.severity ?? ''),
+      _blank1:         '',
+      attacker:        String(row.attacker ?? '').trim(),
+      target:          String(row.target   ?? '').trim(),
+      _na1:            'N/A',
+      usernameOrderBy: processUsernameOrderBy(row.usernameOrderBy),
+      _blank2:         '',
+      _blank3:         '',
+      _na2:            'N/A',
+      _blank4:         '',
+      timeRange:       `${tStart} - ${tEnd}`,
+    };
+  });
 }
 
-function applySheetStyling(sheet) {
+function applySheetStyling(sheet, centerCols = new Set()) {
   const thin = {
     top: { style: 'thin' },
     left: { style: 'thin' },
@@ -260,6 +279,9 @@ function applySheetStyling(sheet) {
     row.eachCell((cell) => {
       cell.font = { name: 'Times New Roman', size: 11 };
       cell.border = thin;
+      if (centerCols.has(cell.col)) {
+        cell.alignment = { horizontal: 'center' };
+      }
     });
   });
 }
@@ -337,22 +359,22 @@ module.exports = async function handler(req, res) {
     if (buffers.dci && buffers.dci.length) {
       const rows = parseCsvBuffer(buffers.dci);
       const data = processDci(rows, picName, reportDate, fallbackAlarmTime);
-      if (data.length) sheets.push({ name: 'DCI', data });
+      if (data.length) sheets.push({ name: 'DCI', data, centerCols: EOD_CENTER_COLS });
     }
     if (buffers.bprks && buffers.bprks.length) {
       const rows = parseCsvBuffer(buffers.bprks);
       const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
-      if (data.length) sheets.push({ name: 'BPRKS', data });
+      if (data.length) sheets.push({ name: 'BPRKS', data, centerCols: EOD_CENTER_COLS });
     }
     if (buffers.pac && buffers.pac.length) {
       const rows = parseCsvBuffer(buffers.pac);
       const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
-      if (data.length) sheets.push({ name: 'PAC', data });
+      if (data.length) sheets.push({ name: 'PAC', data, centerCols: EOD_CENTER_COLS });
     }
     if (buffers.smi && buffers.smi.length) {
       const rows = parseCsvBuffer(buffers.smi);
-      const data = processSmiFromDaily(rows, picName, reportDate);
-      if (data.length) sheets.push({ name: 'SMI', data });
+      const data = processSmiFromDaily(rows);
+      if (data.length) sheets.push({ name: 'SMI', data, columns: SMI_COLUMN_DEFS });
     }
   } catch (e) {
     res.setHeader('Content-Type', 'application/json');
@@ -365,11 +387,11 @@ module.exports = async function handler(req, res) {
   }
 
   const wb = new ExcelJS.Workbook();
-  for (const { name, data } of sheets) {
+  for (const { name, data, columns, centerCols } of sheets) {
     const sheet = wb.addWorksheet(name);
-    sheet.columns = OUTPUT_KEYS.map((k) => ({ header: k, key: k, width: 22 }));
+    sheet.columns = columns ?? OUTPUT_KEYS.map((k) => ({ header: k, key: k, width: 22 }));
     data.forEach((row) => sheet.addRow(row));
-    applySheetStyling(sheet);
+    applySheetStyling(sheet, centerCols);
   }
 
   const buf = await wb.xlsx.writeBuffer();
