@@ -7,6 +7,7 @@ import { extractIOC, detectType } from '../lib/ioc';
 
 const PRESET_FIELDS = [
   { label: 'data.real_ip', value: 'data.real_ip' },
+  { label: 'data.srcip',   value: 'data.srcip' },
   { label: 'source.ip',    value: 'source.ip' },
   { label: 'data.ip',      value: 'data.ip' },
   { label: 'Custom…',      value: '__custom__' },
