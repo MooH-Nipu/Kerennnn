@@ -2,10 +2,6 @@ const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('./_ioc');
 const { requireAuth } = require('./_auth');
 
-function authEnabled() {
-  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
-}
-
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
 function currentUpdatedAtIsoWib() {
   const d = new Date();
@@ -72,7 +68,10 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (authEnabled() && !requireAuth(req, res)) return;
+  // Auth is mandatory: the app now authenticates via session cookie (APP_AUTH_SECRET).
+  // Do NOT gate on the legacy APP_PASSWORD flag — it is unset under multi-user login,
+  // which previously left this DB endpoint fully open.
+  if (!requireAuth(req, res)) return;
 
   if (!mergerPasswordOk(req)) {
     return res.status(401).json({ error: 'Invalid or missing X-Merger-Password header.' });

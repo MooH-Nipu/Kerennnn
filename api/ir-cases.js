@@ -27,7 +27,13 @@ module.exports = async function handler(req, res) {
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (q) {
-      query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+      // Strip PostgREST filter-control characters so the search term cannot break
+      // out of the ilike predicate and inject additional filter logic.
+      // Reserved: , ( ) \ separate/group conditions; * % are like-wildcards.
+      const safeQ = q.replace(/[,()\\*%]/g, '');
+      if (safeQ) {
+        query = query.or(`title.ilike.%${safeQ}%,description.ilike.%${safeQ}%`);
+      }
     }
 
     const { data, error, count } = await query;
