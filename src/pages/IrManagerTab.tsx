@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
-import { fmtWhen } from '../lib/utils';
 import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
 import { Modal } from '../components/shared/Modal';
 import { CopyButton } from '../components/shared/CopyButton';
 import type { IrCase } from '../types/api';
+import { useAuthState } from '../context/AuthContext';
 
 // ── Column alias mapping (bilingual EN/ID) ─────────────────────────────────
 const IR_FIELDS = ['event_name', 'description', 'impact', 'details', 'corrective', 'preventive'] as const;
@@ -91,6 +91,10 @@ function parseCsv(text: string): { headers: string[]; rows: string[][] } {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export function IrManagerTab() {
+  // Auth / permissions
+  const { role } = useAuthState();
+  const canDelete = role !== 'l1';
+
   // List state
   const [cases, setCases]           = useState<IrCase[]>([]);
   const [total, setTotal]           = useState(0);
@@ -569,16 +573,19 @@ export function IrManagerTab() {
                 {/* Header row */}
                 <div className="ir-case-header" onClick={() => handleExpand(c.id)}>
                   <span className="ir-chevron">{isExpanded ? '▾' : '▸'}</span>
+                  <span className="ir-case-glyph" aria-hidden="true">
+                    {(c.title || '?').trim().charAt(0).toUpperCase() || '?'}
+                  </span>
                   <span className="ir-case-title">{c.title}</span>
-                  <span className="ir-case-meta">{c.created_by} · {fmtWhen(c.created_at)}</span>
                   <div className="ir-case-actions" onClick={e => e.stopPropagation()}>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-                      onClick={() => setDeleteTarget(c)}
-                    >
-                      Delete
-                    </button>
+                    {canDelete && (
+                      <button
+                        className="btn-delete-ir"
+                        onClick={() => setDeleteTarget(c)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
 
