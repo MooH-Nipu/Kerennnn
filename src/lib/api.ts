@@ -1,4 +1,5 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse } from '../types/api';
+import type { ScanItem } from '../types/vt';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
@@ -52,6 +53,29 @@ export const api = {
     vt: (ioc: string) => apiFetch<Record<string, unknown>>(`/api/vt?ioc=${encodeURIComponent(ioc)}`),
     correlate: (ioc: string) =>
       apiFetch<Record<string, unknown>>(`/api/correlate?ioc=${encodeURIComponent(ioc)}`),
+  },
+
+  history: {
+    list: (limit = 50) =>
+      apiFetch<HistoryListResponse>(`/api/scan-history?limit=${limit}`),
+    add: (input: string, count: number, items: ScanItem[]) =>
+      apiFetch<HistoryMutateResponse>('/api/scan-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input, count, items }),
+      }),
+    remove: (id: string) =>
+      apiFetch<{ ok: boolean }>('/api/scan-history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      }),
+    clear: () =>
+      apiFetch<{ ok: boolean }>('/api/scan-history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear: true }),
+      }),
   },
 
   ipCache: {
