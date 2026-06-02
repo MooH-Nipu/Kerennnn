@@ -3,6 +3,7 @@ import { useVtScan } from '../hooks/useVtScan';
 import { useScanHistory } from '../hooks/useScanHistory';
 import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
+import { CountryFilter } from '../components/vt/CountryFilter';
 import { parseIocList } from '../lib/ioc';
 import { CopyButton } from '../components/shared/CopyButton';
 
@@ -13,7 +14,7 @@ interface Props {
 
 export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const [input, setInput] = useState('');
-  const { visibleItems, items, filters, scanning, progress, statusMsg, statusType, runScan, clear, setFilter } = useVtScan();
+  const { visibleItems, items, filters, countryFilter, availableCountries, scanning, progress, statusMsg, statusType, runScan, clear, setFilter, setCountry } = useVtScan();
   const { addEntry } = useScanHistory();
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -167,7 +168,10 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
             <>
               <div className="scan-results-header">
                 <span className="scan-results-count">{visibleItems.length} / {items.length} hasil</span>
-                <VtFilterChips filters={filters} onToggle={setFilter} />
+                <div className="scan-results-filters">
+                  <VtFilterChips filters={filters} onToggle={setFilter} />
+                  <CountryFilter countries={availableCountries} value={countryFilter} onChange={setCountry} />
+                </div>
               </div>
 
               {/* Multi-select action bar */}
