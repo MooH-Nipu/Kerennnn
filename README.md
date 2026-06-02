@@ -1,6 +1,6 @@
 # soc-toolbox (Charlie kerennnn)
 
-Static UI (`index.html`, `styles.css`, `app.js`) plus Vercel serverless routes under `api/`. VirusTotal and correlation features call `/api/*` from the browser.
+React + Vite single-page app (entry `index.html` → `src/main.tsx`, base styles in `styles.css`) plus Vercel serverless routes under `api/`. VirusTotal and correlation features call same-origin `/api/*` from the browser.
 
 ## Deploy (Vercel)
 
@@ -16,6 +16,7 @@ PAC Filter tab persists IPs to the database (Supabase). Apply SQL in order:
 4. [supabase/vt_ip_cache.sql](supabase/vt_ip_cache.sql) — VT IP scan cache
 5. [supabase/login_attempts.sql](supabase/login_attempts.sql) — brute-force lockout for login
 6. [supabase/audit_log.sql](supabase/audit_log.sql) — admin action audit trail
+7. [supabase/scan_history.sql](supabase/scan_history.sql) — per-user IoC scan history
 
 Set the environment variables below, then use **Refresh dari DB** in the UI.
 

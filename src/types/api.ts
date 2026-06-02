@@ -1,3 +1,5 @@
+import type { ScanItem } from './vt';
+
 export type Role = 'admin' | 'pac' | 'charlie' | 'l1' | 'l2';
 
 export interface MeResponse {
@@ -86,4 +88,22 @@ export interface LogsResponse {
   ok: boolean;
   audit: AuditLogEntry[];
   logins: LoginAttemptEntry[];
+}
+
+export interface ScanHistoryEntry {
+  id: string;
+  input: string;
+  count: number;
+  items: ScanItem[];
+  created_at: string;
+}
+
+export interface HistoryListResponse {
+  ok: boolean;
+  entries: ScanHistoryEntry[];
+}
+
+export interface HistoryMutateResponse {
+  ok: boolean;
+  entry: ScanHistoryEntry;
 }

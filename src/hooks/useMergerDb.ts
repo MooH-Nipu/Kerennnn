@@ -10,7 +10,7 @@ export interface MergerItem {
   updated_at: string;
 }
 
-/** Session cache — survives tab unmount (same pattern as app.js _mergerDbLastItems). */
+/** Session cache — survives tab unmount (persists last-loaded merger rows across remounts). */
 let sessionItems: MergerItem[] = [];
 let sessionAutoFetched = false;
 
