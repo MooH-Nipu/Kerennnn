@@ -1,7 +1,7 @@
 -- Run in Supabase SQL Editor (public schema).
 -- Brute-force protection for /api/auth/login. The API counts recent FAILED
 -- attempts per (username, ip) within a window (LOGIN_WINDOW_MINUTES, default 15)
--- and rejects further tries with HTTP 429 once LOGIN_MAX_ATTEMPTS (default 5)
+-- and rejects further tries with HTTP 429 once LOGIN_MAX_ATTEMPTS (default 10)
 -- is reached.
 
 create table if not exists public.login_attempts (

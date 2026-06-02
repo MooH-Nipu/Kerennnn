@@ -1,6 +1,6 @@
 'use strict';
 
-const MAX_ATTEMPTS = Number.parseInt(process.env.LOGIN_MAX_ATTEMPTS, 10) || 5;
+const MAX_ATTEMPTS = Number.parseInt(process.env.LOGIN_MAX_ATTEMPTS, 10) || 10;
 const WINDOW_MIN = Number.parseInt(process.env.LOGIN_WINDOW_MINUTES, 10) || 15;
 
 /** Best-effort client IP extraction (honours the proxy X-Forwarded-For header). */
