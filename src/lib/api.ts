@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse } from '../types/api';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
@@ -45,6 +45,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       }),
+    logs: () => apiFetch<LogsResponse>('/api/admin/logs'),
   },
 
   scan: {

@@ -19,7 +19,8 @@ const ALL_TABS: TabDef[] = [
   { id: 'pac-filter',  label: 'PAC Filter', shortLabel: 'PAC',    icon: '⬡',  shortcut: 5 },
   { id: 'daily-eod',   label: 'Daily EOD',  shortLabel: 'EOD',    icon: '▨',  shortcut: 6 },
   { id: 'admin-users', label: 'Users',      shortLabel: 'Users',  icon: '⊕',  shortcut: 7 },
-  { id: 'ir-manager',  label: 'IR Manager', shortLabel: 'IR',     icon: '⚑',  shortcut: 8 },
+  { id: 'admin-logs',  label: 'Logs',       shortLabel: 'Logs',   icon: '🗎',  shortcut: 8 },
+  { id: 'ir-manager',  label: 'IR Manager', shortLabel: 'IR',     icon: '⚑',  shortcut: 9 },
 ];
 
 function isTabVisible(tab: TabDef, role: Role): boolean {

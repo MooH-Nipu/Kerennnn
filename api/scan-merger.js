@@ -1,6 +1,11 @@
-const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('./_ioc');
-const { requireAuth } = require('./_auth');
+const { requireRole, readJsonBody } = require('./_auth');
+const { getSupabase } = require('./_supabase');
+const { serverError } = require('./_errors');
+
+// Roles allowed to read/write the PAC Filter DB (mirrors PAC_ROLES in
+// src/lib/permissions.ts). L2 is a second admin tier.
+const PAC_ROLES = ['admin', 'pac', 'charlie', 'l2'];
 
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
 function currentUpdatedAtIsoWib() {
@@ -26,40 +31,11 @@ function currentUpdatedAtIsoWib() {
   return new Date().toISOString();
 }
 
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
-
 function mergerPasswordOk(req) {
   const expected = process.env.MERGER_API_PASSWORD || '';
   if (!expected) return true;
   const got = req.headers['x-merger-password'];
   return typeof got === 'string' && got === expected;
-}
-
-async function readJsonBody(req) {
-  if (req.body != null && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-    return req.body;
-  }
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', (c) => {
-      raw += c;
-      if (raw.length > 2e6) req.destroy(new Error('Body too large'));
-    });
-    req.on('end', () => {
-      if (!raw.trim()) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on('error', reject);
-  });
 }
 
 module.exports = async function handler(req, res) {
@@ -68,10 +44,10 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Auth is mandatory: the app now authenticates via session cookie (APP_AUTH_SECRET).
-  // Do NOT gate on the legacy APP_PASSWORD flag — it is unset under multi-user login,
-  // which previously left this DB endpoint fully open.
-  if (!requireAuth(req, res)) return;
+  // Auth is mandatory and now role-gated server-side: only PAC-capable roles may
+  // read/write the PAC Filter DB. Previously this was requireAuth only, so any
+  // logged-in user (incl. l1) could reach the DB by calling the API directly.
+  if (!requireRole(req, res, PAC_ROLES)) return;
 
   if (!mergerPasswordOk(req)) {
     return res.status(401).json({ error: 'Invalid or missing X-Merger-Password header.' });
@@ -97,7 +73,7 @@ module.exports = async function handler(req, res) {
           .select('ip,payload,updated_at')
           .order('ip', { ascending: true })
           .range(from, to);
-        if (error) return res.status(500).json({ error: error.message || String(error) });
+        if (error) return serverError(res, error, 'scan-merger GET');
         const chunk = data || [];
         items.push(...chunk);
         if (chunk.length < pageSize) break;
@@ -160,7 +136,7 @@ module.exports = async function handler(req, res) {
           .select('ip')
           .in('ip', slice);
         if (selErr) {
-          return res.status(500).json({ error: selErr.message || String(selErr) });
+          return serverError(res, selErr, 'scan-merger lookup');
         }
         for (const row of rows || []) {
           if (row && row.ip) existingSet.add(row.ip);
@@ -214,7 +190,7 @@ module.exports = async function handler(req, res) {
           .delete()
           .eq('ip', norm)
           .select('ip');
-        if (error) return res.status(500).json({ error: error.message || String(error) });
+        if (error) return serverError(res, error, 'scan-merger GET');
         const deletedCount = (delRows || []).length;
         return res.status(200).json({ ok: true, deleted: norm, deletedCount });
       }
@@ -252,7 +228,7 @@ module.exports = async function handler(req, res) {
             .delete()
             .in('ip', slice)
             .select('ip');
-          if (error) return res.status(500).json({ error: error.message || String(error) });
+          if (error) return serverError(res, error, 'scan-merger GET');
           deletedCount += (delRows || []).length;
         }
         return res.status(200).json({
@@ -274,7 +250,7 @@ module.exports = async function handler(req, res) {
         .delete()
         .eq('ip', norm)
         .select('ip');
-      if (error) return res.status(500).json({ error: error.message || String(error) });
+      if (error) return serverError(res, error, 'scan-merger DELETE');
       const deletedCount = (delRows || []).length;
       return res.status(200).json({ ok: true, deleted: norm, deletedCount });
     }
@@ -282,6 +258,6 @@ module.exports = async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
-    return res.status(500).json({ error: e.message || String(e) });
+    return serverError(res, e, 'scan-merger');
   }
 };

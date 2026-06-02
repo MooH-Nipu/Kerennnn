@@ -64,3 +64,26 @@ export interface IrCasesMutateResponse {
   cases?: IrCase[];
   case?: IrCase;
 }
+
+export interface AuditLogEntry {
+  id: string;
+  actor_username: string | null;
+  action: string;
+  target: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface LoginAttemptEntry {
+  id: string;
+  username: string;
+  ip: string;
+  success: boolean;
+  attempted_at: string;
+}
+
+export interface LogsResponse {
+  ok: boolean;
+  audit: AuditLogEntry[];
+  logins: LoginAttemptEntry[];
+}

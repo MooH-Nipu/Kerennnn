@@ -1,11 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+const { getSupabase } = require('../_supabase');
+const { serverError } = require('../_errors');
 
 function isUuid(v) {
   const s = String(v || '').trim();
@@ -35,7 +29,7 @@ module.exports = async function handler(req, res) {
     .eq('id', String(id))
     .maybeSingle();
 
-  if (error) return res.status(500).json({ error: error.message || String(error) });
+  if (error) return serverError(res, error, 'ip-cache by-id');
   if (!data) return res.status(404).json({ error: 'Not found' });
 
   return res.status(200).json({ ok: true, item: data });

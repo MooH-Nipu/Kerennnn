@@ -1,56 +1,22 @@
-const https = require('https');
-const { createClient } = require('@supabase/supabase-js');
 const { extractIOC, detectType } = require('./_ioc');
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+const { getSupabase } = require('./_supabase');
+const { getVtKeys } = require('./_vtkeys');
+const { httpGet } = require('./_http');
+const { requireAuth } = require('./_auth');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
   return new Date(Date.now() - ms).toISOString();
 }
 
-function getApiKeys() {
-  const keys = [];
-  const k1 = process.env.VT_API_KEY;
-  if (k1) keys.push(k1);
-  for (let i = 2; i <= 10; i++) {
-    const k = process.env[`VT_API_KEY_${i}`];
-    if (k) keys.push(k);
-  }
-  return keys;
-}
-
-function httpsGet(url, headers) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, (res) => {
-      let body = '';
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, data: JSON.parse(body) });
-        } catch {
-          reject(new Error('Failed to parse VT response: ' + body.slice(0, 200)));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(10000, () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
-  });
-}
-
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const apiKeys = getApiKeys();
+  // Auth required: this endpoint spends the server's paid VirusTotal keys.
+  if (!requireAuth(req, res)) return;
+
+  const apiKeys = getVtKeys();
 
   // ── Health check ──────────────────────────────
   if (req.query.health === '1') {
@@ -148,11 +114,15 @@ module.exports = async function handler(req, res) {
 
   for (let i = 0; i < apiKeys.length; i++) {
     try {
-      const { status, data } = await httpsGet(vtUrl, {
-        'x-apikey': apiKeys[i],
-        Accept: 'application/json',
-        'User-Agent': 'Charlie-kerennnn/1.0',
-      });
+      const { status, data } = await httpGet(
+        vtUrl,
+        {
+          'x-apikey': apiKeys[i],
+          Accept: 'application/json',
+          'User-Agent': 'Charlie-kerennnn/1.0',
+        },
+        { timeout: 10000 }
+      );
 
       if (isRateLimitResponse(status, data)) {
         rateLimitedCount++;
