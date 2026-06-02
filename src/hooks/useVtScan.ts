@@ -15,6 +15,7 @@ export interface ScanFilters {
 interface VtScanState {
   items: ScanItem[];
   filters: ScanFilters;
+  countryFilter: string; // '' = all countries; otherwise a 2-letter code
   scanning: boolean;
   progress: { done: number; total: number };
   statusMsg: string | null;
@@ -28,22 +29,57 @@ type Action =
   | { type: 'RESOLVE_ERROR'; id: string; error: string }
   | { type: 'UPDATE_CORR'; id: string; correlation: ScanItem['correlation'] }
   | { type: 'SET_FILTER'; key: keyof ScanFilters; value: boolean }
+  | { type: 'SET_COUNTRY'; value: string }
   | { type: 'SET_STATUS'; msg: string | null; statusType: VtScanState['statusType'] }
   | { type: 'CLEAR' };
 
 const initial: VtScanState = {
   items: [],
   filters: { clean: true, suspicious: true, malicious: true },
+  countryFilter: '',
   scanning: false,
   progress: { done: 0, total: 0 },
   statusMsg: null,
   statusType: null,
 };
 
+/** Reads the 2-letter country code from a resolved VT result (IPs only). */
+function getItemCountry(item: ScanItem): string {
+  const result = item.result as Record<string, unknown> | null;
+  const data = result?.data as Record<string, unknown> | undefined;
+  const attrs = data?.attributes as Record<string, unknown> | undefined;
+  const c = attrs?.country;
+  return typeof c === 'string' ? c.toUpperCase() : '';
+}
+
+/** Whether an item passes the verdict (malicious/suspicious/clean) chips. */
+function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
+  if (item.pending || item.error) return true;
+  if (item.correlationLoading) return true;
+  if (item.correlation !== null) {
+    const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
+    const { label } = confToVerdict(conf);
+    if (label === 'MALICIOUS') return filters.malicious;
+    if (label === 'SUSPICIOUS') return filters.suspicious;
+    return filters.clean; // LOW RISK / CLEAN / UNKNOWN
+  }
+  // Fallback: VT-only verdict when correlation unavailable.
+  const result = item.result as Record<string, unknown> | null;
+  const attrs = result?.data as Record<string, unknown> | null;
+  const stats = (attrs?.attributes as Record<string, unknown>)?.last_analysis_stats as Record<string, number> | undefined;
+  const mal = stats?.malicious ?? 0;
+  const sus = stats?.suspicious ?? 0;
+  const total = Object.values(stats ?? {}).reduce((a, b) => a + b, 0);
+  if (!total) return filters.clean;
+  if (mal >= 5) return filters.malicious;
+  if (mal >= 1 || sus >= 3) return filters.suspicious;
+  return filters.clean;
+}
+
 function reducer(state: VtScanState, action: Action): VtScanState {
   switch (action.type) {
     case 'START':
-      return { ...state, items: [], scanning: true, progress: { done: 0, total: action.total }, statusMsg: null, statusType: 'loading' };
+      return { ...state, items: [], countryFilter: '', scanning: true, progress: { done: 0, total: action.total }, statusMsg: null, statusType: 'loading' };
     case 'ADD_PENDING':
       return {
         ...state,
@@ -80,6 +116,8 @@ function reducer(state: VtScanState, action: Action): VtScanState {
       };
     case 'SET_FILTER':
       return { ...state, filters: { ...state.filters, [action.key]: action.value } };
+    case 'SET_COUNTRY':
+      return { ...state, countryFilter: action.value };
     case 'SET_STATUS':
       return { ...state, statusMsg: action.msg, statusType: action.statusType, scanning: action.statusType === 'loading' };
     case 'CLEAR':
@@ -158,29 +196,31 @@ export function useVtScan() {
     dispatch({ type: 'SET_FILTER', key, value });
   }, []);
 
+  const setCountry = useCallback((value: string) => {
+    dispatch({ type: 'SET_COUNTRY', value });
+  }, []);
+
+  // Countries present in the current results, with counts (IP results only).
+  const countryCounts = new Map<string, number>();
+  for (const item of state.items) {
+    const c = getItemCountry(item);
+    if (c) countryCounts.set(c, (countryCounts.get(c) ?? 0) + 1);
+  }
+  const availableCountries = [...countryCounts.entries()]
+    .map(([code, count]) => ({ code, count }))
+    .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+
   const visibleItems = state.items.filter(item => {
-    if (item.pending || item.error) return true;
-    // Use blended verdict from correlation when available — stays visible while loading.
-    if (item.correlationLoading) return true;
-    if (item.correlation !== null) {
-      const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
-      const { label } = confToVerdict(conf);
-      if (label === 'MALICIOUS')  return state.filters.malicious;
-      if (label === 'SUSPICIOUS') return state.filters.suspicious;
-      return state.filters.clean; // LOW RISK / CLEAN / UNKNOWN
+    if (!passesVerdictFilter(item, state.filters)) return false;
+
+    // Country filter (applies to resolved IP results; loading/pending stay visible).
+    if (state.countryFilter) {
+      const c = getItemCountry(item);
+      if (c) return c === state.countryFilter;
+      return item.pending; // unresolved items remain while scanning; resolved non-IP hidden
     }
-    // Fallback: VT-only verdict when correlation unavailable.
-    const result = item.result as Record<string, unknown> | null;
-    const attrs = result?.data as Record<string, unknown> | null;
-    const stats = (attrs?.attributes as Record<string, unknown>)?.last_analysis_stats as Record<string, number> | undefined;
-    const mal = stats?.malicious ?? 0;
-    const sus = stats?.suspicious ?? 0;
-    const total = Object.values(stats ?? {}).reduce((a, b) => a + b, 0);
-    if (!total) return state.filters.clean;
-    if (mal >= 5) return state.filters.malicious;
-    if (mal >= 1 || sus >= 3) return state.filters.suspicious;
-    return state.filters.clean;
+    return true;
   });
 
-  return { ...state, visibleItems, runScan, clear, setFilter };
+  return { ...state, visibleItems, availableCountries, runScan, clear, setFilter, setCountry };
 }
