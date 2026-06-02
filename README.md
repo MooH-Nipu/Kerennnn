@@ -27,7 +27,7 @@ Set the environment variables below, then use **Refresh dari DB** in the UI.
 | `SUPABASE_SERVICE_ROLE_KEY` | all DB handlers | Service role key (server only; **bypasses RLS** — never expose to the client) |
 | `APP_AUTH_SECRET` | `api/_auth.js`, `api/auth/login.js` | **Required for auth.** HMAC secret for signing session cookies. All `/api/*` data endpoints reject requests without a valid session |
 | `COOKIE_SECURE` | `api/_auth.js` | Optional. Force the `Secure` cookie flag (defaults to on in production) |
-| `LOGIN_MAX_ATTEMPTS` | `api/_ratelimit.js` | Optional. Failed logins per (username, IP) before lockout (default 5) |
+| `LOGIN_MAX_ATTEMPTS` | `api/_ratelimit.js` | Optional. Failed logins per (username, IP) before lockout (default 10) |
 | `LOGIN_WINDOW_MINUTES` | `api/_ratelimit.js` | Optional. Lockout window in minutes (default 15) |
 | `MERGER_API_PASSWORD` | `api/scan-merger.js` | Optional. If set, requests must also send header `X-Merger-Password` with this value |
 | `VT_API_KEY` | `api/vt.js`, `api/correlate.js`, `api/health.js` | VirusTotal API key |
