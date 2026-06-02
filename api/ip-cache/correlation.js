@@ -1,13 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
 const { normalizeIpLine } = require('../_ioc');
 const { readJsonBody, requireAuth } = require('../_auth');
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+const { getSupabase } = require('../_supabase');
+const { serverError } = require('../_errors');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -51,7 +45,7 @@ module.exports = async function handler(req, res) {
     { onConflict: 'ip' }
   );
 
-  if (error) return res.status(500).json({ error: error.message || String(error) });
+  if (error) return serverError(res, error, 'ip-cache correlation');
   return res.status(200).json({ ok: true });
 };
 

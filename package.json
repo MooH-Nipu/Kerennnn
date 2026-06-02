@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "start": "node server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test api/_ioc.test.js",
+    "test": "node --test \"api/**/*.test.js\"",
     "lint": "eslint api src",
     "format": "prettier --write \"api/**/*.js\" \"src/**/*.{ts,tsx}\""
   },

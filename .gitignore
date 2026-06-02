@@ -12,3 +12,6 @@ CLAUDE.md
 .wolf/
 .cursor/
 .codegraph/
+
+# Internal design roadmap — local only, not for the repo
+ROADMAP.md

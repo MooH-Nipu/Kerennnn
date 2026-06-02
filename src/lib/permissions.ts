@@ -10,7 +10,13 @@ export type TabId =
   | 'pac-filter'
   | 'daily-eod'
   | 'admin-users'
+  | 'admin-logs'
   | 'ir-manager';
+
+// Admin-equivalent roles. L2 is treated as a second admin tier.
+export const ADMIN_ROLES: Role[] = ['admin', 'l2'];
+// Roles allowed to read/write the PAC Filter DB.
+export const PAC_ROLES: Role[] = ['admin', 'pac', 'charlie', 'l2'];
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
@@ -18,9 +24,10 @@ export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'merger':      null,
   'ioc-scan':    null,
   'history':     null,
-  'pac-filter':  ['admin', 'pac', 'charlie'],
+  'pac-filter':  PAC_ROLES,
   'daily-eod':   null,
-  'admin-users': ['admin'],
+  'admin-users': ADMIN_ROLES,
+  'admin-logs':  ADMIN_ROLES,
   'ir-manager':  null,
 };
 
@@ -38,9 +45,9 @@ export type Action =
   | 'export:csv';
 
 export const ACTION_ACCESS: Record<Action, Role[] | null> = {
-  'manage:users':     ['admin'],
-  'write:pac-filter': ['admin', 'pac', 'charlie'],
-  'read:pac-filter':  ['admin', 'pac', 'charlie'],
+  'manage:users':     ADMIN_ROLES,
+  'write:pac-filter': PAC_ROLES,
+  'read:pac-filter':  PAC_ROLES,
   'export:pdf':       null,
   'export:csv':       null,
 };

@@ -1,11 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+const { getSupabase } = require('../_supabase');
+const { serverError } = require('../_errors');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -47,7 +41,7 @@ module.exports = async function handler(req, res) {
     .order('last_scanned_at', { ascending: false })
     .limit(limit);
 
-  if (error) return res.status(500).json({ error: error.message || String(error) });
+  if (error) return serverError(res, error, 'ip-cache recent');
   return res.status(200).json({ ok: true, ttlDays, items: data || [] });
 };
 

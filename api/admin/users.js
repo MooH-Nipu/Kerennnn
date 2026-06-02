@@ -1,28 +1,32 @@
 const bcrypt = require('bcryptjs');
-const { createClient } = require('@supabase/supabase-js');
 const { requireRole, readJsonBody } = require('../_auth');
+const { getSupabase } = require('../_supabase');
+const { serverError } = require('../_errors');
+const { writeAudit } = require('../_audit');
 
 const VALID_ROLES = ['admin', 'pac', 'charlie', 'l1', 'l2'];
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!requireRole(req, res, ['admin'])) return;
+  // L2 is a second admin tier (see src/lib/permissions.ts ADMIN_ROLES).
+  if (!requireRole(req, res, ['admin', 'l2'])) return;
 
   const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
+    });
+  }
 
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('app_users')
       .select('id, username, role, created_at, created_by')
       .order('created_at', { ascending: true });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return serverError(res, error, 'admin/users GET');
     return res.status(200).json({ ok: true, users: data });
   }
 
@@ -51,8 +55,15 @@ module.exports = async function handler(req, res) {
 
     if (error) {
       if (error.code === '23505') return res.status(409).json({ error: 'Username already exists.' });
-      return res.status(500).json({ error: error.message });
+      return serverError(res, error, 'admin/users POST');
     }
+    await writeAudit(supabase, {
+      actorId: req.auth.userId,
+      actorUsername: req.auth.username,
+      action: 'user.create',
+      target: data.username,
+      detail: { role: data.role },
+    });
     return res.status(201).json({ ok: true, user: data });
   }
 
@@ -84,8 +95,15 @@ module.exports = async function handler(req, res) {
       .select('id, username, role')
       .single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return serverError(res, error, 'admin/users PATCH');
     if (!data) return res.status(404).json({ error: 'User not found.' });
+    await writeAudit(supabase, {
+      actorId: req.auth.userId,
+      actorUsername: req.auth.username,
+      action: 'user.update',
+      target: data.username,
+      detail: { roleChanged: !!role, passwordChanged: !!password, newRole: role || undefined },
+    });
     return res.status(200).json({ ok: true, user: data });
   }
 
@@ -104,7 +122,13 @@ module.exports = async function handler(req, res) {
     }
 
     const { error } = await supabase.from('app_users').delete().eq('id', id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return serverError(res, error, 'admin/users DELETE');
+    await writeAudit(supabase, {
+      actorId: req.auth.userId,
+      actorUsername: req.auth.username,
+      action: 'user.delete',
+      target: String(id),
+    });
     return res.status(200).json({ ok: true });
   }
 

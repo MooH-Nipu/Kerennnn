@@ -1,10 +1,11 @@
 const bcrypt = require('bcryptjs');
-const { createClient } = require('@supabase/supabase-js');
 const { buildSetCookie, makeSessionToken, readJsonBody } = require('../_auth');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
+const { getSupabase } = require('../_supabase');
+const {
+  getClientIp,
+  checkLoginRateLimit,
+  recordLoginAttempt,
+} = require('../_ratelimit');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -31,6 +32,21 @@ module.exports = async function handler(req, res) {
   }
 
   const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
+    });
+  }
+
+  // ── Brute-force lockout (best-effort; fails open if table/Supabase missing) ──
+  const ip = getClientIp(req);
+  const { locked } = await checkLoginRateLimit(supabase, username, ip);
+  if (locked) {
+    return res.status(429).json({
+      error: 'Too many failed login attempts. Try again later.',
+    });
+  }
+
   const { data: user } = await supabase
     .from('app_users')
     .select('id, username, password_hash, role')
@@ -42,8 +58,11 @@ module.exports = async function handler(req, res) {
   const match = await bcrypt.compare(password, hashToCheck);
 
   if (!user || !match) {
+    await recordLoginAttempt(supabase, username, ip, false);
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
+
+  await recordLoginAttempt(supabase, username, ip, true);
 
   const now = Math.floor(Date.now() / 1000);
   const ttlSec = 60 * 60 * 8; // 8 hours

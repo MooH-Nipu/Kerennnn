@@ -1,10 +1,7 @@
 'use strict';
-const { createClient } = require('@supabase/supabase-js');
 const { requireAuth } = require('../_auth');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
+const { getSupabase } = require('../_supabase');
+const { serverError } = require('../_errors');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -17,13 +14,18 @@ module.exports = async function handler(req, res) {
   if (!id) return res.status(400).json({ error: 'Missing id.' });
 
   const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({
+      error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
+    });
+  }
   const { data, error } = await supabase
     .from('ir_cases')
     .select('id, title, description, created_by, created_at, updated_at')
     .eq('id', id)
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return serverError(res, error, 'ir-cases detail');
   if (!data)  return res.status(404).json({ error: 'Case not found.' });
   return res.status(200).json({ ok: true, case: data });
 };

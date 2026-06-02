@@ -1,71 +1,7 @@
-const https = require('https');
 const { extractIOC, detectType } = require('./_ioc');
-
-function getVTKeys() {
-  const keys = [];
-  const k1 = process.env.VT_API_KEY;
-  if (k1) keys.push(k1);
-  for (let i = 2; i <= 10; i++) {
-    const k = process.env[`VT_API_KEY_${i}`];
-    if (k) keys.push(k);
-  }
-  return keys;
-}
-
-function httpGet(url, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, (res) => {
-      let body = '';
-      res.on('data', (c) => (body += c));
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, data: JSON.parse(body) });
-        } catch {
-          reject(new Error('Parse error: ' + body.slice(0, 100)));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(8000, () => {
-      req.destroy();
-      reject(new Error('Timeout'));
-    });
-  });
-}
-
-function httpPost(url, postBody, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const req = https.request(
-      {
-        hostname: u.hostname,
-        path: u.pathname + u.search,
-        method: 'POST',
-        headers: {
-          ...headers,
-        },
-      },
-      (res) => {
-        let body = '';
-        res.on('data', (c) => (body += c));
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode, data: JSON.parse(body) });
-          } catch {
-            reject(new Error('Parse error: ' + body.slice(0, 120)));
-          }
-        });
-      }
-    );
-    req.on('error', reject);
-    req.setTimeout(8000, () => {
-      req.destroy();
-      reject(new Error('Timeout'));
-    });
-    req.write(postBody);
-    req.end();
-  });
-}
+const { httpGet, httpPost } = require('./_http');
+const { getVtKeys } = require('./_vtkeys');
+const { requireAuth } = require('./_auth');
 
 function getTrustFactor(envKey, defaultValue = 1) {
   const raw = process.env[envKey];
@@ -95,7 +31,7 @@ function ispIsHighRiskHoster(isp) {
 
 // ── Source: VirusTotal ────────────────────────────────────────────────────
 async function checkVT(ioc, type) {
-  const keys = getVTKeys();
+  const keys = getVtKeys();
   if (!keys.length) return { source: 'VirusTotal', skipped: true, reason: 'No API key' };
 
   const urlMap = {
@@ -480,6 +416,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Auth required: this endpoint spends the server's paid VT/AbuseIPDB/OTX keys.
+  if (!requireAuth(req, res)) return;
+
   const { ioc: rawIoc } = req.query;
   if (!rawIoc) return res.status(400).json({ error: 'Missing ?ioc= param.' });
 
@@ -514,3 +453,7 @@ module.exports = async function handler(req, res) {
     sources: results,
   });
 };
+
+// Exposed for unit tests (the handler is the default export above).
+module.exports.collectRiskFactors = collectRiskFactors;
+module.exports.calcConfidenceWithFloors = calcConfidenceWithFloors;
