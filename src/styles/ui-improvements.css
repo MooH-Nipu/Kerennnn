@@ -832,6 +832,7 @@
 
 .vt-chip.chip-malicious.on  { border-color: #ef4444; color: #f87171; background: rgba(239,68,68,0.1); }
 .vt-chip.chip-suspicious.on { border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.1); }
+.vt-chip.chip-lowrisk.on    { border-color: #eab308; color: #fde047; background: rgba(234,179,8,0.1); }
 .vt-chip.chip-clean.on      { border-color: #22c55e; color: #4ade80; background: rgba(34,197,94,0.1); }
 
 /* ---------- Results filter row (verdict chips + country) ---------- */
@@ -893,6 +894,72 @@
   transition: background 0.15s, color 0.15s;
 }
 .vt-country-filter__clear:hover { background: #ef4444; color: #fff; }
+
+/* ---------- Kibana-style include/exclude country pills ---------- */
+.vt-country-filter-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.vt-country-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.15rem;
+  border-radius: 14px;
+  border: 1px solid var(--border, #1a2a45);
+  background: var(--bg-base, #0a1322);
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.vt-country-pill--include { border-color: rgba(34, 197, 94, 0.45); }
+.vt-country-pill--exclude { border-color: rgba(239, 68, 68, 0.45); }
+.vt-country-pill__mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.66rem;
+  line-height: 1;
+  color: #fff;
+}
+.vt-country-pill--include .vt-country-pill__mode { background: rgba(34, 197, 94, 0.85); }
+.vt-country-pill--exclude .vt-country-pill__mode { background: rgba(239, 68, 68, 0.85); }
+.vt-country-pill__label { padding: 0 0.15rem; color: var(--text-secondary, #a3b3cc); }
+.vt-country-pill--include .vt-country-pill__label { color: #4ade80; }
+.vt-country-pill--exclude .vt-country-pill__label { color: #f87171; text-decoration: line-through; opacity: 0.85; }
+.vt-country-pill__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted, #6b7f9a);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.vt-country-pill__remove:hover { background: #ef4444; color: #fff; }
+.vt-country-filter__clearall {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6b7f9a);
+  font-size: 0.7rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.1rem 0.2rem;
+}
+.vt-country-filter__clearall:hover { color: #f87171; }
 
 /* ---------- VT Cards ---------- */
 .vt-cards {
@@ -1136,6 +1203,7 @@
 .sv-suspicious { color: #fbbf24; }
 .sv-clean      { color: #4ade80; }
 .sv-skipped, .sv-error, .sv-unknown { color: var(--text-muted, #6b7f9a); }
+.sv-context { color: #38bdf8; }
 
 .source-detail {
   font-size: 0.68rem;
@@ -2660,4 +2728,60 @@
   padding: 0.6rem 0.75rem;
   vertical-align: middle;
   border-bottom: 1px solid rgba(26, 42, 69, 0.5);
+}
+
+/* ── Deep-analysis scoring breakdown (ResultPage "Rincian Skor") ─────────── */
+.score-breakdown {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.score-breakdown-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7f9a);
+  margin-bottom: 0.5rem;
+}
+.score-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.sb-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.625rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: 8px;
+}
+.sb-k {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6b7f9a);
+}
+.sb-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #e8f0fe);
+}
+.sb-final {
+  color: var(--accent, #3b82f6);
+}
+.score-breakdown-formula {
+  margin-top: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted, #6b7f9a);
+}
+@media (max-width: 560px) {
+  .score-breakdown-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

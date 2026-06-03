@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { calcVerdict, countryFlag, confLabel, confClass } from '../lib/ioc';
 import { DetectionBar } from '../components/vt/DetectionBar';
+import { CorrelationPanel } from '../components/vt/CorrelationPanel';
 import { Spinner } from '../components/shared/Spinner';
 import '../styles/ui-improvements.css';
 
@@ -14,6 +15,16 @@ interface CacheRow {
   corr_confidence: number | null;
   corr_payload: Record<string, unknown> | null;
   first_scanned_at: string;
+}
+
+// The persisted correlation payload (api/correlate.js response shape).
+interface CorrPayload {
+  confidence?: number;
+  baselineConfidence?: number | null;
+  floor?: number;
+  bonus?: number;
+  sources?: Array<{ source: string; meta?: Record<string, string | number> }>;
+  riskFactors?: unknown[];
 }
 
 const TAKEAWAY: Record<string, { title: string; body: string }> = {
@@ -41,7 +52,8 @@ export function ResultPage() {
     if (!id) { setError('ID tidak valid.'); setLoading(false); return; }
     api.ipCache.byId(id)
       .then(res => {
-        const row = (res as { data?: CacheRow }).data ?? null;
+        // by-id returns { ok, item }
+        const row = (res as { item?: CacheRow }).item ?? null;
         if (!row) throw new Error('Data tidak ditemukan.');
         setData(row);
       })
@@ -74,6 +86,14 @@ export function ResultPage() {
   const flag = countryFlag(String(vtAttrs?.country ?? ''));
   const ctry = String(vtAttrs?.country ?? '');
 
+  // Persisted correlation breakdown (sources + risk factors + scoring math).
+  const corr = (data.corr_payload && typeof data.corr_payload === 'object')
+    ? data.corr_payload as CorrPayload
+    : null;
+  const hasCorr = !!corr && (typeof corr.confidence === 'number' || (Array.isArray(corr.sources) && corr.sources.length > 0));
+  const enrichment = corr?.sources?.find(s => s.source === 'Enrichment')?.meta ?? null;
+
+  // Fallback for legacy rows scanned before correlation was persisted.
   const corrConf = data.corr_confidence;
   const corrLabel = confLabel(corrConf ?? null);
   const corrCls = confClass(corrConf ?? null);
@@ -121,8 +141,29 @@ export function ResultPage() {
           </div>
         </div>
 
-        {/* Threat intel */}
-        {corrConf !== null && (
+        {/* Threat intel — full breakdown (sources + why this verdict) + scoring math */}
+        {hasCorr ? (
+          <div className="vt-card" style={{ marginBottom: '0.75rem' }}>
+            <div className="vt-card-body" style={{ borderTop: 'none' }}>
+              <CorrelationPanel loading={false} data={corr as Parameters<typeof CorrelationPanel>[0]['data']} />
+
+              {typeof corr!.confidence === 'number' && (
+                <div className="score-breakdown">
+                  <div className="score-breakdown-title">Rincian Skor</div>
+                  <div className="score-breakdown-grid">
+                    <div className="sb-item"><span className="sb-k">Baseline</span><span className="sb-v">{corr!.baselineConfidence ?? '—'}%</span></div>
+                    <div className="sb-item"><span className="sb-k">Risk floor</span><span className="sb-v">{corr!.floor ?? 0}</span></div>
+                    <div className="sb-item"><span className="sb-k">Bonus faktor</span><span className="sb-v">+{corr!.bonus ?? 0}</span></div>
+                    <div className="sb-item"><span className="sb-k">Final</span><span className="sb-v sb-final">{corr!.confidence}%</span></div>
+                  </div>
+                  <div className="score-breakdown-formula">
+                    Final = min(100, max(baseline {corr!.baselineConfidence ?? 0}, floor {corr!.floor ?? 0}) + bonus {corr!.bonus ?? 0})
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : corrConf !== null && (
           <div className="vt-card" style={{ marginBottom: '0.75rem' }}>
             <div className="vt-card-body" style={{ borderTop: 'none' }}>
               <div className="corr-header">
@@ -135,6 +176,23 @@ export function ResultPage() {
                   width: `${Math.min(corrConf, 100)}%`,
                   background: corrConf >= 70 ? 'var(--red)' : corrConf >= 40 ? 'var(--orange)' : corrConf >= 15 ? 'var(--yellow)' : 'var(--green)',
                 }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enrichment highlight (RDAP / GeoIP) */}
+        {enrichment && Object.keys(enrichment).length > 0 && (
+          <div className="vt-card" style={{ marginBottom: '0.75rem' }}>
+            <div className="vt-card-body" style={{ borderTop: 'none' }}>
+              <div className="score-breakdown-title">Enrichment · RDAP / GeoIP</div>
+              <div className="meta-grid" style={{ marginTop: '0.5rem' }}>
+                {Object.entries(enrichment).filter(([k]) => k !== 'GeoSource').map(([k, val]) => (
+                  <div className="meta-item" key={k}>
+                    <div className="mk">{k}</div>
+                    <div className="mv">{String(val)}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

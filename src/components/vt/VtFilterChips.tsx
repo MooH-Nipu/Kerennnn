@@ -8,6 +8,7 @@ interface Props {
 const CHIPS: Array<{ key: keyof ScanFilters; label: string; cls: string }> = [
   { key: 'malicious',  label: 'Malicious',  cls: 'chip-malicious' },
   { key: 'suspicious', label: 'Suspicious', cls: 'chip-suspicious' },
+  { key: 'lowrisk',    label: 'Low Risk',   cls: 'chip-lowrisk' },
   { key: 'clean',      label: 'Clean',      cls: 'chip-clean' },
 ];
 
