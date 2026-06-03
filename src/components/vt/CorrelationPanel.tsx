@@ -40,6 +40,8 @@ function sourceVerdict(s: Source): string {
   if (s.verdict) return s.verdict;
   if (s.skipped) return 'skipped';
   if (s.error)   return 'error';
+  // Context sources (e.g. Enrichment / RDAP+GeoIP) have data but no verdict.
+  if (s.meta && Object.keys(s.meta).length > 0) return 'context';
   return 'unknown';
 }
 

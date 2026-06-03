@@ -265,6 +265,104 @@ async function checkOTX(ioc, type) {
   }
 }
 
+// ── Source: Enrichment (RDAP + GeoIP) ─────────────────────────────────────
+// Context source: registration age / registrar / ASN / org / geo. Carries NO
+// `verdict`/`weight`, so calcConfidenceWithFloors skips it and it never dilutes
+// the weighted baseline — it contributes to the score only via risk factors.
+// All requests are server-side with fixed host+protocol (no SSRF surface).
+function extractRdapEntityName(entity) {
+  // RDAP entities carry a jCard: vcardArray = ["vcard", [ ["fn",{},"text","Name"], ... ]]
+  try {
+    const vcard = entity && entity.vcardArray && entity.vcardArray[1];
+    if (Array.isArray(vcard)) {
+      const fn = vcard.find((f) => Array.isArray(f) && f[0] === 'fn');
+      if (fn && fn[3]) return String(fn[3]);
+    }
+  } catch {
+    // ignore malformed vcard
+  }
+  return entity && entity.handle ? String(entity.handle) : null;
+}
+
+async function checkEnrichment(ioc, type) {
+  if (type !== 'ip' && type !== 'domain') {
+    return { source: 'Enrichment', skipped: true, reason: `Unsupported type: ${type}` };
+  }
+  const meta = {};
+
+  // ── RDAP (no API key): registration age, registrar, RIR country/handle ──
+  try {
+    const path = type === 'ip' ? `ip/${encodeURIComponent(ioc)}` : `domain/${encodeURIComponent(ioc)}`;
+    const { status, data } = await httpGet(
+      `https://rdap.org/${path}`,
+      { Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' },
+      { timeout: 7000 }
+    );
+    if (status === 200 && data && typeof data === 'object') {
+      const events = Array.isArray(data.events) ? data.events : [];
+      const reg = events.find((e) => e && e.eventAction === 'registration');
+      if (reg && reg.eventDate) {
+        const t = new Date(reg.eventDate).getTime();
+        meta.Registered = String(reg.eventDate).slice(0, 10);
+        if (Number.isFinite(t)) meta['Age (days)'] = Math.max(0, Math.floor((Date.now() - t) / 86400000));
+      }
+      const entities = Array.isArray(data.entities) ? data.entities : [];
+      const registrar = entities.find((e) => Array.isArray(e?.roles) && e.roles.includes('registrar'));
+      const regName = registrar && extractRdapEntityName(registrar);
+      if (regName) meta.Registrar = regName;
+      if (data.country) meta['RIR Country'] = data.country;
+      if (data.handle) meta['Handle/CIDR'] = data.handle;
+    }
+  } catch {
+    // best-effort — enrichment never blocks the verdict
+  }
+
+  // ── GeoIP (ip only): ipinfo.io when IPINFO_TOKEN set, else ipwho.is (no key) ──
+  if (type === 'ip') {
+    try {
+      const token = process.env.IPINFO_TOKEN;
+      if (token) {
+        const { status, data } = await httpGet(
+          `https://ipinfo.io/${encodeURIComponent(ioc)}/json?token=${encodeURIComponent(token)}`,
+          { Accept: 'application/json' }
+        );
+        if (status === 200 && data && !data.error) {
+          if (data.country) meta.Country = data.country;
+          if (data.city) meta.City = data.city;
+          if (data.org) {
+            meta.Org = data.org;
+            meta.ASN = String(data.org).split(' ')[0]; // ipinfo org is "AS#### Name"
+          }
+          meta.GeoSource = 'ipinfo.io';
+        }
+      } else {
+        const { status, data } = await httpGet(`https://ipwho.is/${encodeURIComponent(ioc)}`, {
+          Accept: 'application/json',
+        });
+        if (status === 200 && data && data.success !== false) {
+          if (data.country_code) meta.Country = data.country_code;
+          if (data.city) meta.City = data.city;
+          const conn = data.connection || {};
+          if (conn.org || conn.isp) meta.Org = conn.org || conn.isp;
+          if (conn.asn) meta.ASN = 'AS' + conn.asn;
+          meta.GeoSource = 'ipwho.is';
+        }
+      }
+    } catch {
+      // best-effort
+    }
+  }
+
+  if (Object.keys(meta).length === 0) {
+    return { source: 'Enrichment', skipped: true, reason: 'No enrichment data available' };
+  }
+  return {
+    source: 'Enrichment',
+    meta,
+    link: type === 'ip' ? `https://rdap.org/ip/${ioc}` : `https://rdap.org/domain/${ioc}`,
+  };
+}
+
 // ── Risk factor collection ────────────────────────────────────────────────
 // Each factor: { type, severity ('high'|'med'|'low'), source, message, bonus }
 function collectRiskFactors(results) {
@@ -368,8 +466,50 @@ function collectRiskFactors(results) {
         });
       }
     }
+
+    if (r.source === 'Enrichment') {
+      const age = Number(m['Age (days)']);
+      if (Number.isFinite(age)) {
+        if (age < 30) {
+          factors.push({
+            type: 'new_registration',
+            severity: 'high',
+            source: 'Enrichment',
+            message: `Baru didaftarkan (${age} hari lalu)`,
+            bonus: 10,
+          });
+        } else if (age < 90) {
+          factors.push({
+            type: 'new_registration',
+            severity: 'med',
+            source: 'Enrichment',
+            message: `Registrasi cukup baru (${age} hari lalu)`,
+            bonus: 5,
+          });
+        }
+      }
+      const org = m.Org || m.ISP || m.ASN || '';
+      const hoster = ispIsHighRiskHoster(org);
+      if (hoster) {
+        factors.push({
+          type: 'hosting_provider',
+          severity: 'med',
+          source: 'Enrichment',
+          message: `ASN/org sering disalahgunakan: ${org}`,
+          bonus: 10,
+        });
+      }
+    }
   }
-  return factors;
+
+  // Dedupe by factor type, keeping the highest-bonus instance — prevents an
+  // AbuseIPDB + Enrichment 'hosting_provider' (or similar) from double-counting.
+  const byType = new Map();
+  for (const f of factors) {
+    const prev = byType.get(f.type);
+    if (!prev || (f.bonus || 0) > (prev.bonus || 0)) byType.set(f.type, f);
+  }
+  return [...byType.values()];
 }
 
 // ── Weighted confidence + risk floors + factor bonus ──────────────────────
@@ -431,6 +571,7 @@ module.exports = async function handler(req, res) {
   if (type === 'ip') checks.push(checkAbuseIPDB(ioc)); // IP only
   if (type === 'ip' || type === 'domain') checks.push(checkAbuseCh(ioc)); // Abuse.ch (URLhaus) host query
   checks.push(checkOTX(ioc, type)); // all types
+  if (type === 'ip' || type === 'domain') checks.push(checkEnrichment(ioc, type)); // context + risk factors
 
   const results = await Promise.all(checks);
   const riskFactors = collectRiskFactors(results);
@@ -457,3 +598,4 @@ module.exports = async function handler(req, res) {
 // Exposed for unit tests (the handler is the default export above).
 module.exports.collectRiskFactors = collectRiskFactors;
 module.exports.calcConfidenceWithFloors = calcConfidenceWithFloors;
+module.exports.checkEnrichment = checkEnrichment;

@@ -81,6 +81,12 @@ export const api = {
   ipCache: {
     recent: (limit = 50) => apiFetch<RecentResponse>(`/api/ip-cache/recent?limit=${limit}`),
     byId: (id: string) => apiFetch<Record<string, unknown>>(`/api/ip-cache/by-id?id=${encodeURIComponent(id)}`),
+    saveCorrelation: (ioc: string, correlation: unknown) =>
+      apiFetch<{ ok: boolean }>('/api/ip-cache/correlation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ioc, correlation }),
+      }),
   },
 
   irCases: {

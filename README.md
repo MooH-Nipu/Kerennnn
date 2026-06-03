@@ -36,7 +36,12 @@ Set the environment variables below, then use **Refresh dari DB** in the UI.
 | `ABUSEIPDB_API_KEY` | `api/correlate.js` | AbuseIPDB |
 | `ABUSECH_API_KEY` or `URLHAUS_API_KEY` | `api/correlate.js` | Abuse.ch / URLhaus |
 | `OTX_API_KEY` | `api/correlate.js` | AlienVault OTX |
+| `IPINFO_TOKEN` | `api/correlate.js` | Optional. GeoIP enrichment via ipinfo.io. If unset, falls back to keyless `ipwho.is`. RDAP (registrar / registration age) uses keyless `rdap.org` |
 | `TRUST_VT`, `TRUST_ABUSEIPDB`, `TRUST_ABUSECH`, `TRUST_OTX` | `api/correlate.js` | Optional numeric weights (defaults apply if unset) |
+
+RDAP/GeoIP enrichment is a **context source**: it carries no verdict/weight (never dilutes the
+weighted baseline) but contributes capped risk-factor bonuses to the confidence score (e.g.
+newly-registered domain, high-risk hosting ASN/org). All enrichment requests are server-side.
 
 The front end stores the VirusTotal key in **localStorage** for browser calls; server routes use env keys for `/api/vt` and correlation.
 
