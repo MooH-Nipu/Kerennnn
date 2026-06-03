@@ -14,7 +14,7 @@ interface Props {
 
 export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const [input, setInput] = useState('');
-  const { visibleItems, items, filters, countryFilter, availableCountries, scanning, progress, statusMsg, statusType, runScan, clear, setFilter, setCountry } = useVtScan();
+  const { visibleItems, items, filters, countryFilters, availableCountries, scanning, progress, statusMsg, statusType, runScan, clear, setFilter, setCountryFilters } = useVtScan();
   const { addEntry } = useScanHistory();
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -170,7 +170,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                 <span className="scan-results-count">{visibleItems.length} / {items.length} hasil</span>
                 <div className="scan-results-filters">
                   <VtFilterChips filters={filters} onToggle={setFilter} />
-                  <CountryFilter countries={availableCountries} value={countryFilter} onChange={setCountry} />
+                  <CountryFilter countries={availableCountries} filters={countryFilters} onChange={setCountryFilters} />
                 </div>
               </div>
 

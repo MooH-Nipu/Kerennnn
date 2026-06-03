@@ -8,14 +8,21 @@ const VT_CONCURRENCY = 2;
 
 export interface ScanFilters {
   clean: boolean;
+  lowrisk: boolean;
   suspicious: boolean;
   malicious: boolean;
+}
+
+export type CountryMode = 'include' | 'exclude';
+export interface CountryFilterEntry {
+  code: string;
+  mode: CountryMode;
 }
 
 interface VtScanState {
   items: ScanItem[];
   filters: ScanFilters;
-  countryFilter: string; // '' = all countries; otherwise a 2-letter code
+  countryFilters: CountryFilterEntry[]; // Kibana-style include/exclude per 2-letter code
   scanning: boolean;
   progress: { done: number; total: number };
   statusMsg: string | null;
@@ -29,14 +36,14 @@ type Action =
   | { type: 'RESOLVE_ERROR'; id: string; error: string }
   | { type: 'UPDATE_CORR'; id: string; correlation: ScanItem['correlation'] }
   | { type: 'SET_FILTER'; key: keyof ScanFilters; value: boolean }
-  | { type: 'SET_COUNTRY'; value: string }
+  | { type: 'SET_COUNTRY_FILTERS'; value: CountryFilterEntry[] }
   | { type: 'SET_STATUS'; msg: string | null; statusType: VtScanState['statusType'] }
   | { type: 'CLEAR' };
 
 const initial: VtScanState = {
   items: [],
-  filters: { clean: true, suspicious: true, malicious: true },
-  countryFilter: '',
+  filters: { clean: true, lowrisk: true, suspicious: true, malicious: true },
+  countryFilters: [],
   scanning: false,
   progress: { done: 0, total: 0 },
   statusMsg: null,
@@ -61,7 +68,8 @@ function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
     const { label } = confToVerdict(conf);
     if (label === 'MALICIOUS') return filters.malicious;
     if (label === 'SUSPICIOUS') return filters.suspicious;
-    return filters.clean; // LOW RISK / CLEAN / UNKNOWN
+    if (label === 'LOW RISK') return filters.lowrisk;
+    return filters.clean; // CLEAN / UNKNOWN
   }
   // Fallback: VT-only verdict when correlation unavailable.
   const result = item.result as Record<string, unknown> | null;
@@ -79,7 +87,7 @@ function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
 function reducer(state: VtScanState, action: Action): VtScanState {
   switch (action.type) {
     case 'START':
-      return { ...state, items: [], countryFilter: '', scanning: true, progress: { done: 0, total: action.total }, statusMsg: null, statusType: 'loading' };
+      return { ...state, items: [], countryFilters: [], scanning: true, progress: { done: 0, total: action.total }, statusMsg: null, statusType: 'loading' };
     case 'ADD_PENDING':
       return {
         ...state,
@@ -116,8 +124,8 @@ function reducer(state: VtScanState, action: Action): VtScanState {
       };
     case 'SET_FILTER':
       return { ...state, filters: { ...state.filters, [action.key]: action.value } };
-    case 'SET_COUNTRY':
-      return { ...state, countryFilter: action.value };
+    case 'SET_COUNTRY_FILTERS':
+      return { ...state, countryFilters: action.value };
     case 'SET_STATUS':
       return { ...state, statusMsg: action.msg, statusType: action.statusType, scanning: action.statusType === 'loading' };
     case 'CLEAR':
@@ -170,7 +178,13 @@ export function useVtScan() {
 
         // Fire correlation async — don't await
         api.scan.correlate(ioc)
-          .then(corr => dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] }))
+          .then(corr => {
+            dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
+            // Persist correlation (incl. RDAP/GeoIP enrichment) to the IP cache so
+            // the "Analisa Mendalam" deep-analysis page can render it later. IP only
+            // (only IPs are cached / get a stableId + deep-analysis link).
+            if (type === 'ip') api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
+          })
           .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
       }
     }
@@ -196,8 +210,8 @@ export function useVtScan() {
     dispatch({ type: 'SET_FILTER', key, value });
   }, []);
 
-  const setCountry = useCallback((value: string) => {
-    dispatch({ type: 'SET_COUNTRY', value });
+  const setCountryFilters = useCallback((value: CountryFilterEntry[]) => {
+    dispatch({ type: 'SET_COUNTRY_FILTERS', value });
   }, []);
 
   // Countries present in the current results, with counts (IP results only).
@@ -210,17 +224,24 @@ export function useVtScan() {
     .map(([code, count]) => ({ code, count }))
     .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
 
+  const includeCodes = state.countryFilters.filter(f => f.mode === 'include').map(f => f.code);
+  const excludeCodes = state.countryFilters.filter(f => f.mode === 'exclude').map(f => f.code);
+
   const visibleItems = state.items.filter(item => {
     if (!passesVerdictFilter(item, state.filters)) return false;
 
-    // Country filter (applies to resolved IP results; loading/pending stay visible).
-    if (state.countryFilter) {
+    // Country filter — Kibana style: include = OR allowlist, exclude = denylist.
+    if (includeCodes.length || excludeCodes.length) {
       const c = getItemCountry(item);
-      if (c) return c === state.countryFilter;
-      return item.pending; // unresolved items remain while scanning; resolved non-IP hidden
+      if (!c) {
+        if (item.pending) return true;        // keep unresolved items while scanning
+        return includeCodes.length === 0;     // resolved non-IP hidden only when an include is active
+      }
+      if (excludeCodes.includes(c)) return false;
+      if (includeCodes.length && !includeCodes.includes(c)) return false;
     }
     return true;
   });
 
-  return { ...state, visibleItems, availableCountries, runScan, clear, setFilter, setCountry };
+  return { ...state, visibleItems, availableCountries, runScan, clear, setFilter, setCountryFilters };
 }
