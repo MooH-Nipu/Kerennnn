@@ -1,4 +1,4 @@
-const { normalizeIpLine } = require('../_ioc');
+const { extractIOC, detectType } = require('../_ioc');
 const { readJsonBody, requireAuth } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
@@ -24,28 +24,34 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON body.' });
   }
 
-  const iocRaw = body && (body.ioc || body.ip);
-  const ip = normalizeIpLine(iocRaw);
-  if (!ip) return res.status(400).json({ error: 'Invalid or missing ip/ioc (must be an IP).' });
+  const ioc = extractIOC(body && (body.ioc || body.ip));
+  const type = detectType(ioc);
+  if (!ioc || !type) {
+    return res.status(400).json({ error: 'Invalid or missing ioc (must be ip/domain/hash).' });
+  }
 
   const corr = body && body.correlation;
   if (!corr || typeof corr !== 'object') return res.status(400).json({ error: 'Missing correlation object.' });
 
   const confidence =
     corr && corr.confidence !== undefined && corr.confidence !== null ? Number(corr.confidence) : null;
-  const corrPayload = corr;
+  const corrConfidence = Number.isFinite(confidence) ? Math.round(confidence) : null;
 
   // Merge corr_* only; does not bump last_scanned_at (TTL is keyed off first_scanned_at).
-  const { error } = await supabase.from('vt_ip_cache').upsert(
-    {
-      ip,
-      corr_confidence: Number.isFinite(confidence) ? Math.round(confidence) : null,
-      corr_payload: corrPayload,
-    },
-    { onConflict: 'ip' }
-  );
+  // IPs persist to vt_ip_cache (PK ip); domain/hash to vt_ioc_cache (PK ioc_type+ioc).
+  if (type === 'ip') {
+    const { error } = await supabase.from('vt_ip_cache').upsert(
+      { ip: ioc, corr_confidence: corrConfidence, corr_payload: corr },
+      { onConflict: 'ip' }
+    );
+    if (error) return serverError(res, error, 'ip-cache correlation');
+  } else {
+    const { error } = await supabase.from('vt_ioc_cache').upsert(
+      { ioc, ioc_type: type, corr_confidence: corrConfidence, corr_payload: corr },
+      { onConflict: 'ioc_type,ioc' }
+    );
+    if (error) return serverError(res, error, 'ioc-cache correlation');
+  }
 
-  if (error) return serverError(res, error, 'ip-cache correlation');
   return res.status(200).json({ ok: true });
 };
-

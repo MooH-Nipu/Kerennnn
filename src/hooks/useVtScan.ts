@@ -180,10 +180,10 @@ export function useVtScan() {
         api.scan.correlate(ioc)
           .then(corr => {
             dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-            // Persist correlation (incl. RDAP/GeoIP enrichment) to the IP cache so
-            // the "Analisa Mendalam" deep-analysis page can render it later. IP only
-            // (only IPs are cached / get a stableId + deep-analysis link).
-            if (type === 'ip') api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
+            // Persist correlation (incl. RDAP/GeoIP enrichment) so the "Analisa
+            // Mendalam" deep-analysis page can render it later. All IOC types are
+            // cached: ip → vt_ip_cache, domain/hash → vt_ioc_cache (routed server-side).
+            api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
           })
           .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
       }
