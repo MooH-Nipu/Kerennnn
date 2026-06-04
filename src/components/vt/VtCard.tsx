@@ -169,14 +169,31 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
   const size = typeof a.size === 'number' ? (a.size / 1024).toFixed(1) + ' KB' : '—';
   const first = typeof a.first_submission_date === 'number' ? new Date(a.first_submission_date * 1000).toLocaleDateString('en-GB') : '—';
   const last  = typeof a.last_analysis_date    === 'number' ? new Date(a.last_analysis_date    * 1000).toLocaleDateString('en-GB') : '—';
+  const meta = raw?._meta as Record<string, unknown> | undefined;
+  const cache = (meta?.cache as Record<string, unknown>) ?? {};
+  const seenBefore = !!cache.seenBefore;
+  const stableId = String(cache.stableId ?? '');
 
   const header = (
     <>
       <span className={`vt-type-badge badge-hash`}>{hashLabel(item.ioc.length)}</span>
       <span className="vt-ioc-val">{item.ioc}</span>
+      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
+        {stableId && (
+          <a
+            className="vt-detail-btn"
+            href={`/result/${stableId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            title={`UUID: ${stableId}`}
+          >
+            🔍 Analisa Mendalam
+          </a>
+        )}
       </span>
     </>
   );
@@ -221,14 +238,31 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
   const cats = Object.values((a.categories as Record<string, string>) ?? {}).slice(0, 2).join(', ') || '—';
   const rep = a.reputation !== undefined ? a.reputation : '—';
   const repColor = typeof rep === 'number' ? (rep > 0 ? 'green' : rep < 0 ? 'red' : '') : '';
+  const meta = raw?._meta as Record<string, unknown> | undefined;
+  const cache = (meta?.cache as Record<string, unknown>) ?? {};
+  const seenBefore = !!cache.seenBefore;
+  const stableId = String(cache.stableId ?? '');
 
   const header = (
     <>
       <span className="vt-type-badge badge-domain">DOMAIN</span>
       <span className="vt-ioc-val">{item.ioc}</span>
+      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
+        {stableId && (
+          <a
+            className="vt-detail-btn"
+            href={`/result/${stableId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            title={`UUID: ${stableId}`}
+          >
+            🔍 Analisa Mendalam
+          </a>
+        )}
       </span>
     </>
   );

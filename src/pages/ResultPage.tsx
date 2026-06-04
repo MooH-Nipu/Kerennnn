@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { calcVerdict, countryFlag, confLabel, confClass } from '../lib/ioc';
+import { calcVerdict, countryFlag, confLabel, confClass, hashLabel } from '../lib/ioc';
 import { DetectionBar } from '../components/vt/DetectionBar';
 import { CorrelationPanel } from '../components/vt/CorrelationPanel';
 import { Spinner } from '../components/shared/Spinner';
 import '../styles/ui-improvements.css';
 
+type IocType = 'ip' | 'domain' | 'hash';
+
 interface CacheRow {
-  ip: string;
+  ip?: string;           // present on legacy vt_ip_cache rows
+  ioc?: string;          // present on vt_ioc_cache rows; by-id also backfills it for IPs
+  ioc_type?: IocType;    // 'ip' for vt_ip_cache rows (backfilled by the endpoint)
   vt_verdict: string | null;
   vt_stats: Record<string, number> | null;
   vt_payload: Record<string, unknown> | null;
@@ -27,20 +31,85 @@ interface CorrPayload {
   riskFactors?: unknown[];
 }
 
-const TAKEAWAY: Record<string, { title: string; body: string }> = {
-  malicious: {
-    title: 'IP ini terdeteksi berbahaya',
-    body: 'Lebih dari 3 engine AV mendeteksi IP ini sebagai malicious. Disarankan untuk memblokir IP ini di firewall dan menginvestigasi koneksi terkait.',
-  },
-  suspicious: {
-    title: 'IP ini mencurigakan',
-    body: 'IP ini menunjukkan tanda-tanda aktivitas mencurigakan. Lakukan investigasi lebih lanjut sebelum mengambil tindakan blokir.',
-  },
-  clean: {
-    title: 'IP ini tampak bersih',
-    body: 'Tidak ada engine AV yang mendeteksi IP ini sebagai berbahaya. Tetap waspada dan pantau aktivitas terkait.',
-  },
-};
+const TYPE_NOUN: Record<IocType, string> = { ip: 'IP', domain: 'Domain', hash: 'File' };
+const VT_PATH: Record<IocType, string> = { ip: 'ip-address', domain: 'domain', hash: 'file' };
+
+function buildTakeaway(type: IocType): Record<string, { title: string; body: string }> {
+  const noun = TYPE_NOUN[type];
+  const subject = type === 'hash' ? 'File ini' : `${noun} ini`;
+  return {
+    malicious: {
+      title: `${subject} terdeteksi berbahaya`,
+      body: `Lebih dari 3 engine AV mendeteksi indikator ini sebagai malicious. Disarankan untuk memblokir indikator ini dan menginvestigasi koneksi atau aktivitas terkait.`,
+    },
+    suspicious: {
+      title: `${subject} mencurigakan`,
+      body: `Indikator ini menunjukkan tanda-tanda aktivitas mencurigakan. Lakukan investigasi lebih lanjut sebelum mengambil tindakan blokir.`,
+    },
+    clean: {
+      title: `${subject} tampak bersih`,
+      body: `Tidak ada engine AV yang mendeteksi indikator ini sebagai berbahaya. Tetap waspada dan pantau aktivitas terkait.`,
+    },
+  };
+}
+
+const fmtUnix = (u: unknown) =>
+  typeof u === 'number' ? new Date(u * 1000).toLocaleDateString('en-GB') : '—';
+
+/** Per-type meta grid rows: [label, value, colorClass]. */
+function buildMetaRows(
+  type: IocType,
+  stats: Record<string, number>,
+  attrs: Record<string, unknown>,
+  flag: string,
+  ctry: string,
+): Array<[string, string, string]> {
+  const mal = stats.malicious ?? 0;
+  const sus = stats.suspicious ?? 0;
+  const common: Array<[string, string, string]> = [
+    ['Malicious', String(mal), mal > 0 ? 'red' : 'green'],
+    ['Suspicious', String(sus), sus > 0 ? 'yellow' : ''],
+    ['Undetected', String(stats.undetected ?? 0), ''],
+  ];
+  const rep = attrs.reputation !== undefined ? String(attrs.reputation) : '—';
+
+  if (type === 'domain') {
+    const cats =
+      Object.values((attrs.categories as Record<string, string>) ?? {}).slice(0, 3).join(', ') || '—';
+    return [
+      ...common,
+      ['Registrar', String(attrs.registrar ?? '—'), 'purple'],
+      ['Created', fmtUnix(attrs.creation_date), 'cyan'],
+      ['Updated', fmtUnix(attrs.last_update_date), ''],
+      ['Categories', cats, ''],
+      ['Reputation', rep, ''],
+    ];
+  }
+
+  if (type === 'hash') {
+    const names = ((attrs.names as string[] | undefined) ?? []).slice(0, 3).join(', ') || '—';
+    const size = typeof attrs.size === 'number' ? (attrs.size / 1024).toFixed(1) + ' KB' : '—';
+    const ftype = String(attrs.type_description ?? attrs.magic ?? '—');
+    return [
+      ...common,
+      ['File Type', ftype, 'purple'],
+      ['Size', size, ''],
+      ['File Names', names, ''],
+      ['First Seen', fmtUnix(attrs.first_submission_date), 'cyan'],
+      ['Last Scan', fmtUnix(attrs.last_analysis_date), ''],
+    ];
+  }
+
+  // ip
+  return [
+    ...common,
+    ['Country', (flag ? flag + ' ' : '') + (ctry || '—'), 'cyan'],
+    ['ASN', attrs.asn ? 'AS' + String(attrs.asn) : '—', 'purple'],
+    ['AS Owner', String(attrs.as_owner ?? '—'), ''],
+    ['Network', String(attrs.network ?? '—'), ''],
+    ['Reputation', rep, ''],
+  ];
+}
 
 export function ResultPage() {
   const { id } = useParams<{ id: string }>();
@@ -74,17 +143,25 @@ export function ResultPage() {
     </div>
   );
 
+  const type: IocType = data.ioc_type ?? 'ip';
+  const iocValue = data.ioc ?? data.ip ?? '';
+
   const stats = data.vt_stats ?? {};
   const mal = stats.malicious ?? 0;
   const sus = stats.suspicious ?? 0;
   const total = Object.values(stats).reduce((a, b) => a + b, 0);
   const v = calcVerdict(mal, sus, total);
-  const vKey = v.label.toLowerCase() as keyof typeof TAKEAWAY;
-  const takeaway = TAKEAWAY[vKey] ?? TAKEAWAY.clean;
+  const vKey = v.label.toLowerCase();
+  const takeaway = buildTakeaway(type)[vKey] ?? buildTakeaway(type).clean;
 
-  const vtAttrs = ((data.vt_payload as Record<string, unknown> | null)?.data as Record<string, unknown> | undefined)?.attributes as Record<string, unknown> | undefined;
-  const flag = countryFlag(String(vtAttrs?.country ?? ''));
-  const ctry = String(vtAttrs?.country ?? '');
+  // vt_payload is stored FLAT (the attribute subset), not nested under data.attributes.
+  const vtAttrs = (data.vt_payload as Record<string, unknown> | null) ?? {};
+  const flag = type === 'ip' ? countryFlag(String(vtAttrs.country ?? '')) : '';
+  const ctry = type === 'ip' ? String(vtAttrs.country ?? '') : '';
+  const metaRows = buildMetaRows(type, stats, vtAttrs, flag, ctry);
+
+  const badgeCls = type === 'ip' ? 'badge-ip' : type === 'domain' ? 'badge-domain' : 'badge-hash';
+  const badgeLabel = type === 'ip' ? 'IP ADDRESS' : type === 'domain' ? 'DOMAIN' : hashLabel(iocValue.length);
 
   // Persisted correlation breakdown (sources + risk factors + scoring math).
   const corr = (data.corr_payload && typeof data.corr_payload === 'object')
@@ -106,11 +183,11 @@ export function ResultPage() {
           ← Charlie kerennnn
         </Link>
 
-        {/* IP header */}
+        {/* IOC header */}
         <div className="vt-card" style={{ marginBottom: '0.75rem' }}>
           <div className="vt-card-header" style={{ cursor: 'default' }}>
-            <span className="vt-type-badge badge-ip">IP ADDRESS</span>
-            <span className="vt-ioc-val">{data.ip}</span>
+            <span className={`vt-type-badge ${badgeCls}`}>{badgeLabel}</span>
+            <span className="vt-ioc-val">{iocValue}</span>
             {flag && <span className="ctry-badge">{flag} {ctry}</span>}
             <span className={`verdict ${v.cls}`}>● {v.label}</span>
           </div>
@@ -118,24 +195,15 @@ export function ResultPage() {
             <DetectionBar malicious={mal} suspicious={sus} total={total} />
 
             <div className="meta-grid" style={{ marginTop: '0.75rem' }}>
-              {[
-                ['Malicious', mal, mal > 0 ? 'red' : 'green'],
-                ['Suspicious', sus, sus > 0 ? 'yellow' : ''],
-                ['Undetected', stats.undetected ?? 0, ''],
-                ['Country', (flag ? flag + ' ' : '') + (ctry || '—'), 'cyan'],
-                ['ASN', vtAttrs?.asn ? 'AS' + String(vtAttrs.asn) : '—', 'purple'],
-                ['AS Owner', String(vtAttrs?.as_owner ?? '—'), ''],
-                ['Network', String(vtAttrs?.network ?? '—'), ''],
-                ['Reputation', String(vtAttrs?.reputation ?? '—'), ''],
-              ].map(([k, val, cls], i) => (
+              {metaRows.map(([k, val, cls], i) => (
                 <div className="meta-item" key={i}>
                   <div className="mk">{k}</div>
-                  <div className={`mv${cls ? ' ' + cls : ''}`}>{String(val)}</div>
+                  <div className={`mv${cls ? ' ' + cls : ''}`}>{val}</div>
                 </div>
               ))}
             </div>
 
-            <a className="vt-open-link" href={`https://www.virustotal.com/gui/ip-address/${data.ip}`} target="_blank" rel="noopener">
+            <a className="vt-open-link" href={`https://www.virustotal.com/gui/${VT_PATH[type]}/${iocValue}`} target="_blank" rel="noopener">
               ↗ Open in VirusTotal
             </a>
           </div>
