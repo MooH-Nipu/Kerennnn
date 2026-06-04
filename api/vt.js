@@ -9,6 +9,35 @@ function dateMinusDaysIso(days) {
   return new Date(Date.now() - ms).toISOString();
 }
 
+// Curated VT attribute subset persisted per IOC type for the deep-analysis page
+// (vt_ioc_cache.vt_payload). Stored flat (no nesting) — ResultPage reads it directly.
+function buildVtCachePayload(type, attrs) {
+  const a = attrs || {};
+  if (type === 'domain') {
+    return {
+      last_analysis_stats: a.last_analysis_stats || {},
+      reputation: a.reputation,
+      registrar: a.registrar,
+      creation_date: a.creation_date,
+      last_update_date: a.last_update_date,
+      categories: a.categories,
+    };
+  }
+  if (type === 'hash') {
+    return {
+      last_analysis_stats: a.last_analysis_stats || {},
+      reputation: a.reputation,
+      names: Array.isArray(a.names) ? a.names.slice(0, 5) : undefined,
+      type_description: a.type_description,
+      magic: a.magic,
+      size: a.size,
+      first_submission_date: a.first_submission_date,
+      last_analysis_date: a.last_analysis_date,
+    };
+  }
+  return a;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -205,6 +234,86 @@ module.exports = async function handler(req, res) {
                 vt_verdict: vtVerdict,
                 vt_stats: vtStats,
                 vt_payload: vtPayload,
+                })
+                .select('id')
+                .maybeSingle();
+              data._meta.cache.scanCount = 1;
+              data._meta.cache.lastSeen = nowIso;
+              data._meta.cache.stableId = inserted ? inserted.id || null : null;
+            }
+          } catch {
+            // ignore DB errors (do not block VT response)
+          }
+        } else {
+          data._meta.cache = { enabled: false, reason: 'Supabase not configured' };
+        }
+      }
+
+      // Cache domain/hash scans (Supabase) so the "Analisa Mendalam" deep-analysis
+      // page + seen-before badge work. Insert-only (no read short-circuit) so live
+      // detection stats stay fresh; the cached row is a point-in-time snapshot.
+      if (status === 200 && data.data && (type === 'domain' || type === 'hash')) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const ttlDays = 15;
+          const cutoffIso = dateMinusDaysIso(ttlDays);
+          try {
+            await supabase.from('vt_ioc_cache').delete().lt('first_scanned_at', cutoffIso);
+          } catch {
+            // ignore cleanup errors (do not block VT response)
+          }
+
+          let existing = null;
+          try {
+            const { data: row } = await supabase
+              .from('vt_ioc_cache')
+              .select('id,scan_count,last_scanned_at,first_scanned_at')
+              .eq('ioc_type', type)
+              .eq('ioc', ioc)
+              .maybeSingle();
+            existing = row || null;
+          } catch {
+            existing = null;
+          }
+
+          const attrs = data?.data?.attributes || {};
+          const lastStats = attrs.last_analysis_stats || {};
+          const malicious = lastStats.malicious || 0;
+          const suspicious = lastStats.suspicious || 0;
+          const total = Object.values(lastStats).reduce((a, b) => a + b, 0);
+          const vtVerdict =
+            malicious > 3
+              ? 'malicious'
+              : malicious > 0 || suspicious > 3
+                ? 'suspicious'
+                : total === 0
+                  ? 'unknown'
+                  : 'clean';
+
+          data._meta.cache = {
+            enabled: true,
+            ttlDays,
+            seenBefore: !!existing,
+            stableId: existing ? existing.id || null : null,
+            scanCount: existing ? Number(existing.scan_count || 0) : 0,
+            lastSeen: existing ? existing.last_scanned_at || null : null,
+          };
+
+          const nowIso = new Date().toISOString();
+          const vtStats = { malicious, suspicious, total, undetected: lastStats.undetected || 0 };
+          try {
+            if (!existing) {
+              const { data: inserted } = await supabase
+                .from('vt_ioc_cache')
+                .insert({
+                  ioc,
+                  ioc_type: type,
+                  scan_count: 1,
+                  first_scanned_at: nowIso,
+                  last_scanned_at: nowIso,
+                  vt_verdict: vtVerdict,
+                  vt_stats: vtStats,
+                  vt_payload: buildVtCachePayload(type, attrs),
                 })
                 .select('id')
                 .maybeSingle();
