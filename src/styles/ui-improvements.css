@@ -744,6 +744,15 @@
   }
 }
 
+/* ---------- JSON beautifier indent selector ---------- */
+.json-indent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
 /* ---------- Merger layout ---------- */
 .merger-grid {
   display: grid;
