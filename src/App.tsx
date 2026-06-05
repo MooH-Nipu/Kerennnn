@@ -5,7 +5,9 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './components/layout/LoginPage';
 import { Spinner } from './components/shared/Spinner';
 import { useUiPrefs } from './hooks/useUiPrefs';
-import { getRestoredTab } from './components/layout/TabNav';
+import { useTabPrefs } from './hooks/useTabPrefs';
+import { getRestoredTab, visibleOrderedTabs } from './components/layout/TabNav';
+import { TabCustomizer } from './components/layout/TabCustomizer';
 import type { TabId } from './lib/permissions';
 import { FormatterTab } from './pages/FormatterTab';
 import { JsonTab } from './pages/JsonTab';
@@ -22,9 +24,11 @@ import { ResultPage } from './pages/ResultPage';
 function AppInner() {
   const { ready, authed, role, username } = useAuthState();
   const { compact, sidebar, toggleCompact, toggleSidebar } = useUiPrefs();
+  const { order: tabOrder, hidden: hiddenTabs, save: saveTabPrefs, reset: resetTabPrefs } = useTabPrefs();
   const [activeTab, setActiveTab] = useState<TabId>('formatter');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
 
   // Restore last tab for the user's role after login
   useEffect(() => {
@@ -32,6 +36,16 @@ function AppInner() {
       setActiveTab(getRestoredTab(role));
     }
   }, [authed, role]);
+
+  // If the active tab is hidden (or no longer allowed), fall back to the first
+  // visible tab so the user is never staring at an empty/hidden selection.
+  useEffect(() => {
+    if (!authed || !role) return;
+    const visible = visibleOrderedTabs(role, tabOrder, hiddenTabs);
+    if (visible.length > 0 && !visible.some(t => t.id === activeTab)) {
+      setActiveTab(visible[0].id);
+    }
+  }, [authed, role, tabOrder, hiddenTabs, activeTab]);
 
   function handleQuickScan(ioc: string) {
     setPendingIoc(ioc);
@@ -72,20 +86,35 @@ function AppInner() {
   }
 
   return (
-    <AppShell
-      role={role}
-      username={username}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      compact={compact}
-      sidebar={sidebar}
-      onToggleCompact={toggleCompact}
-      onToggleSidebar={toggleSidebar}
-      onQuickScan={handleQuickScan}
-      pacFilterCount={pacFilterCount}
-    >
-      {renderTabContent()}
-    </AppShell>
+    <>
+      <AppShell
+        role={role}
+        username={username}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        compact={compact}
+        sidebar={sidebar}
+        onToggleCompact={toggleCompact}
+        onToggleSidebar={toggleSidebar}
+        onQuickScan={handleQuickScan}
+        pacFilterCount={pacFilterCount}
+        tabOrder={tabOrder}
+        hiddenTabs={hiddenTabs}
+        onCustomizeTabs={() => setCustomizerOpen(true)}
+      >
+        {renderTabContent()}
+      </AppShell>
+
+      <TabCustomizer
+        open={customizerOpen}
+        role={role}
+        order={tabOrder}
+        hidden={hiddenTabs}
+        onClose={() => setCustomizerOpen(false)}
+        onSave={(o, h) => { saveTabPrefs(o, h); setCustomizerOpen(false); }}
+        onReset={() => { resetTabPrefs(); setCustomizerOpen(false); }}
+      />
+    </>
   );
 }
 

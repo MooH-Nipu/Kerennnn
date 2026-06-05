@@ -753,6 +753,95 @@
   margin-bottom: 0.85rem;
 }
 
+/* ---------- Tab customizer (drag-reorder + show/hide) ---------- */
+.tab-btn--customize {
+  opacity: 0.75;
+}
+.tab-btn--customize:hover {
+  opacity: 1;
+}
+
+.tabcust-box {
+  width: min(440px, 92vw);
+  text-align: left;
+}
+
+.tabcust-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.tabcust-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: grab;
+  user-select: none;
+}
+.tabcust-row:active {
+  cursor: grabbing;
+}
+.tabcust-row--hidden {
+  opacity: 0.5;
+}
+
+.tabcust-handle {
+  color: var(--text-muted, #8b97a8);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: grab;
+}
+.tabcust-icon {
+  width: 1.4rem;
+  text-align: center;
+}
+.tabcust-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.tabcust-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.tabcust-move {
+  padding: 0.15rem 0.4rem;
+  line-height: 1;
+}
+.tabcust-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #8b97a8);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tabcust-toggle input {
+  cursor: pointer;
+}
+
+.tabcust-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 1rem;
+}
+.tabcust-spacer {
+  flex: 1;
+}
+
 /* ---------- Merger layout ---------- */
 .merger-grid {
   display: grid;

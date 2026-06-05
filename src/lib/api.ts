@@ -1,5 +1,6 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
+import type { TabId } from './permissions';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
@@ -75,6 +76,16 @@ export const api = {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clear: true }),
+      }),
+  },
+
+  userPrefs: {
+    get: () => apiFetch<UserPrefsResponse>('/api/user-prefs'),
+    save: (tab_order: TabId[], hidden_tabs: TabId[]) =>
+      apiFetch<UserPrefsResponse>('/api/user-prefs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tab_order, hidden_tabs }),
       }),
   },
 
