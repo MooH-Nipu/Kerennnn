@@ -107,3 +107,9 @@ export interface HistoryMutateResponse {
   ok: boolean;
   entry: ScanHistoryEntry;
 }
+
+export interface UserPrefsResponse {
+  ok: boolean;
+  tab_order: string[];
+  hidden_tabs: string[];
+}

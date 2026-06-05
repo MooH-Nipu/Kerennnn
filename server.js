@@ -46,6 +46,7 @@ const routes = [
   ['/api/correlate',              './api/correlate.js'],
   ['/api/scan-merger',            './api/scan-merger.js'],
   ['/api/scan-history',           './api/scan-history.js'],
+  ['/api/user-prefs',             './api/user-prefs.js'],
   ['/api/kibana-combined-report', './api/kibana-combined-report.js'],
   ['/api/admin/users',            './api/admin/users.js'],
   ['/api/admin/logs',             './api/admin/logs.js'],
