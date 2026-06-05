@@ -6,8 +6,8 @@ import { LoginPage } from './components/layout/LoginPage';
 import { Spinner } from './components/shared/Spinner';
 import { useUiPrefs } from './hooks/useUiPrefs';
 import { useTabPrefs } from './hooks/useTabPrefs';
-import { getRestoredTab, visibleOrderedTabs } from './components/layout/TabNav';
-import { TabCustomizer } from './components/layout/TabCustomizer';
+import { getRestoredTab, orderedAllowedTabs } from './components/layout/TabNav';
+import { UpdateToast } from './components/shared/UpdateToast';
 import type { TabId } from './lib/permissions';
 import { FormatterTab } from './pages/FormatterTab';
 import { JsonTab } from './pages/JsonTab';
@@ -24,11 +24,10 @@ import { ResultPage } from './pages/ResultPage';
 function AppInner() {
   const { ready, authed, role, username } = useAuthState();
   const { compact, sidebar, toggleCompact, toggleSidebar } = useUiPrefs();
-  const { order: tabOrder, hidden: hiddenTabs, save: saveTabPrefs, reset: resetTabPrefs } = useTabPrefs();
+  const { order: tabOrder, save: saveTabPrefs } = useTabPrefs();
   const [activeTab, setActiveTab] = useState<TabId>('formatter');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
-  const [customizerOpen, setCustomizerOpen] = useState(false);
 
   // Restore last tab for the user's role after login
   useEffect(() => {
@@ -37,15 +36,15 @@ function AppInner() {
     }
   }, [authed, role]);
 
-  // If the active tab is hidden (or no longer allowed), fall back to the first
-  // visible tab so the user is never staring at an empty/hidden selection.
+  // If the active tab is no longer allowed for the role, fall back to the first
+  // available tab so the user is never staring at an empty selection.
   useEffect(() => {
     if (!authed || !role) return;
-    const visible = visibleOrderedTabs(role, tabOrder, hiddenTabs);
-    if (visible.length > 0 && !visible.some(t => t.id === activeTab)) {
-      setActiveTab(visible[0].id);
+    const tabs = orderedAllowedTabs(role, tabOrder);
+    if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
+      setActiveTab(tabs[0].id);
     }
-  }, [authed, role, tabOrder, hiddenTabs, activeTab]);
+  }, [authed, role, tabOrder, activeTab]);
 
   function handleQuickScan(ioc: string) {
     setPendingIoc(ioc);
@@ -99,21 +98,12 @@ function AppInner() {
         onQuickScan={handleQuickScan}
         pacFilterCount={pacFilterCount}
         tabOrder={tabOrder}
-        hiddenTabs={hiddenTabs}
-        onCustomizeTabs={() => setCustomizerOpen(true)}
+        onReorderTabs={(o) => saveTabPrefs(o, [])}
       >
         {renderTabContent()}
       </AppShell>
 
-      <TabCustomizer
-        open={customizerOpen}
-        role={role}
-        order={tabOrder}
-        hidden={hiddenTabs}
-        onClose={() => setCustomizerOpen(false)}
-        onSave={(o, h) => { saveTabPrefs(o, h); setCustomizerOpen(false); }}
-        onReset={() => { resetTabPrefs(); setCustomizerOpen(false); }}
-      />
+      <UpdateToast />
     </>
   );
 }
