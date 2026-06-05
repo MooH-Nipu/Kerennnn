@@ -15,15 +15,14 @@ interface Props {
   onQuickScan: (ioc: string) => void;
   pacFilterCount?: number;
   tabOrder: TabId[];
-  hiddenTabs: TabId[];
-  onCustomizeTabs: () => void;
+  onReorderTabs: (order: TabId[]) => void;
   children: React.ReactNode;
 }
 
 export function AppShell({
   role, username, activeTab, setActiveTab,
   compact, sidebar, onToggleCompact, onToggleSidebar, onQuickScan,
-  pacFilterCount, tabOrder, hiddenTabs, onCustomizeTabs, children,
+  pacFilterCount, tabOrder, onReorderTabs, children,
 }: Props) {
   return (
     <div className={`app-shell ${sidebar ? 'app-shell--sidebar' : 'app-shell--topnav'} ${compact ? 'app-shell--compact' : ''}`}>
@@ -44,8 +43,7 @@ export function AppShell({
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             order={tabOrder}
-            hidden={hiddenTabs}
-            onCustomize={onCustomizeTabs}
+            onReorder={onReorderTabs}
             sidebar
             pacFilterCount={pacFilterCount}
           />
@@ -60,8 +58,7 @@ export function AppShell({
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             order={tabOrder}
-            hidden={hiddenTabs}
-            onCustomize={onCustomizeTabs}
+            onReorder={onReorderTabs}
             pacFilterCount={pacFilterCount}
           />
           <main className="app-shell__content" id="main-content">

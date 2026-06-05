@@ -753,93 +753,78 @@
   margin-bottom: 0.85rem;
 }
 
-/* ---------- Tab customizer (drag-reorder + show/hide) ---------- */
-.tab-btn--customize {
-  opacity: 0.75;
+/* ---------- Draggable nav tabs ---------- */
+.tab-btn[draggable='true'] {
+  cursor: grab;
 }
-.tab-btn--customize:hover {
-  opacity: 1;
-}
-
-.tabcust-box {
-  width: min(440px, 92vw);
-  text-align: left;
+.tab-btn--dragging {
+  opacity: 0.45;
+  cursor: grabbing;
 }
 
-.tabcust-list {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
+/* ---------- Update notice toast ---------- */
+.update-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  width: min(360px, calc(100vw - 2rem));
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-left: 3px solid var(--accent, #6ea8fe);
+  border-radius: 12px;
+  background: var(--bg-elev, #0e1626);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  animation: update-toast-in 0.25s ease-out;
+}
+@keyframes update-toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.update-toast__close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  border: none;
+  background: none;
+  color: var(--text-muted, #8b97a8);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.update-toast__close:hover {
+  color: var(--text, #e7edf5);
+}
+.update-toast__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-right: 1rem;
+}
+.update-toast__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #6ea8fe);
+  white-space: nowrap;
+}
+.update-toast__title {
+  font-size: 0.95rem;
+}
+.update-toast__list {
+  margin: 0 0 0.8rem;
+  padding-left: 1.1rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  max-height: 60vh;
-  overflow-y: auto;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text-muted, #b8c2d0);
 }
-
-.tabcust-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  cursor: grab;
-  user-select: none;
-}
-.tabcust-row:active {
-  cursor: grabbing;
-}
-.tabcust-row--hidden {
-  opacity: 0.5;
-}
-
-.tabcust-handle {
-  color: var(--text-muted, #8b97a8);
-  font-size: 1.05rem;
-  line-height: 1;
-  cursor: grab;
-}
-.tabcust-icon {
-  width: 1.4rem;
-  text-align: center;
-}
-.tabcust-label {
-  flex: 1;
-  font-weight: 600;
-}
-
-.tabcust-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.tabcust-move {
-  padding: 0.15rem 0.4rem;
-  line-height: 1;
-}
-.tabcust-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-left: 0.4rem;
-  font-size: 0.78rem;
-  color: var(--text-muted, #8b97a8);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.tabcust-toggle input {
-  cursor: pointer;
-}
-
-.tabcust-actions {
-  display: flex;
-  align-items: center;
-  margin-top: 1rem;
-}
-.tabcust-spacer {
-  flex: 1;
+.update-toast__ok {
+  width: 100%;
 }
 
 /* ---------- Merger layout ---------- */

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Role } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
 import { TAB_ACCESS } from '../../lib/permissions';
@@ -10,8 +10,8 @@ export interface TabDef {
   icon: string;
 }
 
-// Canonical tab list in DEFAULT order. Per-user order/visibility is layered on
-// top via the `order`/`hidden` props (see useTabPrefs + TabCustomizer).
+// Canonical tab list in DEFAULT order. Per-user order is layered on top via the
+// `order` prop (see useTabPrefs); users reorder by dragging tabs directly.
 const ALL_TABS: TabDef[] = [
   { id: 'formatter',   label: 'Formatter',  shortLabel: 'Fmt',    icon: '≋'  },
   { id: 'merger',      label: 'Merger',     shortLabel: 'Merge',  icon: '⇄'  },
@@ -32,7 +32,8 @@ function isTabVisible(tab: TabDef, role: Role): boolean {
 }
 
 // Role-allowed tabs, reordered by the user's preferred `order`. Ids not present
-// in `order` keep their default ALL_TABS position and sort after ordered ones.
+// in `order` keep their default ALL_TABS position and sort after ordered ones
+// (so newly added tabs always show up).
 export function orderedAllowedTabs(role: Role, order: TabId[]): TabDef[] {
   const allowed = ALL_TABS.filter(t => isTabVisible(t, role));
   const rank = new Map<TabId, number>();
@@ -48,12 +49,6 @@ export function orderedAllowedTabs(role: Role, order: TabId[]): TabDef[] {
     .map(x => x.t);
 }
 
-// Tabs actually shown in the nav: ordered, role-allowed, minus hidden ones.
-export function visibleOrderedTabs(role: Role, order: TabId[], hidden: TabId[]): TabDef[] {
-  const hiddenSet = new Set(hidden);
-  return orderedAllowedTabs(role, order).filter(t => !hiddenSet.has(t.id));
-}
-
 function getTabMemoryKey(role: Role) {
   return `socToolboxActiveTab_${role}`;
 }
@@ -63,40 +58,81 @@ interface Props {
   activeTab: TabId;
   setActiveTab: (tab: TabId) => void;
   order: TabId[];
-  hidden: TabId[];
-  onCustomize: () => void;
+  onReorder: (order: TabId[]) => void;
   sidebar?: boolean;
   pacFilterCount?: number;
 }
 
-export function TabNav({ role, activeTab, setActiveTab, order, hidden, onCustomize, sidebar, pacFilterCount }: Props) {
-  const visibleTabs = visibleOrderedTabs(role, order, hidden);
+export function TabNav({ role, activeTab, setActiveTab, order, onReorder, sidebar, pacFilterCount }: Props) {
+  const baseTabs = orderedAllowedTabs(role, order);
+  const baseIds = baseTabs.map(t => t.id);
+  const defById = new Map(baseTabs.map(t => [t.id, t]));
 
-  // Persist tab memory per role
+  // While dragging we render from a transient working order; we only persist
+  // (onReorder) once, on drag end — not on every dragover.
+  const [dragOrder, setDragOrder] = useState<TabId[] | null>(null);
+  const [draggingId, setDraggingId] = useState<TabId | null>(null);
+  const dragId = useRef<TabId | null>(null);
+
+  const ids = dragOrder ?? baseIds;
+  const tabs = ids.map(id => defById.get(id)).filter(Boolean) as TabDef[];
+
   function handleTabClick(id: TabId) {
     setActiveTab(id);
     localStorage.setItem(getTabMemoryKey(role), id);
   }
 
-  // Keyboard shortcuts Alt+1..9 (bound to the user's visible order)
+  // Keyboard shortcuts Alt+1..9 — bound to the committed visible order.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!e.altKey) return;
       const num = parseInt(e.key, 10);
       if (isNaN(num) || num < 1) return;
-      const tab = visibleTabs[num - 1];
+      const list = orderedAllowedTabs(role, order);
+      const tab = list[num - 1];
       if (tab) {
         e.preventDefault();
-        handleTabClick(tab.id);
+        setActiveTab(tab.id);
+        localStorage.setItem(getTabMemoryKey(role), tab.id);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visibleTabs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [role, order]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function onDragStart(id: TabId) {
+    dragId.current = id;
+    setDraggingId(id);
+    setDragOrder(baseIds);
+  }
+
+  function onDragOver(e: React.DragEvent, overId: TabId) {
+    e.preventDefault();
+    const id = dragId.current;
+    if (id == null || id === overId) return;
+    setDragOrder(prev => {
+      const cur = prev ?? baseIds;
+      const from = cur.indexOf(id);
+      const to = cur.indexOf(overId);
+      if (from < 0 || to < 0 || from === to) return cur;
+      const next = [...cur];
+      next.splice(from, 1);
+      next.splice(to, 0, id);
+      return next;
+    });
+  }
+
+  function onDragEnd() {
+    const committed = dragOrder;
+    dragId.current = null;
+    setDraggingId(null);
+    setDragOrder(null);
+    if (committed) onReorder(committed);
+  }
 
   return (
     <nav className={`tab-nav ${sidebar ? 'tab-nav--sidebar' : 'tab-nav--top'}`} aria-label="Navigasi tab">
-      {visibleTabs.map((tab, idx) => {
+      {tabs.map((tab, idx) => {
         const isActive = activeTab === tab.id;
         const showBadge = tab.id === 'pac-filter' && typeof pacFilterCount === 'number' && pacFilterCount > 0;
         const shortcut = idx < 9 ? idx + 1 : null; // only single-digit Alt+N fire
@@ -104,9 +140,13 @@ export function TabNav({ role, activeTab, setActiveTab, order, hidden, onCustomi
         return (
           <button
             key={tab.id}
-            className={`tab-btn ${isActive ? 'tab-btn--active' : ''}`}
+            className={`tab-btn ${isActive ? 'tab-btn--active' : ''} ${draggingId === tab.id ? 'tab-btn--dragging' : ''}`}
             onClick={() => handleTabClick(tab.id)}
-            title={shortcut ? `${tab.label} (Alt+${shortcut})` : tab.label}
+            draggable
+            onDragStart={() => onDragStart(tab.id)}
+            onDragOver={e => onDragOver(e, tab.id)}
+            onDragEnd={onDragEnd}
+            title={shortcut ? `${tab.label} (Alt+${shortcut}) — seret untuk atur urutan` : `${tab.label} — seret untuk atur urutan`}
             aria-current={isActive ? 'page' : undefined}
           >
             <span className="tab-btn__icon" aria-hidden="true">{tab.icon}</span>
@@ -121,17 +161,6 @@ export function TabNav({ role, activeTab, setActiveTab, order, hidden, onCustomi
           </button>
         );
       })}
-
-      <button
-        className="tab-btn tab-btn--customize"
-        onClick={onCustomize}
-        title="Atur tab (urutan & tampil/sembunyi)"
-        aria-label="Atur tab"
-      >
-        <span className="tab-btn__icon" aria-hidden="true">⚙</span>
-        <span className="tab-btn__label">{sidebar ? 'Atur Tab' : 'Atur'}</span>
-        <span className="tab-btn__full-label">Atur Tab</span>
-      </button>
     </nav>
   );
 }
