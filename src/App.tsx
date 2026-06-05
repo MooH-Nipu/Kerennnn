@@ -8,6 +8,7 @@ import { useUiPrefs } from './hooks/useUiPrefs';
 import { getRestoredTab } from './components/layout/TabNav';
 import type { TabId } from './lib/permissions';
 import { FormatterTab } from './pages/FormatterTab';
+import { JsonTab } from './pages/JsonTab';
 import { MergerTab } from './pages/MergerTab';
 import { IocScanTab } from './pages/IocScanTab';
 import { HistoryTab } from './pages/HistoryTab';
@@ -57,6 +58,7 @@ function AppInner() {
   function renderTabContent() {
     switch (activeTab) {
       case 'formatter':   return <FormatterTab />;
+      case 'json':        return <JsonTab />;
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
       case 'history':     return <HistoryTab onReScan={handleReScan} />;

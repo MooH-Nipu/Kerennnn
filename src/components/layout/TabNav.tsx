@@ -21,6 +21,7 @@ const ALL_TABS: TabDef[] = [
   { id: 'admin-users', label: 'Users',      shortLabel: 'Users',  icon: '⊕',  shortcut: 7 },
   { id: 'admin-logs',  label: 'Logs',       shortLabel: 'Logs',   icon: '🗎',  shortcut: 8 },
   { id: 'ir-manager',  label: 'IR Manager', shortLabel: 'IR',     icon: '⚑',  shortcut: 9 },
+  { id: 'json',        label: 'JSON',       shortLabel: 'JSON',   icon: '{}', shortcut: 10 },
 ];
 
 function isTabVisible(tab: TabDef, role: Role): boolean {

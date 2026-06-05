@@ -4,6 +4,7 @@ export const ROLES = ['admin', 'pac', 'charlie', 'l1', 'l2'] as const;
 
 export type TabId =
   | 'formatter'
+  | 'json'
   | 'merger'
   | 'ioc-scan'
   | 'history'
@@ -21,6 +22,7 @@ export const PAC_ROLES: Role[] = ['admin', 'pac', 'charlie', 'l2'];
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'formatter':   null,
+  'json':        null,
   'merger':      null,
   'ioc-scan':    null,
   'history':     null,
