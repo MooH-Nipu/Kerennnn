@@ -7,12 +7,8 @@ interface StatusMsg {
   text: string;
 }
 
-type IndentMode = '2' | '4' | 'tab';
-
-function indentValue(mode: IndentMode): string | number {
-  if (mode === 'tab') return '\t';
-  return mode === '4' ? 4 : 2;
-}
+// Fixed 2-space indentation for beautified output.
+const INDENT = 2;
 
 // Build a friendly, localized error. V8 usually embeds "position N" (and newer
 // engines also "line L column C"); we surface line/column either way.
@@ -34,8 +30,7 @@ function describeJsonError(err: unknown, src: string): string {
 // there are ≥2 lines and EVERY non-empty line parses on its own.
 function tryNdjson(
   src: string,
-  minify: boolean,
-  indent: string | number
+  minify: boolean
 ): { ok: true; out: string; count: number } | { ok: false } {
   const lines = src.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return { ok: false };
@@ -48,7 +43,7 @@ function tryNdjson(
     }
   }
   const out = parsed
-    .map(p => (minify ? JSON.stringify(p) : JSON.stringify(p, null, indent)))
+    .map(p => (minify ? JSON.stringify(p) : JSON.stringify(p, null, INDENT)))
     .join(minify ? '\n' : '\n\n');
   return { ok: true, out, count: parsed.length };
 }
@@ -56,7 +51,6 @@ function tryNdjson(
 export function JsonTab() {
   const [raw, setRaw] = useState('');
   const [output, setOutput] = useState('');
-  const [indentMode, setIndentMode] = useState<IndentMode>('2');
   const [status, setStatus] = useState<StatusMsg | null>(null);
 
   function run(minify: boolean) {
@@ -68,14 +62,13 @@ export function JsonTab() {
       return;
     }
 
-    const indent = indentValue(indentMode);
     try {
       const parsed = JSON.parse(src);
-      setOutput(minify ? JSON.stringify(parsed) : JSON.stringify(parsed, null, indent));
+      setOutput(minify ? JSON.stringify(parsed) : JSON.stringify(parsed, null, INDENT));
       setStatus({ type: 'success', text: `JSON valid — ${minify ? 'diminify' : 'dirapikan'}.` });
     } catch (err) {
       // Fallback: maybe it's a log stream (NDJSON), not one JSON document.
-      const nd = tryNdjson(src, minify, indent);
+      const nd = tryNdjson(src, minify);
       if (nd.ok) {
         setOutput(nd.out);
         setStatus({
@@ -101,28 +94,22 @@ export function JsonTab() {
       <div className="section-header">
         <h2>JSON Beautifier</h2>
         {lineCount > 0 && <span className="line-count">{lineCount} baris</span>}
+        <div className="tab-actions tab-actions--inline">
+          <button className="btn btn-primary" onClick={() => run(false)} disabled={!raw.trim()}>
+            Rapikan
+          </button>
+          <button className="btn btn-ghost" onClick={() => run(true)} disabled={!raw.trim()}>
+            Minify
+          </button>
+          <button className="btn btn-ghost" onClick={reset} disabled={!raw && !output}>
+            Reset
+          </button>
+        </div>
       </div>
 
       {status && (
         <StatusMessage type={status.type} message={status.text} onDismiss={() => setStatus(null)} />
       )}
-
-      <div className="json-indent" role="group" aria-label="Indentasi">
-        <span className="form-label" style={{ margin: 0 }}>Indentasi:</span>
-        {([['2', '2 spasi'], ['4', '4 spasi'], ['tab', 'Tab']] as [IndentMode, string][]).map(
-          ([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              className={`btn btn-sm ${indentMode === mode ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setIndentMode(mode)}
-              aria-pressed={indentMode === mode}
-            >
-              {label}
-            </button>
-          )
-        )}
-      </div>
 
       <div className="formatter-grid">
         <div className="form-group">
@@ -144,18 +131,6 @@ export function JsonTab() {
           <label className="form-label">Output</label>
           <OutputBox value={output} placeholder="Hasil JSON rapi muncul di sini…" rows={16} />
         </div>
-      </div>
-
-      <div className="tab-actions">
-        <button className="btn btn-primary" onClick={() => run(false)} disabled={!raw.trim()}>
-          Rapikan
-        </button>
-        <button className="btn btn-ghost" onClick={() => run(true)} disabled={!raw.trim()}>
-          Minify
-        </button>
-        <button className="btn btn-ghost" onClick={reset} disabled={!raw && !output}>
-          Reset
-        </button>
       </div>
     </div>
   );

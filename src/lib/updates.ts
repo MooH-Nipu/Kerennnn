@@ -13,6 +13,14 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.07-1',
+    title: 'Apa yang baru',
+    changes: [
+      '🧹 JSON Beautifier kini lebih ringkas — pemilih indentasi dihapus, output otomatis rapi 2 spasi.',
+      '👤 User Management: kamu sekarang bisa mengubah username & password user (klik "Edit" pada kartu user).',
+    ],
+  },
+  {
     version: '2026.06.06-1',
     title: 'Apa yang baru',
     changes: [
