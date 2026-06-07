@@ -14,8 +14,8 @@ export function PermissionGuard({ tab, children }: Props) {
     return (
       <div className="perm-guard-blocked">
         <div className="perm-guard-icon">🔒</div>
-        <h3>Akses Ditolak</h3>
-        <p>Tab ini tidak tersedia untuk role <strong>{role ?? 'unknown'}</strong>.</p>
+        <h3>Access Denied</h3>
+        <p>This tab is not available for the <strong>{role ?? 'unknown'}</strong> role.</p>
       </div>
     );
   }

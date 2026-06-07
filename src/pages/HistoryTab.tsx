@@ -42,10 +42,10 @@ export function HistoryTab({ onReScan }: Props) {
   return (
     <div className="tab-content history-tab">
       <div className="section-header">
-        <h2>Riwayat Scan</h2>
+        <h2>Scan History</h2>
         {entries.length > 0 && (
           <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '0.25rem 0.5rem' }} onClick={clearAll}>
-            Hapus semua
+            Clear all
           </button>
         )}
       </div>
@@ -55,7 +55,7 @@ export function HistoryTab({ onReScan }: Props) {
           <input
             type="text"
             className="form-input"
-            placeholder="Cari IOC…"
+            placeholder="Search IOC…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ marginBottom: '0.5rem', fontSize: '0.78rem', padding: '0.375rem 0.625rem' }}
@@ -63,8 +63,8 @@ export function HistoryTab({ onReScan }: Props) {
 
           {entries.length === 0 && (
             <div className="history-empty">
-              Belum ada riwayat.{' '}
-              <span className="text-muted">Selesaikan scan di tab IoC Scan.</span>
+              No history yet.{' '}
+              <span className="text-muted">Run a scan in the IoC Scan tab.</span>
             </div>
           )}
 
@@ -85,7 +85,7 @@ export function HistoryTab({ onReScan }: Props) {
               <button
                 className="history-item__del"
                 onClick={e => { e.stopPropagation(); removeEntry(entry.id); if (selected === entry.id) setSelected(null); }}
-                title="Hapus entri ini"
+                title="Delete this entry"
               >
                 ×
               </button>
@@ -96,21 +96,21 @@ export function HistoryTab({ onReScan }: Props) {
         <div className="history-main">
           {!activeEntry && (
             <div className="history-placeholder">
-              Pilih entri riwayat untuk melihat hasil scan.
+              Select a history entry to view scan results.
             </div>
           )}
 
           {activeEntry && (
             <>
               <div className="history-entry-header">
-                <span className="history-entry-ts">{new Date(activeEntry.ts).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</span>
+                <span className="history-entry-ts">{new Date(activeEntry.ts).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })}</span>
                 {onReScan && (
                   <button
                     className="btn btn-ghost"
                     style={{ fontSize: '0.72rem', padding: '0.25rem 0.625rem' }}
                     onClick={() => onReScan(activeEntry.input)}
                   >
-                    ↩ Scan ulang di IoC Scan
+                    ↩ Re-scan in IoC Scan
                   </button>
                 )}
               </div>
@@ -122,9 +122,9 @@ export function HistoryTab({ onReScan }: Props) {
                     checked={checkedIds.size > 0 && activeEntry.items.filter(i => !i.pending && !i.error).every(i => checkedIds.has(i.id))}
                     onChange={selectAll}
                   />
-                  Pilih semua
+                  Select all
                 </label>
-                <span className="ioc-multi-count">{checkedIds.size} terpilih</span>
+                <span className="ioc-multi-count">{checkedIds.size} selected</span>
                 <div className="ioc-multi-actions">
                   <CopyButton
                     text={selectedText}

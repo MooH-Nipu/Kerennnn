@@ -32,12 +32,12 @@ export function MergerTab() {
     setOutput('');
 
     if (!oldQuery.trim()) {
-      setStatus({ type: 'error', text: 'Query lama tidak boleh kosong!' });
+      setStatus({ type: 'error', text: 'Old query cannot be empty!' });
       return;
     }
     const newIpList = [...new Set(newIps.split('\n').map(s => s.trim()).filter(Boolean))];
     if (!newIpList.length) {
-      setStatus({ type: 'error', text: 'List IP baru tidak boleh kosong!' });
+      setStatus({ type: 'error', text: 'New IP list cannot be empty!' });
       return;
     }
 
@@ -45,20 +45,20 @@ export function MergerTab() {
     try {
       obj = JSON.parse(oldQuery);
     } catch (e) {
-      setStatus({ type: 'error', text: `JSON tidak valid: ${(e as Error).message}` });
+      setStatus({ type: 'error', text: `Invalid JSON: ${(e as Error).message}` });
       return;
     }
 
     const query = obj?.query as Record<string, unknown> | undefined;
     const terms = query?.terms as Record<string, unknown[]> | undefined;
     if (!terms) {
-      setStatus({ type: 'error', text: 'Struktur harus: query > terms' });
+      setStatus({ type: 'error', text: 'Structure must be: query > terms' });
       return;
     }
 
     const arrayKeys = Object.keys(terms).filter(k => Array.isArray(terms[k]));
     if (!arrayKeys.length) {
-      setStatus({ type: 'error', text: 'Struktur harus: query > terms > <key> (array)' });
+      setStatus({ type: 'error', text: 'Structure must be: query > terms > <key> (array)' });
       return;
     }
 
@@ -80,8 +80,8 @@ export function MergerTab() {
     setOutput(JSON.stringify(obj, null, 2));
 
     const added = combined.length - existing.length;
-    const note = arrayKeys.length > 1 ? ` (${arrayKeys.length} key terdeteksi, menggunakan "${ipKey}")` : '';
-    setStatus({ type: 'success', text: `${added} IP ditambahkan. Total: ${combined.length}${note}` });
+    const note = arrayKeys.length > 1 ? ` (${arrayKeys.length} keys detected, using "${ipKey}")` : '';
+    setStatus({ type: 'success', text: `${added} IPs added. Total: ${combined.length}${note}` });
   }
 
   return (
@@ -96,7 +96,7 @@ export function MergerTab() {
 
       <div className="merger-grid">
         <div className="form-group">
-          <label className="form-label" htmlFor="old-query">Query JSON lama</label>
+          <label className="form-label" htmlFor="old-query">Old JSON query</label>
           <textarea
             id="old-query"
             className="form-textarea"
@@ -108,7 +108,7 @@ export function MergerTab() {
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="new-ips">IP baru — satu per baris</label>
+          <label className="form-label" htmlFor="new-ips">New IPs — one per line</label>
           <textarea
             id="new-ips"
             className="form-textarea"
@@ -123,7 +123,7 @@ export function MergerTab() {
           <label className="form-label">Output JSON</label>
           <OutputBox
             value={output}
-            placeholder="Hasil merge muncul di sini…"
+            placeholder="Merge result appears here…"
             rows={12}
           />
         </div>

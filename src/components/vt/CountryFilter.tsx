@@ -44,10 +44,10 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
           className="vt-country-filter__select"
           value={pick}
           onChange={(e) => addCountry(e.target.value)}
-          aria-label="Tambah filter negara"
-          title="Tambah filter negara (include / exclude)"
+          aria-label="Add country filter"
+          title="Add country filter (include / exclude)"
         >
-          <option value="">+ Negara…</option>
+          <option value="">+ Country…</option>
           {countries
             .filter(c => !active.has(c.code))
             .map(c => (
@@ -64,7 +64,7 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
             type="button"
             className="vt-country-pill__mode"
             onClick={() => toggleMode(f.code)}
-            title={f.mode === 'include' ? 'Include — klik untuk Exclude' : 'Exclude — klik untuk Include'}
+            title={f.mode === 'include' ? 'Include — click to Exclude' : 'Exclude — click to Include'}
             aria-label={f.mode === 'include' ? 'Include' : 'Exclude'}
           >
             {f.mode === 'include' ? '✓' : '⊘'}
@@ -76,8 +76,8 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
             type="button"
             className="vt-country-pill__remove"
             onClick={() => remove(f.code)}
-            aria-label={`Hapus filter ${f.code}`}
-            title="Hapus"
+            aria-label={`Remove ${f.code} filter`}
+            title="Remove"
           >
             ×
           </button>
@@ -89,9 +89,9 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
           type="button"
           className="vt-country-filter__clearall"
           onClick={() => onChange([])}
-          title="Hapus semua filter negara"
+          title="Clear all country filters"
         >
-          Hapus semua
+          Clear all
         </button>
       )}
     </div>

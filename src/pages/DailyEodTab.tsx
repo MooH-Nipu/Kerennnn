@@ -10,10 +10,10 @@ interface FileSlot {
 }
 
 const SLOTS: FileSlot[] = [
-  { id: 'dci',   label: 'DCI',   accept: '.csv', description: 'CSV dari Kibana DCI' },
-  { id: 'bprks', label: 'BPRKS', accept: '.csv', description: 'CSV dari Kibana BPRKS' },
-  { id: 'pac',   label: 'PAC',   accept: '.csv', description: 'CSV dari Kibana PAC' },
-  { id: 'smi',   label: 'SMI',   accept: '.csv', description: 'CSV "Daily" dari SMI' },
+  { id: 'dci',   label: 'DCI',   accept: '.csv', description: 'CSV from Kibana DCI' },
+  { id: 'bprks', label: 'BPRKS', accept: '.csv', description: 'CSV from Kibana BPRKS' },
+  { id: 'pac',   label: 'PAC',   accept: '.csv', description: 'CSV from Kibana PAC' },
+  { id: 'smi',   label: 'SMI',   accept: '.csv', description: 'CSV "Daily" from SMI' },
 ];
 
 export function DailyEodTab() {
@@ -76,7 +76,7 @@ export function DailyEodTab() {
       a.download = `EOD_${date}${shiftName ? '_' + shiftName : ''}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-      setSuccess('✓ File Excel berhasil diunduh.');
+      setSuccess('✓ Excel file downloaded successfully.');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -97,7 +97,7 @@ export function DailyEodTab() {
 
       <div className="eod-controls" style={{ alignItems: 'flex-end' }}>
         <div className="form-group" style={{ flex: '0 0 180px' }}>
-          <label className="form-label" htmlFor="eod-date">Tanggal Laporan</label>
+          <label className="form-label" htmlFor="eod-date">Report Date</label>
           <input
             id="eod-date"
             type="date"
@@ -112,7 +112,7 @@ export function DailyEodTab() {
             id="eod-shift"
             type="text"
             className="form-input"
-            placeholder="e.g. Pagi / Siang / Malam"
+            placeholder="e.g. Morning / Afternoon / Night"
             value={shiftName}
             onChange={e => setShiftName(e.target.value)}
           />
@@ -126,7 +126,7 @@ export function DailyEodTab() {
             className="form-input"
             value={defaultAlarmTime}
             onChange={e => setDefaultAlarmTime(e.target.value)}
-            title="Fallback jam alarm untuk baris CSV yang tidak memiliki timestamp"
+            title="Fallback alarm time for CSV rows without a timestamp"
           />
         </div>
       </div>
@@ -154,14 +154,14 @@ export function DailyEodTab() {
               {f ? (
                 <>
                   <div className="eod-slot__name">{f.name}</div>
-                  {lineEst && <div className="eod-slot__est">~{lineEst} baris</div>}
+                  {lineEst && <div className="eod-slot__est">~{lineEst} rows</div>}
                   <button
                     className="eod-slot__clear"
                     onClick={e => { e.stopPropagation(); handleFile(slot.id, null); }}
                   >×</button>
                 </>
               ) : (
-                <div className="eod-slot__hint">Drop CSV atau klik untuk pilih</div>
+                <div className="eod-slot__hint">Drop CSV or click to choose</div>
               )}
               <div className="eod-slot__desc">{slot.description}</div>
             </div>
@@ -174,7 +174,7 @@ export function DailyEodTab() {
           {loading ? <><Spinner size={14} /> Generating…</> : '⬇ Generate Excel'}
         </button>
         <button className="btn btn-ghost" onClick={clearAll} disabled={!hasAnyFile}>
-          Reset semua
+          Reset all
         </button>
       </div>
     </div>

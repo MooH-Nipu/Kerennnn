@@ -80,7 +80,7 @@ export function AdminLogsTab() {
             cursor: loading ? 'default' : 'pointer',
           }}
         >
-          {loading ? 'Memuat…' : '↻ Refresh'}
+          {loading ? 'Loading…' : '↻ Refresh'}
         </button>
       </div>
 
@@ -135,7 +135,7 @@ function AuditList({ rows }: { rows: AuditLogEntry[] }) {
               {r.target && <span style={{ color: 'var(--text-secondary, #a3b3cc)' }}> → {r.target}</span>}
             </div>
             <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6b7f9a)', marginTop: '0.15rem' }}>
-              oleh <strong>{r.actor_username ?? 'unknown'}</strong>
+              by <strong>{r.actor_username ?? 'unknown'}</strong>
               {r.detail && Object.keys(r.detail).length > 0 && (
                 <span style={{ fontFamily: 'var(--font-mono, monospace)' }}> · {JSON.stringify(r.detail)}</span>
               )}

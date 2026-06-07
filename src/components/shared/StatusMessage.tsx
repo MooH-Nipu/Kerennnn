@@ -12,7 +12,7 @@ export function StatusMessage({ type, message, onDismiss }: Props) {
       <span className="status-msg__icon">{ICONS[type]}</span>
       <span className="status-msg__text">{message}</span>
       {onDismiss && (
-        <button className="status-msg__dismiss" onClick={onDismiss} aria-label="Tutup">×</button>
+        <button className="status-msg__dismiss" onClick={onDismiss} aria-label="Dismiss">×</button>
       )}
     </div>
   );
