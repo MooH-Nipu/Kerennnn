@@ -75,11 +75,18 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid JSON.' });
     }
 
-    const { id, role, password } = body || {};
+    const { id, role, password, username } = body || {};
     if (!id) return res.status(400).json({ error: 'Missing id.' });
-    if (!role && !password) return res.status(400).json({ error: 'Provide role or password to update.' });
+    if (!role && !password && !username) {
+      return res.status(400).json({ error: 'Provide username, role, or password to update.' });
+    }
 
     const updates = {};
+    if (username) {
+      const uname = String(username).trim();
+      if (!uname) return res.status(400).json({ error: 'Username cannot be empty.' });
+      updates.username = uname;
+    }
     if (role) {
       if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
       updates.role = role;
@@ -95,14 +102,22 @@ module.exports = async function handler(req, res) {
       .select('id, username, role')
       .single();
 
-    if (error) return serverError(res, error, 'admin/users PATCH');
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Username already exists.' });
+      return serverError(res, error, 'admin/users PATCH');
+    }
     if (!data) return res.status(404).json({ error: 'User not found.' });
     await writeAudit(supabase, {
       actorId: req.auth.userId,
       actorUsername: req.auth.username,
       action: 'user.update',
       target: data.username,
-      detail: { roleChanged: !!role, passwordChanged: !!password, newRole: role || undefined },
+      detail: {
+        usernameChanged: !!username,
+        roleChanged: !!role,
+        passwordChanged: !!password,
+        newRole: role || undefined,
+      },
     });
     return res.status(200).json({ ok: true, user: data });
   }
