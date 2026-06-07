@@ -35,7 +35,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role }),
       }),
-    updateUser: (id: string, updates: { role?: Role; password?: string }) =>
+    updateUser: (id: string, updates: { role?: Role; password?: string; username?: string }) =>
       apiFetch<{ ok: boolean; user: AppUser }>('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
