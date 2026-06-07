@@ -16,7 +16,7 @@ const ALL_TABS: TabDef[] = [
   { id: 'formatter',   label: 'Formatter',  shortLabel: 'Fmt',    icon: '≋'  },
   { id: 'merger',      label: 'Merger',     shortLabel: 'Merge',  icon: '⇄'  },
   { id: 'ioc-scan',    label: 'IoC Scan',   shortLabel: 'Scan',   icon: '◎'  },
-  { id: 'history',     label: 'Riwayat',    shortLabel: 'Log',    icon: '≡'  },
+  { id: 'history',     label: 'History',    shortLabel: 'Log',    icon: '≡'  },
   { id: 'pac-filter',  label: 'PAC Filter', shortLabel: 'PAC',    icon: '⬡'  },
   { id: 'daily-eod',   label: 'Daily EOD',  shortLabel: 'EOD',    icon: '▨'  },
   { id: 'admin-users', label: 'Users',      shortLabel: 'Users',  icon: '⊕'  },
@@ -131,7 +131,7 @@ export function TabNav({ role, activeTab, setActiveTab, order, onReorder, sideba
   }
 
   return (
-    <nav className={`tab-nav ${sidebar ? 'tab-nav--sidebar' : 'tab-nav--top'}`} aria-label="Navigasi tab">
+    <nav className={`tab-nav ${sidebar ? 'tab-nav--sidebar' : 'tab-nav--top'}`} aria-label="Tab navigation">
       {tabs.map((tab, idx) => {
         const isActive = activeTab === tab.id;
         const showBadge = tab.id === 'pac-filter' && typeof pacFilterCount === 'number' && pacFilterCount > 0;
@@ -146,7 +146,7 @@ export function TabNav({ role, activeTab, setActiveTab, order, onReorder, sideba
             onDragStart={() => onDragStart(tab.id)}
             onDragOver={e => onDragOver(e, tab.id)}
             onDragEnd={onDragEnd}
-            title={shortcut ? `${tab.label} (Alt+${shortcut}) — seret untuk atur urutan` : `${tab.label} — seret untuk atur urutan`}
+            title={shortcut ? `${tab.label} (Alt+${shortcut}) — drag to reorder` : `${tab.label} — drag to reorder`}
             aria-current={isActive ? 'page' : undefined}
           >
             <span className="tab-btn__icon" aria-hidden="true">{tab.icon}</span>

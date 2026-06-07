@@ -24,7 +24,7 @@ export function UpdateToast() {
 
   return (
     <div className="update-toast" role="status" aria-live="polite">
-      <button className="update-toast__close" onClick={dismiss} aria-label="Tutup">×</button>
+      <button className="update-toast__close" onClick={dismiss} aria-label="Close">×</button>
       <div className="update-toast__head">
         <span className="update-toast__badge">✨ Update changes</span>
         <strong className="update-toast__title">{LATEST_UPDATE.title}</strong>
@@ -35,7 +35,7 @@ export function UpdateToast() {
         ))}
       </ul>
       <button className="btn btn-primary btn-sm update-toast__ok" onClick={dismiss}>
-        Mengerti
+        Got it
       </button>
     </div>
   );

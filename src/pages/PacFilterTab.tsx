@@ -88,7 +88,7 @@ export function PacFilterTab({ onCountChange }: Props) {
     <div className="tab-content pac-filter-tab">
       <div className="section-header">
         <h2>PAC Filter</h2>
-        {itemCount > 0 && <span className="line-count">{itemCount} IP</span>}
+        {itemCount > 0 && <span className="line-count">{itemCount} IPs</span>}
       </div>
 
       {(error || statusMsg) && (
@@ -101,7 +101,7 @@ export function PacFilterTab({ onCountChange }: Props) {
 
       <div className="pac-layout">
         <aside className="pac-input-panel">
-          <div className="pac-section-title">Tambah IP</div>
+          <div className="pac-section-title">Add IP</div>
           <div className="form-group" style={{ marginBottom: '0.5rem' }}>
             <textarea
               className="form-textarea"
@@ -115,15 +115,15 @@ export function PacFilterTab({ onCountChange }: Props) {
           {parsedInputIps.length > 0 && (
             <div className="pac-ip-preview">
               <div className="pac-ip-preview-summary">
-                {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} baru akan disimpan</span>}
-                {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} sudah ada di DB</span>}
+                {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} new to save</span>}
+                {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} already in DB</span>}
               </div>
               <div className="pac-ip-chips">
                 {newIps.map(ip => (
-                  <span key={ip} className="pac-ip-chip pac-ip-chip--new" title="Akan disimpan">{ip}</span>
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--new" title="Will be saved">{ip}</span>
                 ))}
                 {dupIps.map(ip => (
-                  <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Sudah ada di DB">{ip}</span>
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Already in DB">{ip}</span>
                 ))}
               </div>
             </div>
@@ -131,7 +131,7 @@ export function PacFilterTab({ onCountChange }: Props) {
 
           <div className="tab-actions">
             <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting || newIps.length === 0}>
-              {posting && progress ? `Posting… (${progress.done}/${progress.total})` : `Submit ${newIps.length > 0 ? `${newIps.length} IP` : ''} ke DB`}
+              {posting && progress ? `Posting… (${progress.done}/${progress.total})` : `Submit ${newIps.length > 0 ? `${newIps.length} IPs` : ''} to DB`}
             </button>
             <button
               className="btn btn-ghost"
@@ -143,7 +143,7 @@ export function PacFilterTab({ onCountChange }: Props) {
             </button>
           </div>
           <div className="pac-delete-section">
-            <div className="pac-section-title pac-section-title--danger">Hapus IP</div>
+            <div className="pac-section-title pac-section-title--danger">Delete IP</div>
             <div className="form-group" style={{ marginBottom: '0.5rem' }}>
               <textarea
                 className="form-textarea"
@@ -157,15 +157,15 @@ export function PacFilterTab({ onCountChange }: Props) {
             {parsedDeleteIps.length > 0 && (
               <div className="pac-ip-preview">
                 <div className="pac-ip-preview-summary">
-                  {toDelete.length > 0 && <span className="pac-ip-badge pac-ip-badge--del">{toDelete.length} akan dihapus</span>}
-                  {notInDb.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{notInDb.length} tidak ada di DB</span>}
+                  {toDelete.length > 0 && <span className="pac-ip-badge pac-ip-badge--del">{toDelete.length} to delete</span>}
+                  {notInDb.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{notInDb.length} not in DB</span>}
                 </div>
                 <div className="pac-ip-chips">
                   {toDelete.map(ip => (
-                    <span key={ip} className="pac-ip-chip pac-ip-chip--del" title="Akan dihapus">{ip}</span>
+                    <span key={ip} className="pac-ip-chip pac-ip-chip--del" title="Will be deleted">{ip}</span>
                   ))}
                   {notInDb.map(ip => (
-                    <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Tidak ada di DB">{ip}</span>
+                    <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Not in DB">{ip}</span>
                   ))}
                 </div>
               </div>
@@ -176,7 +176,7 @@ export function PacFilterTab({ onCountChange }: Props) {
               onClick={handleDeleteSelected}
               disabled={toDelete.length === 0 || loading || posting}
             >
-              {toDelete.length > 0 ? `Hapus ${toDelete.length} IP dari DB` : 'Hapus dari DB'}
+              {toDelete.length > 0 ? `Delete ${toDelete.length} IPs from DB` : 'Delete from DB'}
             </button>
           </div>
         </aside>
@@ -185,13 +185,13 @@ export function PacFilterTab({ onCountChange }: Props) {
           <div className="pac-section-title">
             SIEM Query
             {itemCount > 0 && (
-              <span className="pac-section-hint">semua {itemCount} IP</span>
+              <span className="pac-section-hint">all {itemCount} IPs</span>
             )}
           </div>
 
           {items.length === 0 ? (
             <div className="pac-siem-empty">
-              Belum ada IP di database. Tambahkan IP di kiri lalu klik <strong>Submit ke DB</strong>.
+              No IPs in the database yet. Add IPs on the left and click <strong>Submit to DB</strong>.
             </div>
           ) : (
             <>
@@ -227,7 +227,7 @@ export function PacFilterTab({ onCountChange }: Props) {
                 <>
                   <div className="siem-query-meta">
                     <code className="siem-active-field">{activeField}</code>
-                    &nbsp;·&nbsp;{queryIps.length} IP
+                    &nbsp;·&nbsp;{queryIps.length} IPs
                   </div>
                   <OutputBox
                     value={siemQuery}
@@ -237,7 +237,7 @@ export function PacFilterTab({ onCountChange }: Props) {
                 </>
               ) : (
                 isCustom && !customField.trim() && (
-                  <div className="siem-empty">Masukkan nama field untuk generate query.</div>
+                  <div className="siem-empty">Enter a field name to generate the query.</div>
                 )
               )}
             </>

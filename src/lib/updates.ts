@@ -13,20 +13,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
-    version: '2026.06.07-1',
-    title: 'Apa yang baru',
+    version: '2026.06.08-1',
+    title: "What's new",
     changes: [
-      '🧹 JSON Beautifier kini lebih ringkas — pemilih indentasi dihapus, output otomatis rapi 2 spasi.',
-      '👤 User Management: kamu sekarang bisa mengubah username & password user (klik "Edit" pada kartu user).',
+      '🌐 The whole app is now in English.',
+      '🧹 JSON Beautifier now auto-formats as you type — no button needed. Toggle Beautify/Minify; the output box fills the full width.',
+      '🔎 New "Extract IOCs" mode in the JSON tab — pull IPs, domains, URLs, hashes & emails out of any text or log (defang-aware).',
+      '👤 User Management: you can now change a user\'s username & password — click "Edit" on a user card.',
     ],
   },
   {
     version: '2026.06.06-1',
-    title: 'Apa yang baru',
+    title: "What's new",
     changes: [
-      '🧭 Urutkan tab sesukamu — cukup seret tab di navigasi ke posisi yang kamu mau. Tersimpan otomatis & tersinkron di akunmu.',
-      '🧹 Tab baru: JSON Beautifier — rapikan atau minify JSON, plus dukungan log NDJSON.',
-      '🔍 "Analisa Mendalam" kini tersedia untuk Domain & Hash, bukan cuma IP.',
+      '🧭 Reorder tabs however you like — just drag a tab in the navigation to where you want it. Saved automatically & synced to your account.',
+      '🧹 New tab: JSON Beautifier — beautify or minify JSON, plus NDJSON log support.',
+      '🔍 "Deep Analysis" is now available for Domains & Hashes, not just IPs.',
     ],
   },
 ];

@@ -11,7 +11,7 @@ interface Props {
   danger?: boolean;
 }
 
-export function Modal({ open, title, message, confirmLabel = 'Konfirmasi', cancelLabel = 'Batal', onConfirm, onCancel, danger }: Props) {
+export function Modal({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel, danger }: Props) {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {

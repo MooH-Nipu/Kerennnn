@@ -143,7 +143,7 @@ export function useVtScan() {
   const runScan = useCallback(async (rawInput: string) => {
     const parsed = parseIocList(rawInput);
     if (!parsed.length) {
-      dispatch({ type: 'SET_STATUS', msg: 'Tidak ada IOC valid yang ditemukan.', statusType: 'error' });
+      dispatch({ type: 'SET_STATUS', msg: 'No valid IOCs found.', statusType: 'error' });
       return;
     }
 
@@ -180,8 +180,8 @@ export function useVtScan() {
         api.scan.correlate(ioc)
           .then(corr => {
             dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-            // Persist correlation (incl. RDAP/GeoIP enrichment) so the "Analisa
-            // Mendalam" deep-analysis page can render it later. All IOC types are
+            // Persist correlation (incl. RDAP/GeoIP enrichment) so the "Deep
+            // Analysis" page can render it later. All IOC types are
             // cached: ip → vt_ip_cache, domain/hash → vt_ioc_cache (routed server-side).
             api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
           })
@@ -195,7 +195,7 @@ export function useVtScan() {
     if (!abortRef.current) {
       dispatch({
         type: 'SET_STATUS',
-        msg: `✓ Scan selesai — ${parsed.length} IOC diproses.`,
+        msg: `✓ Scan complete — ${parsed.length} IOCs processed.`,
         statusType: 'success',
       });
     }

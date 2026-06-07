@@ -60,7 +60,7 @@ export function CorrelationPanel({ loading, data }: Props) {
     return (
       <div className="corr-panel">
         <div className="corr-loading">
-          <Spinner size={14} /> Memuat threat intel…
+          <Spinner size={14} /> Loading threat intel…
         </div>
       </div>
     );

@@ -9,18 +9,18 @@ export function fmtWhen(isoDate: string): string {
   const now = Date.now();
   const diffMs = now - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return 'baru saja';
+  if (diffSec < 60) return 'just now';
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m lalu`;
+  if (diffMin < 60) return `${diffMin}m ago`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}j lalu`;
+  if (diffHr < 24) return `${diffHr}h ago`;
   const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}h lalu`;
-  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function fmtDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleString('id-ID', {
+  return new Date(isoDate).toLocaleString('en-GB', {
     timeZone: 'Asia/Jakarta',
     day: '2-digit',
     month: 'short',

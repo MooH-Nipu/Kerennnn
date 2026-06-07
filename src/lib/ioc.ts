@@ -85,3 +85,65 @@ export function hashLabel(len: number): string {
   if (len === 128) return 'SHA512';
   return 'HASH';
 }
+
+// ── IOC extraction from free text (logs, JSON, emails, …) ───────────────────
+
+export interface ExtractedIOCs {
+  ips: string[];
+  domains: string[];
+  urls: string[];
+  hashes: string[];
+  emails: string[];
+}
+
+// File extensions the bare-domain regex would otherwise mistake for domains
+// (e.g. "report.pdf", "data.json"). Used to drop false-positive domains.
+const FILE_EXT_RE =
+  /\.(?:exe|dll|sys|bin|bat|cmd|ps1|sh|js|mjs|ts|jsx|tsx|json|csv|tsv|txt|log|xml|html?|css|php|py|rb|go|jar|war|zip|rar|7z|gz|tgz|tar|pdf|docx?|xlsx?|pptx?|rtf|png|jpe?g|gif|svg|ico|webp|bmp|mp[34]|m4a|wav|avi|mov|mkv|md|yml|yaml|ini|conf|cfg|toml|lock)$/i;
+
+// Refang common defang notations so plain regexes match.
+function refang(text: string): string {
+  return String(text ?? '')
+    .replace(/\[\.\]|\(\.\)|\{\.\}|\[dot\]|\(dot\)/gi, '.')
+    .replace(/\[:\]|\(:\)/g, ':')
+    .replace(/\[\/\]/g, '/')
+    .replace(/h(?:xx|XX)p(s?)/g, 'http$1')
+    .replace(/f(?:xx|XX)p/g, 'ftp');
+}
+
+const uniqSorted = (arr: string[]) => Array.from(new Set(arr)).sort();
+
+// Regex-scan arbitrary text (JSON, logs, anything) for IOCs. Defang-aware;
+// classifies and dedupes into IPs, domains, URLs, hashes and emails. Reuses
+// detectType() to validate ambiguous domain candidates.
+export function extractIOCsFromText(text: string): ExtractedIOCs {
+  const src = refang(text);
+
+  const urls = uniqSorted(
+    (src.match(/\b(?:https?|ftp):\/\/[^\s"'`<>()[\]{}]+/gi) ?? [])
+      .map(u => u.replace(/[.,;:!?)\]}'"]+$/, ''))
+  );
+
+  const emails = uniqSorted(
+    (src.match(/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/gi) ?? [])
+      .map(e => e.toLowerCase())
+  );
+
+  const hashes = uniqSorted(
+    (src.match(/\b[a-f0-9]{64}\b|\b[a-f0-9]{40}\b|\b[a-f0-9]{32}\b/gi) ?? [])
+      .map(h => h.toLowerCase())
+  );
+
+  const ipv4 = src.match(/\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g) ?? [];
+  const ipv6 = (src.match(/\b(?:[a-f0-9]{1,4}:){2,7}[a-f0-9]{1,4}\b/gi) ?? []).map(s => s.toLowerCase());
+  const ips = uniqSorted([...ipv4, ...ipv6]);
+  const ipSet = new Set(ips);
+
+  const domains = uniqSorted(
+    (src.match(/\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\b/gi) ?? [])
+      .map(d => d.toLowerCase())
+      .filter(d => detectType(d) === 'domain' && !ipSet.has(d) && !FILE_EXT_RE.test(d))
+  );
+
+  return { ips, domains, urls, hashes, emails };
+}

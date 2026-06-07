@@ -744,6 +744,12 @@
   }
 }
 
+/* Output box defaults to a 42rem cap; inside the formatter grid let it fill the
+   column so it lines up flush with the input (right edge aligned). */
+.formatter-grid .output-box {
+  max-width: none;
+}
+
 /* ---------- Inline header toolbar (e.g. JSON beautifier) ---------- */
 .tab-actions--inline {
   margin: 0 0 0 auto;

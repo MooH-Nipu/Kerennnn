@@ -112,7 +112,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
       <div className="section-header">
         <h2>IoC Scan</h2>
         {lineCount > 0 && !scanning && <span className="line-count">{lineCount} IOC</span>}
-        {scanning && <span className="line-count">{progress.done}/{progress.total} selesai</span>}
+        {scanning && <span className="line-count">{progress.done}/{progress.total} done</span>}
       </div>
 
       <div className="ioc-scan-layout">
@@ -121,7 +121,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
           <form onSubmit={handleSubmit} className="scan-form">
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                <label className="form-label" htmlFor="ioc-input">IOC — satu per baris</label>
+                <label className="form-label" htmlFor="ioc-input">IOC — one per line</label>
                 <span className="form-hint">Ctrl+Enter</span>
               </div>
               <textarea
@@ -160,14 +160,14 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
 
           {!hasResults && !scanning && (
             <div className="ioc-scan-empty">
-              Masukkan IOC di kiri lalu klik <strong>Scan</strong>.
+              Enter IOCs on the left and click <strong>Scan</strong>.
             </div>
           )}
 
           {hasResults && (
             <>
               <div className="scan-results-header">
-                <span className="scan-results-count">{visibleItems.length} / {items.length} hasil</span>
+                <span className="scan-results-count">{visibleItems.length} / {items.length} results</span>
                 <div className="scan-results-filters">
                   <VtFilterChips filters={filters} onToggle={setFilter} />
                   <CountryFilter countries={availableCountries} filters={countryFilters} onChange={setCountryFilters} />
@@ -182,9 +182,9 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                     checked={selectedCount > 0 && visibleItems.filter(i => !i.pending && !i.error).every(i => selected.has(i.id))}
                     onChange={selectAllVisible}
                   />
-                  Pilih semua
+                  Select all
                 </label>
-                <span className="ioc-multi-count">{selectedCount} terpilih</span>
+                <span className="ioc-multi-count">{selectedCount} selected</span>
                 <div className="ioc-multi-actions">
                   <CopyButton
                     text={selectedIocsText}

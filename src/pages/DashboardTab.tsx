@@ -78,7 +78,7 @@ export function DashboardTab({ onScanIp }: Props) {
                 key={item.ip}
                 className="dash-row"
                 onClick={() => onScanIp?.(item.ip)}
-                title={`Klik untuk scan ulang ${item.ip}`}
+                title={`Click to re-scan ${item.ip}`}
               >
                 <td className="mono" style={{ color: 'var(--text-primary, #e8f0fe)' }}>{item.ip}</td>
                 <td>
@@ -97,7 +97,7 @@ export function DashboardTab({ onScanIp }: Props) {
             {!loading && items.length === 0 && (
               <tr>
                 <td colSpan={4} className="dash-empty">
-                  Belum ada data. Scan IP untuk melihat riwayat.
+                  No data yet. Scan an IP to see history.
                 </td>
               </tr>
             )}

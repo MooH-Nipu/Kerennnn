@@ -32,7 +32,7 @@ export function LoginPage() {
               id="login-username"
               type="text"
               className="form-input"
-              placeholder="Masukkan username"
+              placeholder="Enter username"
               value={username}
               onChange={e => { setUsername(e.target.value); clearError(); }}
               autoComplete="username"
@@ -47,7 +47,7 @@ export function LoginPage() {
               id="login-password"
               type="password"
               className="form-input"
-              placeholder="Masukkan password"
+              placeholder="Enter password"
               value={password}
               onChange={e => { setPassword(e.target.value); clearError(); }}
               autoComplete="current-password"
@@ -64,7 +64,7 @@ export function LoginPage() {
             className="btn btn-primary login-btn"
             disabled={pending || !username.trim() || !password}
           >
-            {pending ? <Spinner size={16} /> : 'Masuk'}
+            {pending ? <Spinner size={16} /> : 'Sign in'}
           </button>
         </form>
       </div>

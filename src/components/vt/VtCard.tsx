@@ -120,7 +120,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >
-            🔍 Analisa Mendalam
+            🔍 Deep Analysis
           </a>
         )}
       </span>
@@ -191,7 +191,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >
-            🔍 Analisa Mendalam
+            🔍 Deep Analysis
           </a>
         )}
       </span>
@@ -260,7 +260,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >
-            🔍 Analisa Mendalam
+            🔍 Deep Analysis
           </a>
         )}
       </span>

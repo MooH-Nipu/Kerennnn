@@ -18,14 +18,14 @@ export function FormatterTab() {
     const ips = raw.split('\n').map(s => s.trim()).filter(Boolean);
     const unique = [...new Set(ips)];
     if (!unique.length) {
-      setStatus({ type: 'error', text: 'List IP tidak boleh kosong!' });
+      setStatus({ type: 'error', text: 'IP list cannot be empty!' });
       return;
     }
     setOutput(unique.join('; '));
     const dupes = ips.length - unique.length;
     setStatus({
       type: 'success',
-      text: `${unique.length} IP formatted${dupes > 0 ? ` — ${dupes} duplikat dihapus` : ''}.`,
+      text: `${unique.length} IPs formatted${dupes > 0 ? ` — ${dupes} duplicates removed` : ''}.`,
     });
   }
 
@@ -35,7 +35,7 @@ export function FormatterTab() {
     <div className="tab-content formatter-tab">
       <div className="section-header">
         <h2>IP Formatter</h2>
-        {lineCount > 0 && <span className="line-count">{lineCount} baris</span>}
+        {lineCount > 0 && <span className="line-count">{lineCount} lines</span>}
       </div>
 
       {status && (
@@ -45,7 +45,7 @@ export function FormatterTab() {
       <div className="formatter-grid">
         <div className="form-group">
           <label className="form-label" htmlFor="raw-ips">
-            Input — satu IP per baris
+            Input — one IP per line
           </label>
           <textarea
             id="raw-ips"
@@ -61,7 +61,7 @@ export function FormatterTab() {
           <label className="form-label">Output — semicolon separated</label>
           <OutputBox
             value={output}
-            placeholder="Hasil format muncul di sini…"
+            placeholder="Formatted result appears here…"
             rows={14}
           />
         </div>

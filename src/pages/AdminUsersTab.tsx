@@ -52,7 +52,7 @@ export function AdminUsersTab() {
     setError(null);
     try {
       await api.admin.createUser(newUsername.trim(), newPassword, newRole);
-      setSuccess(`User "${newUsername}" berhasil dibuat.`);
+      setSuccess(`User "${newUsername}" created.`);
       setNewUsername(''); setNewPassword(''); setNewRole('l1');
       fetchUsers();
     } catch (err) {
@@ -80,7 +80,7 @@ export function AdminUsersTab() {
   async function saveEdit(user: AppUser) {
     const uname = editUsername.trim();
     const isSelf = user.username === selfUsername;
-    if (!uname) { setError('Username tidak boleh kosong.'); return; }
+    if (!uname) { setError('Username cannot be empty.'); return; }
 
     const updates: { username?: string; password?: string; role?: Role } = {};
     if (uname !== user.username) updates.username = uname;
@@ -88,7 +88,7 @@ export function AdminUsersTab() {
     if (!isSelf && editRole !== user.role) updates.role = editRole;
 
     if (Object.keys(updates).length === 0) {
-      setError('Tidak ada perubahan untuk disimpan.');
+      setError('No changes to save.');
       return;
     }
 
@@ -101,7 +101,7 @@ export function AdminUsersTab() {
           ? { ...u, username: updates.username ?? u.username, role: updates.role ?? u.role }
           : u
       ));
-      setSuccess(`User "${uname}" diperbarui.`);
+      setSuccess(`User "${uname}" updated.`);
       cancelEdit();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -115,7 +115,7 @@ export function AdminUsersTab() {
     try {
       await api.admin.deleteUser(deleteTarget.id);
       setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
-      setSuccess(`User "${deleteTarget.username}" dihapus.`);
+      setSuccess(`User "${deleteTarget.username}" deleted.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -137,7 +137,7 @@ export function AdminUsersTab() {
 
       {/* Create user */}
       <div className="admin-create-card">
-        <h3 className="admin-section-title">Tambah User Baru</h3>
+        <h3 className="admin-section-title">Add New User</h3>
         <div className="admin-create-form">
           <div className="form-group">
             <label className="form-label">Username</label>
@@ -158,7 +158,7 @@ export function AdminUsersTab() {
             onClick={handleCreate}
             disabled={creating || !newUsername.trim() || !newPassword}
           >
-            {creating ? <Spinner size={14} /> : 'Buat User'}
+            {creating ? <Spinner size={14} /> : 'Create User'}
           </button>
         </div>
       </div>
@@ -166,12 +166,12 @@ export function AdminUsersTab() {
       {/* User list */}
       <div className="user-list-section">
         <div className="user-list-header">
-          <h3 className="admin-section-title" style={{ margin: 0 }}>Daftar User</h3>
-          <span className="user-count">{users.length} user</span>
+          <h3 className="admin-section-title" style={{ margin: 0 }}>User List</h3>
+          <span className="user-count">{users.length} users</span>
         </div>
 
         {!loading && users.length === 0 && (
-          <div className="user-empty">Tidak ada user.</div>
+          <div className="user-empty">No users.</div>
         )}
 
         <div className="user-grid">
@@ -190,7 +190,7 @@ export function AdminUsersTab() {
                       {isSelf && <span className="user-card__self-tag">YOU</span>}
                     </div>
                     <div className="user-card__meta">
-                      Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      Joined {new Date(user.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                   <RoleBadge role={user.role} size="sm" />
@@ -209,11 +209,11 @@ export function AdminUsersTab() {
                         />
                       </label>
                       <label className="user-card__field">
-                        <span className="user-card__field-label">Password Baru</span>
+                        <span className="user-card__field-label">New Password</span>
                         <input
                           className="form-input"
                           type="password"
-                          placeholder="Kosongkan bila tidak diubah"
+                          placeholder="Leave blank to keep current"
                           value={editPassword}
                           onChange={e => setEditPassword(e.target.value)}
                         />
@@ -225,7 +225,7 @@ export function AdminUsersTab() {
                           value={editRole}
                           onChange={e => setEditRole(e.target.value as Role)}
                           disabled={isSelf}
-                          title={isSelf ? 'Tidak dapat mengubah role akun sendiri' : undefined}
+                          title={isSelf ? 'Cannot change your own role' : undefined}
                         >
                           {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
@@ -234,10 +234,10 @@ export function AdminUsersTab() {
 
                     <div className="user-card__actions user-card__actions--edit">
                       <button className="btn btn-ghost btn-sm" onClick={cancelEdit} disabled={isSaving}>
-                        Batal
+                        Cancel
                       </button>
                       <button className="btn btn-primary btn-sm" onClick={() => saveEdit(user)} disabled={isSaving}>
-                        {isSaving ? <Spinner size={14} /> : 'Simpan'}
+                        {isSaving ? <Spinner size={14} /> : 'Save'}
                       </button>
                     </div>
                   </>
@@ -250,9 +250,9 @@ export function AdminUsersTab() {
                       className="btn btn-ghost btn-sm btn-delete-user"
                       onClick={() => setDeleteTarget(user)}
                       disabled={isSelf}
-                      title={isSelf ? 'Tidak dapat menghapus akun sendiri' : 'Hapus user'}
+                      title={isSelf ? 'Cannot delete your own account' : 'Delete user'}
                     >
-                      Hapus
+                      Delete
                     </button>
                   </div>
                 )}
@@ -264,9 +264,10 @@ export function AdminUsersTab() {
 
       <Modal
         open={!!deleteTarget}
-        title="Hapus User"
-        message={`Hapus user "${deleteTarget?.username}"? Tindakan ini tidak dapat dibatalkan.`}
-        confirmLabel="Hapus"
+        title="Delete User"
+        message={`Delete user "${deleteTarget?.username}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         danger
