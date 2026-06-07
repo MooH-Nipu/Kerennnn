@@ -40,7 +40,7 @@ export function AppHeader({ username, role, compact, sidebar, onToggleCompact, o
           placeholder="IP / domain / hash…"
           value={scanInput}
           onChange={e => setScanInput(e.target.value)}
-          aria-label="IOC untuk quick scan"
+          aria-label="IOC for quick scan"
         />
         <button type="submit" className="quick-scan-btn" disabled={!scanInput.trim()} aria-label="Scan">
           ◎

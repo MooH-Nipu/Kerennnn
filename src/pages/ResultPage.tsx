@@ -36,19 +36,19 @@ const VT_PATH: Record<IocType, string> = { ip: 'ip-address', domain: 'domain', h
 
 function buildTakeaway(type: IocType): Record<string, { title: string; body: string }> {
   const noun = TYPE_NOUN[type];
-  const subject = type === 'hash' ? 'File ini' : `${noun} ini`;
+  const subject = type === 'hash' ? 'This file' : `This ${noun}`;
   return {
     malicious: {
-      title: `${subject} terdeteksi berbahaya`,
-      body: `Lebih dari 3 engine AV mendeteksi indikator ini sebagai malicious. Disarankan untuk memblokir indikator ini dan menginvestigasi koneksi atau aktivitas terkait.`,
+      title: `${subject} is flagged as malicious`,
+      body: `More than 3 AV engines flagged this indicator as malicious. We recommend blocking it and investigating any related connections or activity.`,
     },
     suspicious: {
-      title: `${subject} mencurigakan`,
-      body: `Indikator ini menunjukkan tanda-tanda aktivitas mencurigakan. Lakukan investigasi lebih lanjut sebelum mengambil tindakan blokir.`,
+      title: `${subject} looks suspicious`,
+      body: `This indicator shows signs of suspicious activity. Investigate further before taking any blocking action.`,
     },
     clean: {
-      title: `${subject} tampak bersih`,
-      body: `Tidak ada engine AV yang mendeteksi indikator ini sebagai berbahaya. Tetap waspada dan pantau aktivitas terkait.`,
+      title: `${subject} appears clean`,
+      body: `No AV engine flagged this indicator as harmful. Stay alert and keep monitoring related activity.`,
     },
   };
 }
@@ -118,12 +118,12 @@ export function ResultPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) { setError('ID tidak valid.'); setLoading(false); return; }
+    if (!id) { setError('Invalid ID.'); setLoading(false); return; }
     api.ipCache.byId(id)
       .then(res => {
         // by-id returns { ok, item }
         const row = (res as { item?: CacheRow }).item ?? null;
-        if (!row) throw new Error('Data tidak ditemukan.');
+        if (!row) throw new Error('Data not found.');
         setData(row);
       })
       .catch(err => setError(err instanceof Error ? err.message : String(err)))
@@ -138,8 +138,8 @@ export function ResultPage() {
 
   if (error || !data) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base,#080d17)', color: 'var(--text-muted,#6b7f9a)', gap: '1rem' }}>
-      <div style={{ color: '#f87171', fontSize: '1rem' }}>{error ?? 'Data tidak ditemukan.'}</div>
-      <Link to="/" style={{ color: 'var(--accent,#3b82f6)', textDecoration: 'none', fontSize: '0.85rem' }}>← Kembali ke app</Link>
+      <div style={{ color: '#f87171', fontSize: '1rem' }}>{error ?? 'Data not found.'}</div>
+      <Link to="/" style={{ color: 'var(--accent,#3b82f6)', textDecoration: 'none', fontSize: '0.85rem' }}>← Back to app</Link>
     </div>
   );
 
@@ -217,11 +217,11 @@ export function ResultPage() {
 
               {typeof corr!.confidence === 'number' && (
                 <div className="score-breakdown">
-                  <div className="score-breakdown-title">Rincian Skor</div>
+                  <div className="score-breakdown-title">Score Breakdown</div>
                   <div className="score-breakdown-grid">
                     <div className="sb-item"><span className="sb-k">Baseline</span><span className="sb-v">{corr!.baselineConfidence ?? '—'}%</span></div>
                     <div className="sb-item"><span className="sb-k">Risk floor</span><span className="sb-v">{corr!.floor ?? 0}</span></div>
-                    <div className="sb-item"><span className="sb-k">Bonus faktor</span><span className="sb-v">+{corr!.bonus ?? 0}</span></div>
+                    <div className="sb-item"><span className="sb-k">Factor bonus</span><span className="sb-v">+{corr!.bonus ?? 0}</span></div>
                     <div className="sb-item"><span className="sb-k">Final</span><span className="sb-v sb-final">{corr!.confidence}%</span></div>
                   </div>
                   <div className="score-breakdown-formula">
@@ -270,7 +270,7 @@ export function ResultPage() {
         <div className="vt-card">
           <div className="vt-card-body" style={{ borderTop: 'none' }}>
             <div style={{ fontSize: '0.75rem', fontFamily: 'Syne,sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted,#6b7f9a)', marginBottom: '0.5rem' }}>
-              Rekomendasi
+              Recommendation
             </div>
             <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary,#e8f0fe)', marginBottom: '0.375rem' }}>
               {takeaway.title}

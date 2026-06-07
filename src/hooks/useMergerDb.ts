@@ -35,7 +35,7 @@ export function useMergerDb() {
       syncSession(loaded);
       setItems(loaded);
       sessionAutoFetched = true;
-      setStatusMsg(`✓ ${loaded.length} IP dimuat dari DB.`);
+      setStatusMsg(`✓ ${loaded.length} IPs loaded from DB.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -59,7 +59,7 @@ export function useMergerDb() {
     const toPost = unique.filter(ip => !existing.has(ip));
 
     if (!toPost.length) {
-      setStatusMsg('Tidak ada IP baru (semua sudah ada di DB).');
+      setStatusMsg('No new IPs (all already in DB).');
       return;
     }
 
@@ -89,7 +89,7 @@ export function useMergerDb() {
 
     if (done > 0) {
       await refresh();
-      setStatusMsg(`✓ ${done} IP dikirim. Data terbaru dimuat (${sessionItems.length} IP di DB).`);
+      setStatusMsg(`✓ ${done} IPs submitted. Latest data loaded (${sessionItems.length} IPs in DB).`);
     }
   }, [items, refresh]);
 
@@ -103,7 +103,7 @@ export function useMergerDb() {
         syncSession(next);
         return next;
       });
-      setStatusMsg(`✓ ${ips.length} IP dihapus.`);
+      setStatusMsg(`✓ ${ips.length} IPs deleted.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
