@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.08-2',
+    title: "What's new",
+    changes: [
+      '🔴 JSON Beautifier now highlights IOCs in red — IPs, domains, URLs, hashes & emails stand out inside the log so you can spot them at a glance. The "Extract IOCs" mode is still there too.',
+    ],
+  },
+  {
     version: '2026.06.08-1',
     title: "What's new",
     changes: [
