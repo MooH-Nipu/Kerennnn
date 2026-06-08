@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { OutputBox } from '../components/shared/OutputBox';
+import { HighlightedOutput } from '../components/shared/HighlightedOutput';
 import { StatusMessage } from '../components/shared/StatusMessage';
-import { extractIOCsFromText } from '../lib/ioc';
+import { extractIOCsFromText, findIOCMatches } from '../lib/ioc';
 
 interface StatusMsg {
   type: 'success' | 'error' | 'warning' | 'info';
@@ -131,7 +132,16 @@ export function JsonTab() {
       }
       const res = formatJson(src, mode === 'minify');
       setOutput(res.ok ? res.out : '');
-      setStatus(res.status);
+      if (res.ok) {
+        const n = findIOCMatches(res.out).length;
+        setStatus(
+          n > 0
+            ? { ...res.status, text: `${res.status.text} ${n} IOC${n !== 1 ? 's' : ''} highlighted in red.` }
+            : res.status
+        );
+      } else {
+        setStatus(res.status);
+      }
     }, 300);
     return () => clearTimeout(t);
   }, [raw, mode]);
@@ -197,7 +207,11 @@ export function JsonTab() {
 
         <div className="form-group">
           <label className="form-label">{outputLabel}</label>
-          <OutputBox value={output} placeholder={outputPlaceholder} rows={16} />
+          {isExtract ? (
+            <OutputBox value={output} placeholder={outputPlaceholder} rows={16} />
+          ) : (
+            <HighlightedOutput value={output} placeholder={outputPlaceholder} rows={16} />
+          )}
         </div>
       </div>
     </div>
