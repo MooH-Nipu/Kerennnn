@@ -147,3 +147,55 @@ export function extractIOCsFromText(text: string): ExtractedIOCs {
 
   return { ips, domains, urls, hashes, emails };
 }
+
+// ── IOC span location (for inline highlighting) ─────────────────────────────
+
+export type IOCMatchType = 'url' | 'email' | 'hash' | 'ip' | 'domain';
+
+export interface IOCMatch {
+  start: number;
+  end: number;
+  value: string;
+  type: IOCMatchType;
+}
+
+// Locate IOCs in `text` as non-overlapping spans against the ORIGINAL string.
+// Unlike extractIOCsFromText() this does NOT refang/normalise (that would shift
+// character offsets), so the returned start/end stay valid for highlighting the
+// exact substrings shown to the user. Higher-priority types claim their span
+// first (URL > email > hash > ip > domain) so a domain inside a URL, or an IP
+// inside nothing, isn't double-marked.
+export function findIOCMatches(text: string): IOCMatch[] {
+  const src = String(text ?? '');
+  const claimed: IOCMatch[] = [];
+  const overlaps = (s: number, e: number) => claimed.some(m => s < m.end && e > m.start);
+
+  const collect = (
+    re: RegExp,
+    type: IOCMatchType,
+    opts?: { trimTrailing?: boolean; validate?: (v: string) => boolean }
+  ) => {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src)) !== null) {
+      let value = m[0];
+      const start = m.index;
+      if (opts?.trimTrailing) value = value.replace(/[.,;:!?)\]}'"]+$/, '');
+      const end = start + value.length;
+      if (value && !(opts?.validate && !opts.validate(value)) && !overlaps(start, end)) {
+        claimed.push({ start, end, value, type });
+      }
+    }
+  };
+
+  collect(/\b(?:https?|ftp):\/\/[^\s"'`<>()[\]{}]+/gi, 'url', { trimTrailing: true });
+  collect(/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/gi, 'email');
+  collect(/\b[a-f0-9]{64}\b|\b[a-f0-9]{40}\b|\b[a-f0-9]{32}\b/gi, 'hash');
+  collect(/\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g, 'ip');
+  collect(/\b(?:[a-f0-9]{1,4}:){2,7}[a-f0-9]{1,4}\b/gi, 'ip');
+  collect(/\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\b/gi, 'domain', {
+    validate: d => detectType(d.toLowerCase()) === 'domain' && !FILE_EXT_RE.test(d.toLowerCase()),
+  });
+
+  return claimed.sort((a, b) => a.start - b.start);
+}
