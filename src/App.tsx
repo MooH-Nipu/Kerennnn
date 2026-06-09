@@ -28,6 +28,8 @@ function AppInner() {
   const [activeTab, setActiveTab] = useState<TabId>('formatter');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
+  // Lazy-mount: track which tabs have been visited so their state survives tab switches.
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(() => new Set(['formatter']));
 
   // Restore last tab for the user's role after login
   useEffect(() => {
@@ -35,6 +37,16 @@ function AppInner() {
       setActiveTab(getRestoredTab(role));
     }
   }, [authed, role]);
+
+  // Add the active tab to the mounted set on first visit (keep-alive pattern).
+  useEffect(() => {
+    setMountedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // If the active tab is no longer allowed for the role, fall back to the first
   // available tab so the user is never staring at an empty selection.
@@ -68,8 +80,8 @@ function AppInner() {
     return <LoginPage />;
   }
 
-  function renderTabContent() {
-    switch (activeTab) {
+  function tabElement(id: TabId) {
+    switch (id) {
       case 'formatter':   return <FormatterTab />;
       case 'json':        return <JsonTab />;
       case 'merger':      return <MergerTab />;
@@ -82,6 +94,14 @@ function AppInner() {
       case 'ir-manager':  return <IrManagerTab />;
       default:            return <FormatterTab />;
     }
+  }
+
+  function renderAllTabs() {
+    return Array.from(mountedTabs).map(id => (
+      <div key={id} style={{ display: activeTab === id ? 'contents' : 'none' }}>
+        {tabElement(id)}
+      </div>
+    ));
   }
 
   return (
@@ -100,7 +120,7 @@ function AppInner() {
         tabOrder={tabOrder}
         onReorderTabs={(o) => saveTabPrefs(o, [])}
       >
-        {renderTabContent()}
+        {renderAllTabs()}
       </AppShell>
 
       <UpdateToast />
