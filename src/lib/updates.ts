@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.09-1',
+    title: "What's new",
+    changes: [
+      '💾 Tab state is now preserved — inputs and outputs no longer reset when you switch tabs.',
+    ],
+  },
+  {
     version: '2026.06.08-2',
     title: "What's new",
     changes: [
