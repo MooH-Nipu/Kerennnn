@@ -1,6 +1,6 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { collectRiskFactors, calcConfidenceWithFloors } = require('./correlate');
+const { collectRiskFactors, calcConfidenceWithFloors, cipSeverityToScore } = require('./correlate');
 
 describe('collectRiskFactors', () => {
   test('VT with 6 malicious yields a high-severity detection factor', () => {
@@ -168,5 +168,37 @@ describe('calcConfidenceWithFloors', () => {
     ];
     const { confidence } = calcConfidenceWithFloors(results, []);
     assert.ok(confidence <= 15);
+  });
+});
+
+describe('cipSeverityToScore (Criminal IP severity strings)', () => {
+  test('maps the 5 severity levels to a 0-100 score', () => {
+    assert.equal(cipSeverityToScore('Safe'), 0);
+    assert.equal(cipSeverityToScore('Low'), 15);
+    assert.equal(cipSeverityToScore('Moderate'), 45);
+    assert.equal(cipSeverityToScore('Dangerous'), 80);
+    assert.equal(cipSeverityToScore('Critical'), 100);
+  });
+
+  test('is case-insensitive and trims whitespace', () => {
+    assert.equal(cipSeverityToScore('  critical '), 100);
+    assert.equal(cipSeverityToScore('DANGEROUS'), 80);
+  });
+
+  test('Critical/Dangerous map to malicious-range scores (>= 70)', () => {
+    assert.ok(cipSeverityToScore('Critical') >= 70);
+    assert.ok(cipSeverityToScore('Dangerous') >= 70);
+  });
+
+  test('Moderate maps to suspicious-range (>= 20, < 70)', () => {
+    const s = cipSeverityToScore('Moderate');
+    assert.ok(s >= 20 && s < 70);
+  });
+
+  test('passes through a numeric value and defaults unknown/empty to 0', () => {
+    assert.equal(cipSeverityToScore(88), 88);
+    assert.equal(cipSeverityToScore('nonsense'), 0);
+    assert.equal(cipSeverityToScore(null), 0);
+    assert.equal(cipSeverityToScore(undefined), 0);
   });
 });
