@@ -147,6 +147,9 @@ export function CorrelationPanel({ loading, data }: Props) {
             {src.detail && !expanded && (
               <div className="source-detail">{src.detail}</div>
             )}
+            {src.error && (
+              <div className="source-error-detail">{src.error}</div>
+            )}
           </div>
         );
       })}

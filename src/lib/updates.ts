@@ -13,11 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
-    version: '2026.06.10-1',
+    version: '2026.06.11-1',
     title: "What's new",
     changes: [
+      '⏳ Scan results now wait for all threat intel sources to respond before appearing — no more partial cards.',
+      '🛠️ TI source errors are now shown inline below the source row.',
       '🧠 Smarter confidence scoring: correlated Abuse.ch sources no longer inflate the score, low-trust sources produce softer floors, and MalwareBazaar/GreyNoise signals now trigger hard overrides.',
-      '🛠️ Fixed Criminal IP always showing "clean" — it now correctly reads the risk level, so malicious IPs are flagged.',
+      '🛠️ Fixed Criminal IP always showing "clean" — it now correctly reads the risk level.',
     ],
   },
   {

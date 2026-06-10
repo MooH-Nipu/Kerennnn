@@ -34,6 +34,7 @@ type Action =
   | { type: 'ADD_PENDING'; id: string; ioc: string; iocType: IocType }
   | { type: 'RESOLVE'; id: string; result: ScanItem['result'] }
   | { type: 'RESOLVE_ERROR'; id: string; error: string }
+  | { type: 'RESOLVE_WITH_CORR'; id: string; result: ScanItem['result']; correlation: ScanItem['correlation'] }
   | { type: 'UPDATE_CORR'; id: string; correlation: ScanItem['correlation'] }
   | { type: 'SET_FILTER'; key: keyof ScanFilters; value: boolean }
   | { type: 'SET_COUNTRY_FILTERS'; value: CountryFilterEntry[] }
@@ -108,6 +109,15 @@ function reducer(state: VtScanState, action: Action): VtScanState {
         progress: { ...state.progress, done: state.progress.done + 1 },
         items: state.items.map(it => it.id === action.id ? { ...it, result: action.result, pending: false } : it),
       };
+    case 'RESOLVE_WITH_CORR':
+      return {
+        ...state,
+        progress: { ...state.progress, done: state.progress.done + 1 },
+        items: state.items.map(it => it.id === action.id
+          ? { ...it, result: action.result, pending: false, correlation: action.correlation, correlationLoading: false }
+          : it
+        ),
+      };
     case 'RESOLVE_ERROR':
       return {
         ...state,
@@ -161,31 +171,33 @@ export function useVtScan() {
 
         dispatch({ type: 'ADD_PENDING', id, ioc, iocType: type });
 
+        // VT scan
+        let result: ScanItem['result'];
         try {
-          // Check local cache first
-          let result = cacheRef.current.get(ioc);
-
-          if (!result) {
-            // Not cached, call API and cache the result
-            result = await api.scan.vt(ioc) as unknown as ScanItem['result'];
-            cacheRef.current.set(ioc, result);
+          let cached = cacheRef.current.get(ioc);
+          if (!cached) {
+            cached = await api.scan.vt(ioc) as unknown as ScanItem['result'];
+            cacheRef.current.set(ioc, cached);
           }
-
-          dispatch({ type: 'RESOLVE', id, result });
+          result = cached;
         } catch (err) {
           dispatch({ type: 'RESOLVE_ERROR', id, error: err instanceof Error ? err.message : String(err) });
+          continue;
         }
 
-        // Fire correlation async — don't await
-        api.scan.correlate(ioc)
-          .then(corr => {
-            dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-            // Persist correlation (incl. RDAP/GeoIP enrichment) so the "Deep
-            // Analysis" page can render it later. All IOC types are
-            // cached: ip → vt_ip_cache, domain/hash → vt_ioc_cache (routed server-side).
-            api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
-          })
-          .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
+        // Await all TI sources before showing the card — correlation waits for
+        // every configured source to respond (or time out).
+        let corr: ScanItem['correlation'] = null;
+        try {
+          const corrResult = await api.scan.correlate(ioc);
+          corr = corrResult as unknown as ScanItem['correlation'];
+          // Persist so the Deep Analysis page can render it later.
+          api.ipCache.saveCorrelation(ioc, corrResult).catch(() => {});
+        } catch {
+          // Correlation failed — show card with VT result only, no TI panel.
+        }
+
+        dispatch({ type: 'RESOLVE_WITH_CORR', id, result, correlation: corr });
       }
     }
 

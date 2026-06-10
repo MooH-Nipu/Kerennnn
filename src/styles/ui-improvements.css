@@ -1323,6 +1323,15 @@
   margin-top: 0.1rem;
 }
 
+.source-error-detail {
+  font-size: 0.67rem;
+  color: #f87171;
+  padding-left: 0.5rem;
+  margin-top: 0.15rem;
+  opacity: 0.85;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .source-row-main--clickable {
   cursor: pointer;
   border-radius: 0.2rem;
