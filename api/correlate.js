@@ -522,21 +522,41 @@ async function checkPulsedive(ioc) {
 }
 
 // ── Source: Criminal IP (weight 0.12, IP + domain) ────────────────────────
+// Criminal IP returns inbound/outbound risk as severity STRINGS
+// (Safe < Low < Moderate < Dangerous < Critical), NOT numbers. Map them to a
+// 0-100 score; tolerate a numeric value too in case the API ever returns one.
+const CIP_SEVERITY_SCORE = { safe: 0, low: 15, moderate: 45, dangerous: 80, critical: 100 };
+function cipSeverityToScore(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (v === null || v === undefined) return 0;
+  const key = String(v).trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(CIP_SEVERITY_SCORE, key)) return CIP_SEVERITY_SCORE[key];
+  const n = Number(key);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function checkCriminalIP(ioc, type) {
   const apiKey = process.env.CRIMINAL_IP_API_KEY;
   if (!apiKey) return { source: 'Criminal IP', skipped: true, reason: 'No API key' };
   try {
     if (type === 'ip') {
+      // The risk score + issues live in /report/summary; the plain /summary
+      // endpoint only returns geolocation/whois (no score → always "clean").
       const { status, data } = await httpGet(
-        `https://api.criminalip.io/v1/asset/ip/summary?ip=${encodeURIComponent(ioc)}`,
+        `https://api.criminalip.io/v1/asset/ip/report/summary?ip=${encodeURIComponent(ioc)}`,
         { 'x-api-key': apiKey, Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
       );
       if (status !== 200) return { source: 'Criminal IP', error: `Criminal IP: HTTP ${status}` };
 
-      const inbound = Number(data?.score?.inbound) || 0;
-      const outbound = Number(data?.score?.outbound) || 0;
-      const score = Math.max(inbound, outbound);
+      // score.inbound/outbound are severity strings (Safe…Critical), not numbers.
+      const inboundLabel = data?.score?.inbound ?? '—';
+      const outboundLabel = data?.score?.outbound ?? '—';
+      const score = Math.max(cipSeverityToScore(inboundLabel), cipSeverityToScore(outboundLabel));
       const verdict = score >= 70 ? 'malicious' : score >= 20 ? 'suspicious' : 'clean';
+
+      // is_vpn/is_proxy/is_tor are nested under "issues"; ISP/country under whois.data[].
+      const issues = data?.issues || {};
+      const whois = (Array.isArray(data?.whois?.data) ? data.whois.data[0] : null) || {};
 
       return {
         source: 'Criminal IP',
@@ -544,15 +564,15 @@ async function checkCriminalIP(ioc, type) {
         score,
         weight: 0.12 * getTrustFactor('TRUST_CRIMINAL_IP'),
         meta: {
-          'Inbound Score': inbound,
-          'Outbound Score': outbound,
-          Country: data?.country || '—',
-          ISP: data?.isp || '—',
-          'Is VPN': data?.is_vpn ? 'yes' : 'no',
-          'Is Proxy': data?.is_proxy ? 'yes' : 'no',
-          'Is Tor': data?.is_tor ? 'yes' : 'no',
+          'Inbound Risk': inboundLabel,
+          'Outbound Risk': outboundLabel,
+          Country: whois.org_country_code ? String(whois.org_country_code).toUpperCase() : (data?.country || '—'),
+          ISP: whois.as_name || data?.isp || '—',
+          'Is VPN': issues.is_vpn ? 'yes' : 'no',
+          'Is Proxy': issues.is_proxy ? 'yes' : 'no',
+          'Is Tor': issues.is_tor ? 'yes' : 'no',
         },
-        link: `https://www.criminalip.io/ip-summary/${ioc}`,
+        link: `https://www.criminalip.io/asset/report/${ioc}`,
       };
     }
 
@@ -773,7 +793,7 @@ function collectRiskFactors(results) {
     }
 
     if (r.source === 'Criminal IP') {
-      const score = Number(m['Inbound Score'] || m['Risk Score'] || 0);
+      const score = Number(r.score) || 0;
       if (score >= 70) {
         factors.push({ type: 'criminal_ip_high', severity: 'high', source: 'Criminal IP', message: `Criminal IP risk score: ${score}`, bonus: 10 });
       }
@@ -947,3 +967,4 @@ module.exports.checkShodan = checkShodan;
 module.exports.checkThreatFox = checkThreatFox;
 module.exports.checkPulsedive = checkPulsedive;
 module.exports.checkCriminalIP = checkCriminalIP;
+module.exports.cipSeverityToScore = cipSeverityToScore;
