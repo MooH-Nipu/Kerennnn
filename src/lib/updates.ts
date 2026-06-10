@@ -13,13 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
-    version: '2026.06.11-1',
+    version: '2026.06.11-2',
     title: "What's new",
     changes: [
-      '⏳ Scan results now wait for all threat intel sources to respond before appearing — no more partial cards.',
-      '🛠️ TI source errors are now shown inline below the source row.',
-      '🧠 Smarter confidence scoring: correlated Abuse.ch sources no longer inflate the score, low-trust sources produce softer floors, and MalwareBazaar/GreyNoise signals now trigger hard overrides.',
-      '🛠️ Fixed Criminal IP always showing "clean" — it now correctly reads the risk level.',
+      '🧹 Removed ThreatFox and Criminal IP — they were unreliable and have been dropped from the scan engine.',
+      '⚡ Scan cards now appear as soon as VirusTotal responds — threat intel loads in the background for faster scanning.',
+      '🛠️ TI source errors are shown inline below the source row.',
+      '🧠 Smarter confidence scoring: correlated Abuse.ch sources no longer inflate the score, and MalwareBazaar/GreyNoise signals trigger hard overrides.',
     ],
   },
   {
