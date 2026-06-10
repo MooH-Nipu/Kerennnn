@@ -105,4 +105,68 @@ describe('calcConfidenceWithFloors', () => {
     const { bonus } = calcConfidenceWithFloors(results, [{ bonus: 100 }]);
     assert.equal(bonus, 25);
   });
+
+  test('Abuse.ch group cap: three correlated sources all malicious + VT clean → baseline 50, not 67', () => {
+    // Without cap: group weight 0.60 of total 0.90 → baseline 67.
+    // With cap: group scaled to 0.30, total 0.60, maliciousSum 0.30 → baseline 50.
+    const results = [
+      { source: 'VirusTotal',    verdict: 'clean',    weight: 0.30 },
+      { source: 'Abuse.ch',      verdict: 'malicious', weight: 0.20 },
+      { source: 'ThreatFox',     verdict: 'malicious', weight: 0.15 },
+      { source: 'MalwareBazaar', verdict: 'malicious', weight: 0.25 },
+    ];
+    const { baseline } = calcConfidenceWithFloors(results, []);
+    assert.equal(baseline, 50);
+  });
+
+  test('two low-trust sources malicious among clean high-trust sources → floor 40, not 70', () => {
+    // Old count-based formula: maliciousCount = 2 → floor 70.
+    // New trust-weighted formula: maliciousWeight 0.22 < 0.50, ratio 25% < 60% → floor 40.
+    const results = [
+      { source: 'VirusTotal',   verdict: 'clean',    weight: 0.30 },
+      { source: 'AlienVault OTX', verdict: 'clean',  weight: 0.15 },
+      { source: 'AbuseIPDB',    verdict: 'clean',    weight: 0.20 },
+      { source: 'Pulsedive',    verdict: 'malicious', weight: 0.10 },
+      { source: 'Criminal IP',  verdict: 'malicious', weight: 0.12 },
+    ];
+    const { floor } = calcConfidenceWithFloors(results, []);
+    assert.equal(floor, 40);
+  });
+
+  test('VT + GreyNoise both malicious → floor 70 via absolute weight arm', () => {
+    const results = [
+      { source: 'VirusTotal', verdict: 'malicious', weight: 0.30 },
+      { source: 'GreyNoise',  verdict: 'malicious', weight: 0.25, meta: {} },
+    ];
+    const { floor } = calcConfidenceWithFloors(results, []);
+    assert.equal(floor, 70);
+  });
+
+  test('MalwareBazaar malicious match hard-floors confidence at >= 85', () => {
+    const results = [
+      { source: 'VirusTotal',    verdict: 'clean',    weight: 0.30 },
+      { source: 'MalwareBazaar', verdict: 'malicious', weight: 0.25 },
+    ];
+    const { confidence } = calcConfidenceWithFloors(results, []);
+    assert.ok(confidence >= 85);
+  });
+
+  test('GreyNoise malicious scanner hard-floors confidence at >= 65', () => {
+    const results = [
+      { source: 'VirusTotal', verdict: 'clean',    weight: 0.30 },
+      { source: 'GreyNoise',  verdict: 'malicious', weight: 0.25, meta: {} },
+    ];
+    const { confidence } = calcConfidenceWithFloors(results, []);
+    assert.ok(confidence >= 65);
+  });
+
+  test('GreyNoise RIOT flag caps confidence at <= 15 regardless of other malicious sources', () => {
+    const results = [
+      { source: 'VirusTotal', verdict: 'malicious', weight: 0.30 },
+      { source: 'AbuseIPDB',  verdict: 'malicious', weight: 0.20 },
+      { source: 'GreyNoise',  verdict: 'clean',     weight: 0.25, meta: { 'RIOT (trusted service)': 'yes' } },
+    ];
+    const { confidence } = calcConfidenceWithFloors(results, []);
+    assert.ok(confidence <= 15);
+  });
 });

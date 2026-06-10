@@ -13,6 +13,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.10-1',
+    title: "What's new",
+    changes: [
+      '🧠 Smarter confidence scoring: correlated Abuse.ch sources no longer inflate the score, low-trust sources produce softer floors, and MalwareBazaar/GreyNoise signals now trigger hard overrides.',
+    ],
+  },
+  {
+    version: '2026.06.09-2',
+    title: "What's new",
+    changes: [
+      '🔍 7 new threat intel sources added: GreyNoise, MalwareBazaar, URLScan.io, Shodan, ThreatFox, Pulsedive, Criminal IP.',
+      '⚖️ Source trust weights updated — more reliable sources carry more weight in the confidence score.',
+      '🧹 Unconfigured sources no longer appear as "SKIPPED" in scan results.',
+    ],
+  },
+  {
     version: '2026.06.09-1',
     title: "What's new",
     changes: [
