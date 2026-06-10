@@ -430,55 +430,6 @@ async function checkShodan(ip) {
   }
 }
 
-// ── Source: ThreatFox — Abuse.ch (weight 0.15, all types, no key) ─────────
-async function checkThreatFox(ioc) {
-  try {
-    const body = JSON.stringify({ query: 'search_ioc', search_term: ioc });
-    const { status, data } = await httpPost(
-      'https://threatfox-api.abuse.ch/api/v1/',
-      body,
-      {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'User-Agent': 'Charlie-kerennnn/1.0',
-      }
-    );
-    if (status !== 200) return { source: 'ThreatFox', error: `ThreatFox: HTTP ${status}` };
-
-    if (data.query_status !== 'ok' || !Array.isArray(data.data) || data.data.length === 0) {
-      return {
-        source: 'ThreatFox',
-        verdict: 'clean',
-        score: 0,
-        weight: 0.15 * getTrustFactor('TRUST_THREATFOX'),
-        meta: { Result: 'Not found in ThreatFox' },
-        link: `https://threatfox.abuse.ch/browse.php?search=ioc%3A${encodeURIComponent(ioc)}`,
-      };
-    }
-
-    const item = data.data[0];
-    const confidence = Number(item.confidence_level) || 75;
-
-    return {
-      source: 'ThreatFox',
-      verdict: 'malicious',
-      score: confidence,
-      weight: 0.15 * getTrustFactor('TRUST_THREATFOX'),
-      meta: {
-        'Malware Family': item.malware_printable || '—',
-        'Threat Type': item.threat_type || '—',
-        'Confidence Level': confidence + '%',
-        'First Seen': item.first_seen ? item.first_seen.slice(0, 10) : '—',
-        Tags: (item.tags || []).slice(0, 3).join(', ') || '—',
-      },
-      link: `https://threatfox.abuse.ch/ioc/${item.id}/`,
-    };
-  } catch (e) {
-    return { source: 'ThreatFox', error: `Cannot access ThreatFox: ${e.message}` };
-  }
-}
-
 // ── Source: Pulsedive (weight 0.10, all types) ────────────────────────────
 async function checkPulsedive(ioc) {
   const apiKey = process.env.PULSEDIVE_API_KEY;
@@ -518,88 +469,6 @@ async function checkPulsedive(ioc) {
     };
   } catch (e) {
     return { source: 'Pulsedive', error: `Cannot access Pulsedive: ${e.message}` };
-  }
-}
-
-// ── Source: Criminal IP (weight 0.12, IP + domain) ────────────────────────
-// Criminal IP returns inbound/outbound risk as severity STRINGS
-// (Safe < Low < Moderate < Dangerous < Critical), NOT numbers. Map them to a
-// 0-100 score; tolerate a numeric value too in case the API ever returns one.
-const CIP_SEVERITY_SCORE = { safe: 0, low: 15, moderate: 45, dangerous: 80, critical: 100 };
-function cipSeverityToScore(v) {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (v === null || v === undefined) return 0;
-  const key = String(v).trim().toLowerCase();
-  if (Object.prototype.hasOwnProperty.call(CIP_SEVERITY_SCORE, key)) return CIP_SEVERITY_SCORE[key];
-  const n = Number(key);
-  return Number.isFinite(n) ? n : 0;
-}
-
-async function checkCriminalIP(ioc, type) {
-  const apiKey = process.env.CRIMINAL_IP_API_KEY;
-  if (!apiKey) return { source: 'Criminal IP', skipped: true, reason: 'No API key' };
-  try {
-    if (type === 'ip') {
-      // The risk score + issues live in /report/summary; the plain /summary
-      // endpoint only returns geolocation/whois (no score → always "clean").
-      const { status, data } = await httpGet(
-        `https://api.criminalip.io/v1/asset/ip/report/summary?ip=${encodeURIComponent(ioc)}`,
-        { 'x-api-key': apiKey, Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
-      );
-      if (status !== 200) return { source: 'Criminal IP', error: `Criminal IP: HTTP ${status}` };
-
-      // score.inbound/outbound are severity strings (Safe…Critical), not numbers.
-      const inboundLabel = data?.score?.inbound ?? '—';
-      const outboundLabel = data?.score?.outbound ?? '—';
-      const score = Math.max(cipSeverityToScore(inboundLabel), cipSeverityToScore(outboundLabel));
-      const verdict = score >= 70 ? 'malicious' : score >= 20 ? 'suspicious' : 'clean';
-
-      // is_vpn/is_proxy/is_tor are nested under "issues"; ISP/country under whois.data[].
-      const issues = data?.issues || {};
-      const whois = (Array.isArray(data?.whois?.data) ? data.whois.data[0] : null) || {};
-
-      return {
-        source: 'Criminal IP',
-        verdict,
-        score,
-        weight: 0.12 * getTrustFactor('TRUST_CRIMINAL_IP'),
-        meta: {
-          'Inbound Risk': inboundLabel,
-          'Outbound Risk': outboundLabel,
-          Country: whois.org_country_code ? String(whois.org_country_code).toUpperCase() : (data?.country || '—'),
-          ISP: whois.as_name || data?.isp || '—',
-          'Is VPN': issues.is_vpn ? 'yes' : 'no',
-          'Is Proxy': issues.is_proxy ? 'yes' : 'no',
-          'Is Tor': issues.is_tor ? 'yes' : 'no',
-        },
-        link: `https://www.criminalip.io/asset/report/${ioc}`,
-      };
-    }
-
-    if (type === 'domain') {
-      const { status, data } = await httpGet(
-        `https://api.criminalip.io/v1/domain/scan?query=${encodeURIComponent(ioc)}`,
-        { 'x-api-key': apiKey, Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
-      );
-      if (status !== 200) return { source: 'Criminal IP', error: `Criminal IP: HTTP ${status}` };
-
-      const riskScore = Number(data?.score) || 0;
-      return {
-        source: 'Criminal IP',
-        verdict: riskScore >= 70 ? 'malicious' : riskScore >= 20 ? 'suspicious' : 'clean',
-        score: riskScore,
-        weight: 0.12 * getTrustFactor('TRUST_CRIMINAL_IP'),
-        meta: {
-          'Risk Score': riskScore,
-          Classification: data?.classification || '—',
-        },
-        link: `https://www.criminalip.io/domain/${ioc}`,
-      };
-    }
-
-    return { source: 'Criminal IP', skipped: true, reason: `Unsupported type: ${type}` };
-  } catch (e) {
-    return { source: 'Criminal IP', error: `Cannot access Criminal IP: ${e.message}` };
   }
 }
 
@@ -760,17 +629,6 @@ function collectRiskFactors(results) {
       });
     }
 
-    if (r.source === 'ThreatFox' && r.verdict === 'malicious') {
-      const family = String(m['Malware Family'] || '—');
-      factors.push({
-        type: 'threatfox_ioc',
-        severity: 'high',
-        source: 'ThreatFox',
-        message: `C2 IOC in ThreatFox${family !== '—' ? ' — ' + family : ''}`,
-        bonus: 12,
-      });
-    }
-
     if (r.source === 'URLScan.io') {
       if (r.verdict === 'malicious') {
         factors.push({ type: 'urlscan_malicious', severity: 'high', source: 'URLScan.io', message: 'URLScan.io flagged page as malicious', bonus: 12 });
@@ -789,17 +647,6 @@ function collectRiskFactors(results) {
       const vulns = String(m['Known CVEs'] || '').trim();
       if (vulns && vulns !== '—') {
         factors.push({ type: 'known_vulns', severity: 'high', source: 'Shodan', message: `Known CVEs: ${vulns.split(',').slice(0, 2).join(', ')}`, bonus: 15 });
-      }
-    }
-
-    if (r.source === 'Criminal IP') {
-      const score = Number(r.score) || 0;
-      if (score >= 70) {
-        factors.push({ type: 'criminal_ip_high', severity: 'high', source: 'Criminal IP', message: `Criminal IP risk score: ${score}`, bonus: 10 });
-      }
-      const anonTypes = ['Is VPN', 'Is Proxy', 'Is Tor'].filter(k => m[k] === 'yes').map(k => k.replace('Is ', ''));
-      if (anonTypes.length > 0) {
-        factors.push({ type: 'anonymization_service', severity: 'med', source: 'Criminal IP', message: `Anonymization service: ${anonTypes.join(', ')}`, bonus: 8 });
       }
     }
 
@@ -832,9 +679,9 @@ function collectRiskFactors(results) {
 function calcConfidenceWithFloors(results, factors) {
   const verdictScore = { malicious: 1.0, suspicious: 0.5, unknown: 0.2, clean: 0.0 };
 
-  // Fix 1: Abuse.ch/ThreatFox/MalwareBazaar draw from the same dataset — cap their
+  // Fix 1: Abuse.ch/MalwareBazaar draw from the same dataset — cap their
   // combined effective weight at 0.30 to prevent correlated-source inflation.
-  const ABUSE_CH_GROUP = new Set(['Abuse.ch', 'ThreatFox', 'MalwareBazaar']);
+  const ABUSE_CH_GROUP = new Set(['Abuse.ch', 'MalwareBazaar']);
   const ABUSE_CH_CAP = 0.30;
   let groupRawWeight = 0;
   for (const r of results) {
@@ -908,11 +755,10 @@ module.exports = async function handler(req, res) {
   if (!type) return res.status(400).json({ error: `Cannot detect IOC type for: "${ioc}"` });
 
   // Build check list based on IOC type.
-  // ThreatFox and MalwareBazaar are keyless — always run for their supported types.
+  // MalwareBazaar is keyless — always runs for hash types.
   const checks = [
     checkVT(ioc, type),        // all types
     checkOTX(ioc, type),       // all types
-    checkThreatFox(ioc),       // all types, keyless
     checkPulsedive(ioc),       // all types
   ];
 
@@ -924,7 +770,6 @@ module.exports = async function handler(req, res) {
 
   if (type === 'ip' || type === 'domain') {
     checks.push(checkAbuseCh(ioc));
-    checks.push(checkCriminalIP(ioc, type));
     checks.push(checkEnrichment(ioc, type));
   }
 
@@ -964,7 +809,4 @@ module.exports.checkGreyNoise = checkGreyNoise;
 module.exports.checkMalwareBazaar = checkMalwareBazaar;
 module.exports.checkURLScan = checkURLScan;
 module.exports.checkShodan = checkShodan;
-module.exports.checkThreatFox = checkThreatFox;
 module.exports.checkPulsedive = checkPulsedive;
-module.exports.checkCriminalIP = checkCriminalIP;
-module.exports.cipSeverityToScore = cipSeverityToScore;

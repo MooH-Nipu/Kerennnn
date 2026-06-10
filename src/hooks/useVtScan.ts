@@ -34,7 +34,6 @@ type Action =
   | { type: 'ADD_PENDING'; id: string; ioc: string; iocType: IocType }
   | { type: 'RESOLVE'; id: string; result: ScanItem['result'] }
   | { type: 'RESOLVE_ERROR'; id: string; error: string }
-  | { type: 'RESOLVE_WITH_CORR'; id: string; result: ScanItem['result']; correlation: ScanItem['correlation'] }
   | { type: 'UPDATE_CORR'; id: string; correlation: ScanItem['correlation'] }
   | { type: 'SET_FILTER'; key: keyof ScanFilters; value: boolean }
   | { type: 'SET_COUNTRY_FILTERS'; value: CountryFilterEntry[] }
@@ -109,15 +108,6 @@ function reducer(state: VtScanState, action: Action): VtScanState {
         progress: { ...state.progress, done: state.progress.done + 1 },
         items: state.items.map(it => it.id === action.id ? { ...it, result: action.result, pending: false } : it),
       };
-    case 'RESOLVE_WITH_CORR':
-      return {
-        ...state,
-        progress: { ...state.progress, done: state.progress.done + 1 },
-        items: state.items.map(it => it.id === action.id
-          ? { ...it, result: action.result, pending: false, correlation: action.correlation, correlationLoading: false }
-          : it
-        ),
-      };
     case 'RESOLVE_ERROR':
       return {
         ...state,
@@ -185,19 +175,13 @@ export function useVtScan() {
           continue;
         }
 
-        // Await all TI sources before showing the card — correlation waits for
-        // every configured source to respond (or time out).
-        let corr: ScanItem['correlation'] = null;
-        try {
-          const corrResult = await api.scan.correlate(ioc);
-          corr = corrResult as unknown as ScanItem['correlation'];
-          // Persist so the Deep Analysis page can render it later.
-          api.ipCache.saveCorrelation(ioc, corrResult).catch(() => {});
-        } catch {
-          // Correlation failed — show card with VT result only, no TI panel.
-        }
-
-        dispatch({ type: 'RESOLVE_WITH_CORR', id, result, correlation: corr });
+        dispatch({ type: 'RESOLVE', id, result });
+        api.scan.correlate(ioc)
+          .then(corr => {
+            dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
+            api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
+          })
+          .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
       }
     }
 
