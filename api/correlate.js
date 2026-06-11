@@ -2,6 +2,7 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGet, httpPost } = require('./_http');
 const { getVtKeys } = require('./_vtkeys');
+const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
 
 function getTrustFactor(envKey, defaultValue = 1) {
@@ -100,40 +101,49 @@ async function checkVT(ioc, type) {
 
 // ── Source: AbuseIPDB (weight 0.20, IP only) ──────────────────────────────
 async function checkAbuseIPDB(ip) {
-  const apiKey = process.env.ABUSEIPDB_API_KEY;
-  if (!apiKey) return { source: 'AbuseIPDB', skipped: true, reason: 'No API key' };
-  try {
-    const { status, data } = await httpGet(
-      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
-      { Key: apiKey, Accept: 'application/json' }
-    );
-    if (status !== 200)
-      return { source: 'AbuseIPDB', error: `AbuseIPDB: ${data?.errors?.[0]?.detail || `HTTP ${status}`}` };
-    const d = data.data;
-    const score = d.abuseConfidenceScore || 0;
-    const reports = d.totalReports || 0;
-    const reportBoost = reports >= 25 ? 20 : reports >= 10 ? 10 : reports >= 3 ? 5 : 0;
-    const adjustedScore = Math.min(100, score + reportBoost);
-    const verdict = adjustedScore >= 50 ? 'malicious' : adjustedScore >= 20 ? 'suspicious' : 'clean';
-    return {
-      source: 'AbuseIPDB',
-      verdict,
-      score,
-      weight: 0.20 * getTrustFactor('TRUST_ABUSEIPDB'),
-      meta: {
-        'Abuse Score': score + '%',
-        'Total Reports': reports,
-        'Distinct Reporters': d.numDistinctUsers ?? '—',
-        'Last Reported': d.lastReportedAt ? d.lastReportedAt.slice(0, 10) : '—',
-        ISP: d.isp || '—',
-        'Usage Type': d.usageType || '—',
-        Country: d.countryCode || '—',
-      },
-      link: `https://www.abuseipdb.com/check/${ip}`,
-    };
-  } catch (e) {
-    return { source: 'AbuseIPDB', error: `Cannot access AbuseIPDB: ${e.message}` };
+  const keys = getAbuseIPDBKeys();
+  if (!keys.length) return { source: 'AbuseIPDB', skipped: true, reason: 'No API key' };
+
+  let lastError = null;
+  let rateLimitedCount = 0;
+  for (const key of keys) {
+    try {
+      const { status, data } = await httpGet(
+        `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
+        { Key: key, Accept: 'application/json' }
+      );
+      if (status === 429) { rateLimitedCount++; continue; }
+      if (status !== 200)
+        return { source: 'AbuseIPDB', error: `AbuseIPDB: ${data?.errors?.[0]?.detail || `HTTP ${status}`}` };
+      const d = data.data;
+      const score = d.abuseConfidenceScore || 0;
+      const reports = d.totalReports || 0;
+      const reportBoost = reports >= 25 ? 20 : reports >= 10 ? 10 : reports >= 3 ? 5 : 0;
+      const adjustedScore = Math.min(100, score + reportBoost);
+      const verdict = adjustedScore >= 50 ? 'malicious' : adjustedScore >= 20 ? 'suspicious' : 'clean';
+      return {
+        source: 'AbuseIPDB',
+        verdict,
+        score,
+        weight: 0.20 * getTrustFactor('TRUST_ABUSEIPDB'),
+        meta: {
+          'Abuse Score': score + '%',
+          'Total Reports': reports,
+          'Distinct Reporters': d.numDistinctUsers ?? '—',
+          'Last Reported': d.lastReportedAt ? d.lastReportedAt.slice(0, 10) : '—',
+          ISP: d.isp || '—',
+          'Usage Type': d.usageType || '—',
+          Country: d.countryCode || '—',
+        },
+        link: `https://www.abuseipdb.com/check/${ip}`,
+      };
+    } catch (e) {
+      lastError = e;
+    }
   }
+  if (rateLimitedCount === keys.length)
+    return { source: 'AbuseIPDB', error: 'All keys quota-exhausted (429). Try again tomorrow.' };
+  return { source: 'AbuseIPDB', error: `Cannot access AbuseIPDB: ${lastError?.message || 'Unknown error'}` };
 }
 
 // ── Source: Abuse.ch / URLhaus (weight 0.20, IP + domain) ─────────────────

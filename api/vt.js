@@ -91,7 +91,7 @@ module.exports = async function handler(req, res) {
         const cutoffIso = dateMinusDaysIso(15);
         const { data: cached } = await supabase
           .from('vt_ip_cache')
-          .select('id,ip,vt_payload,vt_stats,vt_verdict,scan_count,first_scanned_at,last_scanned_at')
+          .select('id,ip,vt_payload,vt_stats,vt_verdict,scan_count,first_scanned_at,last_scanned_at,corr_payload,corr_confidence')
           .eq('ip', ioc)
           .gt('first_scanned_at', cutoffIso)
           .maybeSingle();
@@ -110,6 +110,9 @@ module.exports = async function handler(req, res) {
                 scanCount: cached.scan_count || 0,
                 lastSeen: cached.last_scanned_at,
                 fromCache: true,
+                corrPayload: cached.corr_payload && Array.isArray(cached.corr_payload.sources) && cached.corr_payload.sources.length > 0
+                  ? cached.corr_payload
+                  : null,
               },
             },
           });
