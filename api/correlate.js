@@ -1,9 +1,10 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGet, httpPost } = require('./_http');
-const { getVtKeys } = require('./_vtkeys');
+const { getVtKeysForRequest, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
+const { getSupabase } = require('./_supabase');
 
 function getTrustFactor(envKey, defaultValue = 1) {
   const raw = process.env[envKey];
@@ -36,7 +37,7 @@ function ispIsHighRiskHoster(isp) {
 
 // ── Source: VirusTotal (weight 0.30, all types) ───────────────────────────
 async function checkVT(ioc, type) {
-  const keys = getVtKeys();
+  const keys = getVtKeysForRequest();
   if (!keys.length) return { source: 'VirusTotal', skipped: true, reason: 'No API key' };
 
   const urlMap = {
@@ -49,6 +50,7 @@ async function checkVT(ioc, type) {
 
   let lastError = null;
   let rateLimitedCount = 0;
+  let badKeyCount = 0;
   for (const key of keys) {
     try {
       const { status, data } = await httpGet(url, {
@@ -56,7 +58,11 @@ async function checkVT(ioc, type) {
         Accept: 'application/json',
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
-      if (status === 429) { rateLimitedCount++; continue; }
+      if (shouldTryNextVtKey(status, data)) {
+        if (isVtRateLimited(status, data)) rateLimitedCount++;
+        else if (isVtBadKey(status, data)) badKeyCount++;
+        continue;
+      }
       if (status !== 200)
         return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
@@ -94,8 +100,10 @@ async function checkVT(ioc, type) {
       lastError = e;
     }
   }
+  if (badKeyCount === keys.length)
+    return { source: 'VirusTotal', error: 'All configured API keys are invalid or inactive.' };
   if (rateLimitedCount === keys.length)
-    return { source: 'VirusTotal', error: 'All keys rate limited. Try again later.' };
+    return { source: 'VirusTotal', error: 'All keys hit VirusTotal rate limits (per-minute or daily quota).' };
   return { source: 'VirusTotal', error: `Cannot access VirusTotal: ${lastError?.message || 'Unknown error'}` };
 }
 
