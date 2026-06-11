@@ -1,6 +1,6 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { getSupabase } = require('./_supabase');
-const { getVtKeys } = require('./_vtkeys');
+const { getVtKeys, getVtKeysForRequest, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 
@@ -45,14 +45,15 @@ module.exports = async function handler(req, res) {
   // Auth required: this endpoint spends the server's paid VirusTotal keys.
   if (!requireAuth(req, res)) return;
 
-  const apiKeys = getVtKeys();
+  const apiKeys = getVtKeysForRequest();
 
   // ── Health check ──────────────────────────────
   if (req.query.health === '1') {
+    const allKeys = getVtKeys();
     return res.status(200).json({
       ok: true,
-      totalKeys: apiKeys.length,
-      keys: apiKeys.map((k, i) => ({ index: i + 1, prefix: k.slice(0, 6) + '...' })),
+      totalKeys: allKeys.length,
+      keys: allKeys.map((k, i) => ({ index: i + 1, prefix: k.slice(0, 6) + '...' })),
       node: process.version,
     });
   }
@@ -131,18 +132,10 @@ module.exports = async function handler(req, res) {
 
   const vtUrl = urlMap[type];
 
-  // Detect rate limit in response body (some APIs return 403/200 with quota message)
-  function isRateLimitResponse(status, data) {
-    if (status === 429) return true;
-    const msg = (data?.error?.message || data?.message || '').toLowerCase();
-    if (status === 403 && /quota|rate limit|too many|limit exceeded/.test(msg)) return true;
-    if (status === 200 && data?.error && /quota|rate limit|too many/.test(msg)) return true;
-    return false;
-  }
-
-  // ── Try each key in order; on 429/quota auto-switch to next key for this same request ──
+  // ── Try each key; on quota/rate-limit or bad key, auto-switch to next for this IOC ──
   let lastError = null;
   let rateLimitedCount = 0;
+  let badKeyCount = 0;
 
   for (let i = 0; i < apiKeys.length; i++) {
     try {
@@ -156,9 +149,10 @@ module.exports = async function handler(req, res) {
         { timeout: 10000 }
       );
 
-      if (isRateLimitResponse(status, data)) {
-        rateLimitedCount++;
-        continue; // try next key immediately for this same IOC
+      if (shouldTryNextVtKey(status, data)) {
+        if (isVtRateLimited(status, data)) rateLimitedCount++;
+        else if (isVtBadKey(status, data)) badKeyCount++;
+        continue;
       }
 
       // Inject meta so frontend knows cleaned IOC + type
@@ -340,10 +334,23 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // All keys failed: distinguish rate limit vs access error
+  // All keys failed: distinguish rate limit vs invalid keys vs access error
+  if (badKeyCount === apiKeys.length) {
+    return res.status(401).json({
+      error: {
+        message: `All ${apiKeys.length} configured API key(s) are invalid or inactive. Check VT_API_KEY env vars.`,
+      },
+    });
+  }
+
   if (rateLimitedCount === apiKeys.length) {
     return res.status(429).json({
-      error: { message: `All ${apiKeys.length} API key(s) are rate limited. Try again later.` },
+      error: {
+        message:
+          `All ${apiKeys.length} unique API key(s) hit VirusTotal rate limits. ` +
+          'Daily quota can remain on the VT dashboard while the per-minute limit (4 req/min on free tier) is active — wait ~60s and retry. ' +
+          'Each IOC scan also triggers a second VT lookup via correlation, so batch scans consume keys faster.',
+      },
     });
   }
 
