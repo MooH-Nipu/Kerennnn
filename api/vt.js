@@ -136,8 +136,10 @@ module.exports = async function handler(req, res) {
   let lastError = null;
   let rateLimitedCount = 0;
   let badKeyCount = 0;
+  const keyAttempts = []; // debug: track what each key returned
 
   for (let i = 0; i < apiKeys.length; i++) {
+    const keyPrefix = apiKeys[i].slice(0, 8) + '…';
     try {
       const { status, data } = await httpGet(
         vtUrl,
@@ -150,10 +152,16 @@ module.exports = async function handler(req, res) {
       );
 
       if (shouldTryNextVtKey(status, data)) {
-        if (isVtRateLimited(status, data)) rateLimitedCount++;
-        else if (isVtBadKey(status, data)) badKeyCount++;
+        if (isVtRateLimited(status, data)) {
+          rateLimitedCount++;
+          keyAttempts.push({ key: keyPrefix, status, result: 'rate_limited' });
+        } else if (isVtBadKey(status, data)) {
+          badKeyCount++;
+          keyAttempts.push({ key: keyPrefix, status, result: 'bad_key' });
+        }
         continue;
       }
+      keyAttempts.push({ key: keyPrefix, status, result: 'ok' });
 
       // Inject meta so frontend knows cleaned IOC + type
       if (status === 200 && data.data) {
@@ -329,6 +337,7 @@ module.exports = async function handler(req, res) {
       if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
       return res.status(status).json(data);
     } catch (err) {
+      keyAttempts.push({ key: keyPrefix, status: null, result: 'network_error', error: err?.message });
       lastError = err;
       continue;
     }
@@ -340,18 +349,17 @@ module.exports = async function handler(req, res) {
       error: {
         message: `All ${apiKeys.length} configured API key(s) are invalid or inactive. Check VT_API_KEY env vars.`,
       },
+      _debug: { keyAttempts },
     });
   }
 
   if (rateLimitedCount === apiKeys.length) {
-    res.setHeader('Retry-After', '60'); // per-minute window; client self-throttles + retries
+    res.setHeader('Retry-After', '60');
     return res.status(429).json({
       error: {
-        message:
-          `All ${apiKeys.length} unique API key(s) hit VirusTotal rate limits. ` +
-          'Daily quota can remain on the VT dashboard while the per-minute limit (4 req/min on free tier) is active — wait ~60s and retry. ' +
-          'Each IOC scan also triggers a second VT lookup via correlation, so batch scans consume keys faster.',
+        message: `All ${apiKeys.length} unique API key(s) hit VirusTotal rate limits (per-minute: 4 req/min per key).`,
       },
+      _debug: { keyAttempts },
     });
   }
 
@@ -359,5 +367,6 @@ module.exports = async function handler(req, res) {
   const msg = lastError?.message || 'Unknown error';
   return res.status(503).json({
     error: { message: `Cannot access VirusTotal: ${msg}` },
+    _debug: { keyAttempts },
   });
 };
