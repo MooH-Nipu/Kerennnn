@@ -36,7 +36,69 @@ function ispIsHighRiskHoster(isp) {
 }
 
 // ── Source: VirusTotal (weight 0.30, all types) ───────────────────────────
+
+// Builds the VirusTotal source result from last_analysis_stats. Shared by the
+// live-API path and the cache-reuse path so scoring stays identical.
+function buildVtResult(stats, ioc, type) {
+  const s = stats || {};
+  const mal = s.malicious || 0;
+  const sus = s.suspicious || 0;
+  const total = Object.values(s).reduce((a, b) => a + b, 0);
+  const ratio = total > 0 ? (mal + sus) / total : 0;
+  const score = Math.round(ratio * 100);
+  const verdict =
+    (mal >= 5 || score >= 10) ? 'malicious' :
+    (mal >= 1 || sus >= 3 || score >= 5) ? 'suspicious' :
+    total === 0 ? 'unknown' : 'clean';
+  const vtUrlMap = {
+    hash: `https://www.virustotal.com/gui/file/${ioc}`,
+    ip: `https://www.virustotal.com/gui/ip-address/${ioc}`,
+    domain: `https://www.virustotal.com/gui/domain/${ioc}`,
+  };
+  return {
+    source: 'VirusTotal',
+    verdict,
+    score,
+    weight: 0.30 * getTrustFactor('TRUST_VT'),
+    meta: {
+      Malicious: mal,
+      Suspicious: sus,
+      Undetected: s.undetected || 0,
+      'Total Engines': total,
+      'Detection %': score + '%',
+    },
+    link: vtUrlMap[type],
+  };
+}
+
+// Reuse the VT scan that /api/vt already performed + cached for this IP, so a
+// single IP scan spends ONE VT request total instead of two (vt.js + here).
+async function vtFromIpCache(ip) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const cutoffIso = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: row } = await supabase
+      .from('vt_ip_cache')
+      .select('vt_payload')
+      .eq('ip', ip)
+      .gt('first_scanned_at', cutoffIso)
+      .maybeSingle();
+    const stats = row?.vt_payload?.last_analysis_stats;
+    if (stats && Object.keys(stats).length > 0) return buildVtResult(stats, ip, 'ip');
+  } catch {
+    // fall through to live API
+  }
+  return null;
+}
+
 async function checkVT(ioc, type) {
+  // For IPs, /api/vt already fetched + cached VT — reuse it, no second API call.
+  if (type === 'ip') {
+    const cached = await vtFromIpCache(ioc);
+    if (cached) return cached;
+  }
+
   const keys = getVtKeysForRequest();
   if (!keys.length) return { source: 'VirusTotal', skipped: true, reason: 'No API key' };
 
@@ -66,36 +128,7 @@ async function checkVT(ioc, type) {
       if (status !== 200)
         return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
-      const s = data.data?.attributes?.last_analysis_stats || {};
-      const mal = s.malicious || 0;
-      const sus = s.suspicious || 0;
-      const total = Object.values(s).reduce((a, b) => a + b, 0);
-      const ratio = total > 0 ? (mal + sus) / total : 0;
-      const score = Math.round(ratio * 100);
-      const verdict =
-        (mal >= 5 || score >= 10) ? 'malicious' :
-        (mal >= 1 || sus >= 3 || score >= 5) ? 'suspicious' :
-        total === 0 ? 'unknown' : 'clean';
-
-      const vtUrlMap = {
-        hash: `https://www.virustotal.com/gui/file/${ioc}`,
-        ip: `https://www.virustotal.com/gui/ip-address/${ioc}`,
-        domain: `https://www.virustotal.com/gui/domain/${ioc}`,
-      };
-      return {
-        source: 'VirusTotal',
-        verdict,
-        score,
-        weight: 0.30 * getTrustFactor('TRUST_VT'),
-        meta: {
-          Malicious: mal,
-          Suspicious: sus,
-          Undetected: s.undetected || 0,
-          'Total Engines': total,
-          'Detection %': score + '%',
-        },
-        link: vtUrlMap[type],
-      };
+      return buildVtResult(data.data?.attributes?.last_analysis_stats, ioc, type);
     } catch (e) {
       lastError = e;
     }
