@@ -2,11 +2,23 @@ import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, Recen
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
+/** Error carrying the HTTP status + Retry-After so callers can back off on 429. */
+export interface ApiError extends Error {
+  status?: number;
+  retryAfter?: number; // seconds (from Retry-After header)
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: 'include', ...init });
   const json = await res.json().catch(() => ({}));
   const e = (json as { error?: string | { message?: string } }).error;
-  if (!res.ok) throw new Error(typeof e === 'string' ? e : e?.message || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err: ApiError = new Error(typeof e === 'string' ? e : e?.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    const ra = Number(res.headers.get('Retry-After'));
+    if (Number.isFinite(ra) && ra > 0) err.retryAfter = ra;
+    throw err;
+  }
   return json as T;
 }
 

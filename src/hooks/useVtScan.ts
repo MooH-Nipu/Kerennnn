@@ -5,6 +5,10 @@ import type { ScanItem } from '../types/vt';
 import type { IocType } from '../types/vt';
 
 const VT_CONCURRENCY = 2;
+// Retry budget per IOC when all VT keys are rate-limited, and default cooldown
+// (used when the server sends no Retry-After) matching VT's 60s per-minute window.
+const VT_MAX_RETRIES = 6;
+const VT_RATE_LIMIT_BACKOFF_MS = 60_000;
 
 export interface ScanFilters {
   clean: boolean;
@@ -139,6 +143,9 @@ export function useVtScan() {
   const [state, dispatch] = useReducer(reducer, initial);
   const abortRef = useRef(false);
   const cacheRef = useRef<Map<string, ScanItem['result']>>(new Map());
+  // Shared rate-limit cooldown: when any VT request is 429'd, every worker waits
+  // until this timestamp before its next call (VT free tier = 4 req/min per key).
+  const pauseUntilRef = useRef(0);
 
   const runScan = useCallback(async (rawInput: string) => {
     const parsed = parseIocList(rawInput);
@@ -148,10 +155,51 @@ export function useVtScan() {
     }
 
     abortRef.current = false;
+    pauseUntilRef.current = 0;
     dispatch({ type: 'START', total: parsed.length });
 
     // Pool: run VT_CONCURRENCY at a time
     let idx = 0;
+
+    // Block until any shared rate-limit cooldown elapses (or scan is aborted).
+    async function awaitCooldown() {
+      let paused = false;
+      while (!abortRef.current && Date.now() < pauseUntilRef.current) {
+        paused = true;
+        const secs = Math.ceil((pauseUntilRef.current - Date.now()) / 1000);
+        dispatch({ type: 'SET_STATUS', msg: `⏳ VirusTotal rate limit — pausing ${secs}s before retrying…`, statusType: 'loading' });
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      if (paused && !abortRef.current) {
+        dispatch({ type: 'SET_STATUS', msg: 'Resuming scan…', statusType: 'loading' });
+      }
+    }
+
+    // VT fetch with shared cooldown + retry-on-429 so a per-minute burst self-throttles
+    // instead of failing the IOC. Cache hits and non-429 errors return/throw immediately.
+    async function fetchVt(ioc: string): Promise<ScanItem['result']> {
+      const hit = cacheRef.current.get(ioc);
+      if (hit) return hit;
+      for (let attempt = 0; attempt <= VT_MAX_RETRIES; attempt++) {
+        await awaitCooldown();
+        if (abortRef.current) throw new Error('aborted');
+        try {
+          const res = await api.scan.vt(ioc) as unknown as ScanItem['result'];
+          cacheRef.current.set(ioc, res);
+          return res;
+        } catch (err) {
+          const status = (err as { status?: number })?.status;
+          if (status === 429 && attempt < VT_MAX_RETRIES) {
+            const ra = (err as { retryAfter?: number })?.retryAfter;
+            const backoffMs = ra && ra > 0 ? ra * 1000 : VT_RATE_LIMIT_BACKOFF_MS;
+            pauseUntilRef.current = Math.max(pauseUntilRef.current, Date.now() + backoffMs);
+            continue; // wait out the shared cooldown, then retry the same IOC
+          }
+          throw err;
+        }
+      }
+      throw new Error('VirusTotal rate limit — retries exhausted. Try again later.');
+    }
 
     async function worker() {
       while (idx < parsed.length && !abortRef.current) {
@@ -164,13 +212,9 @@ export function useVtScan() {
         // VT scan
         let result: ScanItem['result'];
         try {
-          let cached = cacheRef.current.get(ioc);
-          if (!cached) {
-            cached = await api.scan.vt(ioc) as unknown as ScanItem['result'];
-            cacheRef.current.set(ioc, cached);
-          }
-          result = cached;
+          result = await fetchVt(ioc);
         } catch (err) {
+          if (abortRef.current) return;
           dispatch({ type: 'RESOLVE_ERROR', id, error: err instanceof Error ? err.message : String(err) });
           continue;
         }
