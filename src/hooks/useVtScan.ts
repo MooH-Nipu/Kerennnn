@@ -9,6 +9,20 @@ const VT_CONCURRENCY = 2;
 // (used when the server sends no Retry-After) matching VT's 60s per-minute window.
 const VT_MAX_RETRIES = 6;
 const VT_RATE_LIMIT_BACKOFF_MS = 60_000;
+// Proactive pacing: VT free tier = 4 req/min per key. Interval is calculated at
+// runtime from the configured key count so adding more keys automatically speeds
+// up the scan without code changes. Falls back to 1 key (15s) if count unknown.
+const VT_KEYS_URL = '/api/vt?health=1';
+async function fetchVtKeyCount(): Promise<number> {
+  try {
+    const r = await fetch(VT_KEYS_URL, { credentials: 'include' });
+    const j = await r.json().catch(() => ({}));
+    const n = Number((j as { totalKeys?: number }).totalKeys);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  } catch {
+    return 1;
+  }
+}
 
 export interface ScanFilters {
   clean: boolean;
@@ -158,6 +172,13 @@ export function useVtScan() {
     pauseUntilRef.current = 0;
     dispatch({ type: 'START', total: parsed.length });
 
+    // Derive pacing interval from how many VT keys the server has configured.
+    // 4 req/min per key → 60000 / (keyCount * 4) ms between requests.
+    // Fetched once per scan so adding keys to Vercel takes effect immediately.
+    const keyCount = await fetchVtKeyCount();
+    const vtPaceMs = Math.ceil(60_000 / (keyCount * 4)); // e.g. 5 keys → 3000ms
+    let lastVtCallAt = 0; // shared across workers — enforces global pace
+
     // Pool: run VT_CONCURRENCY at a time
     let idx = 0;
 
@@ -175,14 +196,23 @@ export function useVtScan() {
       }
     }
 
-    // VT fetch with shared cooldown + retry-on-429 so a per-minute burst self-throttles
-    // instead of failing the IOC. Cache hits and non-429 errors return/throw immediately.
+    // VT fetch with proactive pacing + reactive retry-on-429.
+    // Cache hits skip pacing entirely (zero VT calls for cached IPs).
     async function fetchVt(ioc: string): Promise<ScanItem['result']> {
       const hit = cacheRef.current.get(ioc);
       if (hit) return hit;
       for (let attempt = 0; attempt <= VT_MAX_RETRIES; attempt++) {
         await awaitCooldown();
         if (abortRef.current) throw new Error('aborted');
+
+        // Proactive pace: wait until vtPaceMs has elapsed since the last VT call.
+        // This keeps total outbound rate at keyCount*4/min, preventing 429s proactively.
+        const sinceLastMs = Date.now() - lastVtCallAt;
+        if (sinceLastMs < vtPaceMs) {
+          await new Promise(r => setTimeout(r, vtPaceMs - sinceLastMs));
+        }
+        lastVtCallAt = Date.now();
+
         try {
           const res = await api.scan.vt(ioc) as unknown as ScanItem['result'];
           cacheRef.current.set(ioc, res);
@@ -193,7 +223,7 @@ export function useVtScan() {
             const ra = (err as { retryAfter?: number })?.retryAfter;
             const backoffMs = ra && ra > 0 ? ra * 1000 : VT_RATE_LIMIT_BACKOFF_MS;
             pauseUntilRef.current = Math.max(pauseUntilRef.current, Date.now() + backoffMs);
-            continue; // wait out the shared cooldown, then retry the same IOC
+            continue;
           }
           throw err;
         }
