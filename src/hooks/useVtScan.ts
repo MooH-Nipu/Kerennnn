@@ -176,12 +176,24 @@ export function useVtScan() {
         }
 
         dispatch({ type: 'RESOLVE', id, result });
-        api.scan.correlate(ioc)
-          .then(corr => {
-            dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-            api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
-          })
-          .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
+
+        // If VT was served from cache and correlation was previously saved, skip fresh API calls.
+        const meta = (result as unknown as Record<string, unknown>)?._meta as Record<string, unknown> | undefined;
+        const cacheMeta = meta?.cache as Record<string, unknown> | undefined;
+        const cachedCorr = cacheMeta?.fromCache && cacheMeta?.corrPayload
+          ? cacheMeta.corrPayload as ScanItem['correlation']
+          : null;
+
+        if (cachedCorr) {
+          dispatch({ type: 'UPDATE_CORR', id, correlation: cachedCorr });
+        } else {
+          api.scan.correlate(ioc)
+            .then(corr => {
+              dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
+              api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
+            })
+            .catch(() => dispatch({ type: 'UPDATE_CORR', id, correlation: null }));
+        }
       }
     }
 
