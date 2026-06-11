@@ -344,6 +344,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (rateLimitedCount === apiKeys.length) {
+    res.setHeader('Retry-After', '60'); // per-minute window; client self-throttles + retries
     return res.status(429).json({
       error: {
         message:
