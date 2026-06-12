@@ -112,6 +112,7 @@ module.exports = async function handler(req, res) {
                 lastSeen: cached.last_scanned_at,
                 fromCache: true,
                 corrPayload: cached.corr_payload && Array.isArray(cached.corr_payload.sources) && cached.corr_payload.sources.length > 0
+                  && cached.corr_payload.sources.some(s => s.source === 'Enrichment')
                   ? cached.corr_payload
                   : null,
               },
