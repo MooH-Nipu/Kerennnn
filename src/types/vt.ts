@@ -68,7 +68,7 @@ export interface CorrelationSource {
   source: string;
   verdict?: string;
   detail?: string;
-  weight: number;
+  weight?: number;        // absent on context-only sources (Enrichment, Shodan)
   score?: number;
   meta?: Record<string, string | number>;
   skipped?: boolean;
@@ -88,7 +88,7 @@ export interface RiskFactor {
 
 export interface CorrelationResult {
   confidence: number;
-  verdict: string;
+  verdict?: string;       // not included in correlate.js response; derived client-side via confToVerdict
   sources: CorrelationSource[];
   riskFactors?: RiskFactor[];
   baselineConfidence?: number | null;
