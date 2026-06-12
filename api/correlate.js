@@ -1,7 +1,7 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGet, httpPost } = require('./_http');
-const { getVtKeysForRequest, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
+const { getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
 const { getSupabase } = require('./_supabase');
@@ -121,7 +121,7 @@ async function checkVT(ioc, type) {
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
       if (shouldTryNextVtKey(status, data)) {
-        if (isVtRateLimited(status, data)) rateLimitedCount++;
+        if (isVtRateLimited(status, data)) { rateLimitedCount++; markVtKeyRateLimited(key); }
         else if (isVtBadKey(status, data)) badKeyCount++;
         continue;
       }
