@@ -1,6 +1,6 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { getSupabase } = require('./_supabase');
-const { getVtKeys, getVtKeysForRequest, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
+const { getVtKeys, getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 
@@ -154,6 +154,7 @@ module.exports = async function handler(req, res) {
       if (shouldTryNextVtKey(status, data)) {
         if (isVtRateLimited(status, data)) {
           rateLimitedCount++;
+          markVtKeyRateLimited(apiKeys[i]);
           keyAttempts.push({ key: keyPrefix, status, result: 'rate_limited' });
         } else if (isVtBadKey(status, data)) {
           badKeyCount++;
