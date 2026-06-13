@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -66,6 +66,23 @@ export const api = {
     vt: (ioc: string) => apiFetch<Record<string, unknown>>(`/api/vt?ioc=${encodeURIComponent(ioc)}`),
     correlate: (ioc: string) =>
       apiFetch<Record<string, unknown>>(`/api/correlate?ioc=${encodeURIComponent(ioc)}`),
+    passiveDns: (ioc: string) =>
+      apiFetch<PassiveDnsResponse>(`/api/passive-dns?ioc=${encodeURIComponent(ioc)}`),
+    crtsh: (domain: string) =>
+      apiFetch<CrtShResponse>(`/api/crt?domain=${encodeURIComponent(domain)}`),
+  },
+
+  cve: {
+    lookup: (query: string) => {
+      const term = query.trim();
+      const isId = /^CVE-\d{4}-\d{4,}$/i.test(term);
+      const param = isId ? `id=${encodeURIComponent(term)}` : `q=${encodeURIComponent(term)}`;
+      return apiFetch<CveLookupResponse>(`/api/cve?${param}`);
+    },
+  },
+
+  attack: {
+    search: (q: string) => apiFetch<AttackSearchResponse>(`/api/attack?q=${encodeURIComponent(q)}`),
   },
 
   history: {

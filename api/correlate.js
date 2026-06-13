@@ -792,6 +792,60 @@ function calcConfidenceWithFloors(results, factors) {
   return { baseline, floor, bonus, confidence };
 }
 
+// ── MALICIOUS alert webhook (fires when confidence ≥ ALERT_THRESHOLD) ───────
+// Best-effort Slack/Teams/Discord (payload auto-detected from URL) or generic
+// JSON POST. Fire-and-forget — never blocks or fails the scan response.
+const ALERT_THRESHOLD = 70;
+
+function buildAlertText(ioc, type, confidence, factors, resultUrl) {
+  const top = (factors || []).slice(0, 3).map(f => `• ${f.message}`).join('\n');
+  return `🚨 MALICIOUS IOC detected (${confidence}%)\n` +
+    `${String(type).toUpperCase()}: ${ioc}` +
+    (top ? `\n${top}` : '') +
+    (resultUrl ? `\n${resultUrl}` : '');
+}
+
+// Look up the cached row id so the alert can deep-link to /result/:id.
+async function lookupStableId(ioc, type) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    if (type === 'ip') {
+      const { data } = await supabase.from('vt_ip_cache').select('id').eq('ip', ioc).maybeSingle();
+      return data?.id || null;
+    }
+    const { data } = await supabase.from('vt_ioc_cache').select('id').eq('ioc_type', type).eq('ioc', ioc).maybeSingle();
+    return data?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fireAlertWebhook(ioc, type, confidence, factors) {
+  const url = process.env.ALERT_WEBHOOK_URL;
+  if (!url) return;
+  let resultUrl = null;
+  const base = process.env.APP_BASE_URL;
+  if (base) {
+    const id = await lookupStableId(ioc, type);
+    if (id) resultUrl = `${base.replace(/\/$/, '')}/result/${id}`;
+  }
+  const text = buildAlertText(ioc, type, confidence, factors, resultUrl);
+  const headers = { 'Content-Type': 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' };
+  let body;
+  if (/hooks\.slack\.com/i.test(url)) body = JSON.stringify({ text });
+  else if (/discord(?:app)?\.com\/api\/webhooks/i.test(url)) body = JSON.stringify({ content: text });
+  else if (/webhook\.office\.com|office365\.com|outlook\.office/i.test(url)) body = JSON.stringify({ text });
+  else body = JSON.stringify({ ioc, type, confidence, riskFactors: (factors || []).slice(0, 5), resultUrl });
+  try {
+    // httpPost rejects on non-JSON responses (Slack returns "ok", Discord 204) but
+    // the POST is sent regardless — we only swallow the parse rejection here.
+    await httpPost(url, body, headers, { timeout: 5000 });
+  } catch {
+    /* best-effort */
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -838,6 +892,11 @@ module.exports = async function handler(req, res) {
   const activeWeights = results
     .filter(r => !r.skipped && !r.error && r.verdict !== undefined)
     .reduce((sum, r) => sum + r.weight, 0);
+
+  // Fire-and-forget MALICIOUS alert — does not block or fail the scan response.
+  if (Number.isFinite(confidence) && confidence >= ALERT_THRESHOLD && process.env.ALERT_WEBHOOK_URL) {
+    fireAlertWebhook(ioc, type, confidence, riskFactors).catch(() => {});
+  }
 
   return res.status(200).json({
     ioc,
