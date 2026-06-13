@@ -2942,3 +2942,191 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Initiative 3 — analyst tools: pivot panels (Passive DNS, crt.sh) + CVE/ATT&CK
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Collapsible pivot panels inside VtCard (Passive DNS, Certificate History) */
+.pivot-panel {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+}
+.pivot-panel__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  background: none;
+  border: none;
+  color: var(--text-code);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+.pivot-panel__toggle:hover { color: var(--accent-hl); }
+.pivot-chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--text-sec);
+}
+.pivot-chevron.open { transform: rotate(90deg); }
+.pivot-panel__body {
+  padding: 0.5rem 0.65rem 0.7rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+.pivot-loading, .pivot-empty, .pivot-error {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-sec);
+  padding: 0.25rem 0;
+}
+.pivot-error { color: var(--red); }
+.pivot-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+}
+.pivot-table th, .pivot-table td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-pri);
+  vertical-align: top;
+  word-break: break-all;
+}
+.pivot-table th { color: var(--text-sec); font-weight: 600; }
+.pivot-subdomains { margin-bottom: 0.6rem; }
+.pivot-subdomains__label { color: var(--text-sec); margin-bottom: 0.35rem; }
+.pivot-subdomains__list { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pivot-subdomain {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-code);
+  background: var(--bg-card);
+}
+
+/* Shared search form for CVE + ATT&CK tabs */
+.cve-search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.cve-search .form-input { flex: 1; }
+.cve-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-sec);
+  padding: 0.5rem 0;
+}
+
+/* CVE result cards */
+.cve-results, .attack-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.cve-card, .attack-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 0.85rem 1rem;
+}
+.cve-card__head, .attack-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.cve-card__id, .attack-card__id {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--text-code);
+  text-decoration: none;
+}
+.cve-card__id:hover, .attack-card__id:hover { text-decoration: underline; }
+.cve-sev {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.cve-sev__score { font-size: 0.95rem; font-weight: 800; }
+.cve-sev--critical { background: rgba(229,72,77,0.18);  color: var(--red); }
+.cve-sev--high     { background: rgba(251,146,60,0.18); color: var(--orange); }
+.cve-sev--medium   { background: rgba(245,166,35,0.18); color: var(--yellow); }
+.cve-sev--low      { background: rgba(15,186,129,0.18); color: var(--green); }
+.cve-sev--none     { background: rgba(90,122,168,0.18); color: var(--text-sec); }
+.cve-card__desc, .attack-card__desc {
+  color: var(--text-pri);
+  line-height: 1.5;
+  font-size: 0.86rem;
+  margin: 0 0 0.5rem;
+}
+.cve-card__meta, .attack-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--text-sec);
+  font-size: 0.76rem;
+}
+.cve-card__vector {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-code);
+}
+.cve-card__refs, .attack-card__detection {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+.cve-card__refs summary, .attack-card__detection summary {
+  cursor: pointer;
+  color: var(--text-code);
+}
+.cve-card__refs ul { margin: 0.4rem 0 0; padding-left: 1.1rem; word-break: break-all; }
+.cve-card__refs a { color: var(--text-code); }
+
+/* ATT&CK technique cards */
+.attack-card__name { font-weight: 600; color: var(--text-pri); }
+.attack-card__sub {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-sec);
+}
+.attack-tactics { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+.attack-tactic {
+  font-size: 0.7rem;
+  text-transform: capitalize;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(29,106,229,0.16);
+  color: var(--text-code);
+}
+.attack-card__more {
+  background: none;
+  border: none;
+  color: var(--accent-hl);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+.attack-card__detection p { margin: 0.4rem 0 0; line-height: 1.5; color: var(--text-pri); }

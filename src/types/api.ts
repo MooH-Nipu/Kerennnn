@@ -113,3 +113,74 @@ export interface UserPrefsResponse {
   tab_order: string[];
   hidden_tabs: string[];
 }
+
+// ── Analyst tools (Initiative 3) ──
+
+export interface PassiveDnsRecord {
+  host: string;
+  ip?: string;
+}
+
+export interface PassiveDnsResponse {
+  ok: boolean;
+  ioc: string;
+  type: 'ip' | 'domain';
+  records: PassiveDnsRecord[];
+  note?: string;
+}
+
+export interface CrtCert {
+  issuer: string;
+  not_before: string | null;
+  not_after: string | null;
+  names: string[];
+}
+
+export interface CrtShResponse {
+  ok: boolean;
+  domain: string;
+  total: number;
+  certs: CrtCert[];
+  subdomains: string[];
+}
+
+export interface CveCvss {
+  version: string;
+  score: number | null;
+  severity: string | null;
+  vector: string | null;
+}
+
+export interface CveResult {
+  id: string;
+  description: string;
+  cvss: CveCvss | null;
+  published: string | null;
+  lastModified: string | null;
+  references: string[];
+}
+
+export interface CveLookupResponse {
+  ok: boolean;
+  query: string;
+  total: number;
+  results: CveResult[];
+}
+
+export interface AttackTechnique {
+  id: string;
+  name: string;
+  description: string;
+  tactics: string[];
+  platforms: string[];
+  detection: string;
+  isSubtechnique: boolean;
+  url: string;
+}
+
+export interface AttackSearchResponse {
+  ok: boolean;
+  query: string;
+  total: number;
+  results: AttackTechnique[];
+}

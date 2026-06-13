@@ -19,6 +19,8 @@ import { DailyEodTab } from './pages/DailyEodTab';
 import { AdminUsersTab } from './pages/AdminUsersTab';
 import { AdminLogsTab } from './pages/AdminLogsTab';
 import { IrManagerTab } from './pages/IrManagerTab';
+import { CveTab } from './pages/CveTab';
+import { AttackTab } from './pages/AttackTab';
 import { ResultPage } from './pages/ResultPage';
 
 function AppInner() {
@@ -92,6 +94,8 @@ function AppInner() {
       case 'admin-users': return <AdminUsersTab />;
       case 'admin-logs':  return <AdminLogsTab />;
       case 'ir-manager':  return <IrManagerTab />;
+      case 'cve':         return <CveTab />;
+      case 'attack':      return <AttackTab />;
       default:            return <FormatterTab />;
     }
   }
