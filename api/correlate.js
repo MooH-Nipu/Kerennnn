@@ -5,6 +5,7 @@ const { getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateL
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
 const { getSupabase } = require('./_supabase');
+const { logApiUsage } = require('./_usage');
 
 function getTrustFactor(envKey, defaultValue = 1) {
   const raw = process.env[envKey];
@@ -278,108 +279,6 @@ async function checkOTX(ioc, type) {
   }
 }
 
-// ── Source: GreyNoise (weight 0.25, IP only) ──────────────────────────────
-// Classifies whether an IP is internet background noise vs. targeted.
-// riot=true means it's a known-good service (Google, Cloudflare, etc.) → always clean.
-async function checkGreyNoise(ip) {
-  const apiKey = process.env.GREYNOISE_API_KEY;
-  if (!apiKey) return { source: 'GreyNoise', skipped: true, reason: 'No API key' };
-  try {
-    const { status, data } = await httpGet(
-      `https://api.greynoise.io/v3/community/${encodeURIComponent(ip)}`,
-      { key: apiKey, Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
-    );
-    if (status === 404) {
-      return {
-        source: 'GreyNoise',
-        verdict: 'clean',
-        score: 0,
-        weight: 0.25 * getTrustFactor('TRUST_GREYNOISE'),
-        meta: { Classification: 'not observed', Note: 'IP not in GreyNoise dataset' },
-        link: `https://viz.greynoise.io/ip/${ip}`,
-      };
-    }
-    if (status !== 200) return { source: 'GreyNoise', error: `GreyNoise: HTTP ${status}` };
-
-    const riot = data.riot ?? false;
-    const noise = data.noise ?? false;
-    const classification = data.classification || 'unknown';
-    const name = data.name || '';
-
-    let verdict, score;
-    if (riot) {
-      verdict = 'clean'; score = 0;
-    } else if (noise && classification === 'malicious') {
-      verdict = 'malicious'; score = 85;
-    } else if (noise) {
-      // Benign/unknown scanner — internet background noise, context only
-      verdict = 'suspicious'; score = 25;
-    } else {
-      verdict = 'clean'; score = 0;
-    }
-
-    return {
-      source: 'GreyNoise',
-      verdict,
-      score,
-      weight: 0.25 * getTrustFactor('TRUST_GREYNOISE'),
-      meta: {
-        Classification: classification || '—',
-        'RIOT (trusted service)': riot ? 'yes' : 'no',
-        'Internet Scanner': noise ? 'yes' : 'no',
-        Name: name || '—',
-      },
-      link: `https://viz.greynoise.io/ip/${ip}`,
-    };
-  } catch (e) {
-    return { source: 'GreyNoise', error: `Cannot access GreyNoise: ${e.message}` };
-  }
-}
-
-// ── Source: MalwareBazaar — Abuse.ch (weight 0.25, hash only, no key) ────
-async function checkMalwareBazaar(hash) {
-  try {
-    const postBody = `query=get_info&hash=${encodeURIComponent(hash)}`;
-    const { status, data } = await httpPost(
-      'https://mb-api.abuse.ch/api/v1/',
-      postBody,
-      { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Charlie-kerennnn/1.0' }
-    );
-    if (status !== 200) return { source: 'MalwareBazaar', error: `MalwareBazaar: HTTP ${status}` };
-
-    if (data.query_status === 'hash_not_found') {
-      return {
-        source: 'MalwareBazaar',
-        verdict: 'clean',
-        score: 0,
-        weight: 0.25 * getTrustFactor('TRUST_MALWAREBAZAAR'),
-        meta: { Result: 'Not found in MalwareBazaar' },
-        link: `https://bazaar.abuse.ch/browse.php?search=sha256:${hash}`,
-      };
-    }
-
-    const item = Array.isArray(data.data) ? data.data[0] : null;
-    if (!item) return { source: 'MalwareBazaar', error: 'Unexpected response format' };
-
-    return {
-      source: 'MalwareBazaar',
-      verdict: 'malicious',
-      score: 100,
-      weight: 0.25 * getTrustFactor('TRUST_MALWAREBAZAAR'),
-      meta: {
-        'Malware Family': item.signature || '—',
-        'File Type': item.file_type || '—',
-        Tags: (item.tags || []).slice(0, 4).join(', ') || '—',
-        'First Seen': item.first_seen ? item.first_seen.slice(0, 10) : '—',
-        Reporter: item.reporter || '—',
-      },
-      link: `https://bazaar.abuse.ch/sample/${hash}/`,
-    };
-  } catch (e) {
-    return { source: 'MalwareBazaar', error: `Cannot access MalwareBazaar: ${e.message}` };
-  }
-}
-
 // ── Source: URLScan.io (weight 0.20, domain only) ─────────────────────────
 // Two-step: POST submit → poll GET result. Adds ~10-15s latency for domain IOCs.
 // Runs concurrently in Promise.all so it doesn't block other sources.
@@ -445,81 +344,6 @@ async function checkURLScan(domain) {
     };
   } catch (e) {
     return { source: 'URLScan.io', error: `Cannot access URLScan.io: ${e.message}` };
-  }
-}
-
-// ── Source: Shodan (context-only, no verdict/weight, IP only) ─────────────
-// Contributes to score only via risk factors (exposed ports, known CVEs).
-async function checkShodan(ip) {
-  const apiKey = process.env.SHODAN_API_KEY;
-  if (!apiKey) return { source: 'Shodan', skipped: true, reason: 'No API key' };
-  try {
-    const { status, data } = await httpGet(
-      `https://api.shodan.io/shodan/host/${encodeURIComponent(ip)}?key=${encodeURIComponent(apiKey)}`,
-      { Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
-    );
-    if (status === 404) return { source: 'Shodan', skipped: true, reason: 'IP not in Shodan index' };
-    if (status !== 200) return { source: 'Shodan', error: `Shodan: HTTP ${status}` };
-
-    const ports = (data.ports || []).slice(0, 10);
-    const vulns = Object.keys(data.vulns || {}).slice(0, 5);
-
-    return {
-      source: 'Shodan',
-      // no verdict / weight — context source like Enrichment
-      meta: {
-        'Open Ports': ports.join(', ') || '—',
-        'Known CVEs': vulns.join(', ') || '—',
-        Org: data.org || data.isp || '—',
-        OS: data.os || '—',
-        Country: data.country_code || '—',
-      },
-      link: `https://www.shodan.io/host/${ip}`,
-    };
-  } catch (e) {
-    return { source: 'Shodan', error: `Cannot access Shodan: ${e.message}` };
-  }
-}
-
-// ── Source: Pulsedive (weight 0.10, all types) ────────────────────────────
-async function checkPulsedive(ioc) {
-  const apiKey = process.env.PULSEDIVE_API_KEY;
-  if (!apiKey) return { source: 'Pulsedive', skipped: true, reason: 'No API key' };
-  try {
-    const { status, data } = await httpGet(
-      `https://pulsedive.com/api/info.php?indicator=${encodeURIComponent(ioc)}&pretty=1&key=${encodeURIComponent(apiKey)}`,
-      { Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' }
-    );
-    if (status === 404 || data?.error === 'Indicator not found.') {
-      return {
-        source: 'Pulsedive',
-        verdict: 'clean',
-        score: 0,
-        weight: 0.10 * getTrustFactor('TRUST_PULSEDIVE'),
-        meta: { Result: 'Not found in Pulsedive' },
-        link: `https://pulsedive.com/indicator/?ioc=${encodeURIComponent(ioc)}`,
-      };
-    }
-    if (status !== 200) return { source: 'Pulsedive', error: `Pulsedive: HTTP ${status}` };
-
-    const riskMap  = { none: 'clean', low: 'clean', medium: 'suspicious', high: 'malicious', critical: 'malicious' };
-    const scoreMap = { none: 0, low: 10, medium: 40, high: 75, critical: 95 };
-    const risk = (data.risk || 'none').toLowerCase();
-
-    return {
-      source: 'Pulsedive',
-      verdict: riskMap[risk] || 'clean',
-      score: scoreMap[risk] || 0,
-      weight: 0.10 * getTrustFactor('TRUST_PULSEDIVE'),
-      meta: {
-        Risk: data.risk || '—',
-        'Threat Types': (data.threats || []).slice(0, 3).map(t => t.name).join(', ') || '—',
-        'Last Seen': data.lastseen ? data.lastseen.slice(0, 10) : '—',
-      },
-      link: `https://pulsedive.com/indicator/?ioc=${encodeURIComponent(ioc)}`,
-    };
-  } catch (e) {
-    return { source: 'Pulsedive', error: `Cannot access Pulsedive: ${e.message}` };
   }
 }
 
@@ -659,45 +483,12 @@ function collectRiskFactors(results) {
       }
     }
 
-    if (r.source === 'GreyNoise') {
-      const isScanner = m['Internet Scanner'] === 'yes';
-      const classification = String(m.Classification || '').toLowerCase();
-      if (isScanner && classification === 'malicious') {
-        factors.push({ type: 'greynoise_malicious', severity: 'high', source: 'GreyNoise', message: 'Known malicious internet scanner (GreyNoise)', bonus: 15 });
-      } else if (isScanner) {
-        factors.push({ type: 'greynoise_noise', severity: 'low', source: 'GreyNoise', message: 'Internet background noise scanner (GreyNoise)', bonus: 3 });
-      }
-    }
-
-    if (r.source === 'MalwareBazaar' && r.verdict === 'malicious') {
-      const family = String(m['Malware Family'] || '—');
-      factors.push({
-        type: 'malware_sample',
-        severity: 'high',
-        source: 'MalwareBazaar',
-        message: `Confirmed malware sample${family !== '—' ? ': ' + family : ''}`,
-        bonus: 20,
-      });
-    }
-
     if (r.source === 'URLScan.io') {
       if (r.verdict === 'malicious') {
         factors.push({ type: 'urlscan_malicious', severity: 'high', source: 'URLScan.io', message: 'URLScan.io flagged page as malicious', bonus: 12 });
       }
       if (String(m.Tags || '').toLowerCase().includes('phishing')) {
         factors.push({ type: 'urlscan_phishing', severity: 'high', source: 'URLScan.io', message: 'Phishing page detected by URLScan.io', bonus: 12 });
-      }
-    }
-
-    if (r.source === 'Shodan') {
-      const riskyPorts = String(m['Open Ports'] || '').split(',').map(p => p.trim())
-        .filter(p => ['22', '23', '445', '3389', '4444', '5900'].includes(p));
-      if (riskyPorts.length > 0) {
-        factors.push({ type: 'exposed_ports', severity: 'med', source: 'Shodan', message: `Exposed risky ports: ${riskyPorts.join(', ')}`, bonus: 8 });
-      }
-      const vulns = String(m['Known CVEs'] || '').trim();
-      if (vulns && vulns !== '—') {
-        factors.push({ type: 'known_vulns', severity: 'high', source: 'Shodan', message: `Known CVEs: ${vulns.split(',').slice(0, 2).join(', ')}`, bonus: 15 });
       }
     }
 
@@ -730,18 +521,6 @@ function collectRiskFactors(results) {
 function calcConfidenceWithFloors(results, factors) {
   const verdictScore = { malicious: 1.0, suspicious: 0.5, unknown: 0.2, clean: 0.0 };
 
-  // Fix 1: Abuse.ch/MalwareBazaar draw from the same dataset — cap their
-  // combined effective weight at 0.30 to prevent correlated-source inflation.
-  const ABUSE_CH_GROUP = new Set(['Abuse.ch', 'MalwareBazaar']);
-  const ABUSE_CH_CAP = 0.30;
-  let groupRawWeight = 0;
-  for (const r of results) {
-    if (!r.skipped && !r.error && r.verdict !== undefined && ABUSE_CH_GROUP.has(r.source))
-      groupRawWeight += r.weight;
-  }
-  const groupScale = groupRawWeight > ABUSE_CH_CAP ? ABUSE_CH_CAP / groupRawWeight : 1;
-  const effectiveWeight = r => ABUSE_CH_GROUP.has(r.source) ? r.weight * groupScale : r.weight;
-
   let weightedSum = 0;
   let totalWeight = 0;
   let maliciousWeight = 0;
@@ -750,7 +529,7 @@ function calcConfidenceWithFloors(results, factors) {
   let suspiciousCount = 0;
   for (const r of results) {
     if (r.skipped || r.error || r.verdict === undefined) continue;
-    const w = effectiveWeight(r);
+    const w = r.weight;
     const vs = verdictScore[r.verdict] ?? 0;
     weightedSum += vs * w;
     totalWeight += w;
@@ -760,7 +539,7 @@ function calcConfidenceWithFloors(results, factors) {
   if (totalWeight === 0) return { baseline: null, floor: 0, bonus: 0, confidence: null };
   const baseline = Math.round((weightedSum / totalWeight) * 100);
 
-  // Fix 2: Trust-weighted floors — dual condition (absolute weight OR ratio of active weight)
+  // Trust-weighted floors — dual condition (absolute weight OR ratio of active weight)
   // so sparse configs (e.g. VT-only) still produce the right floor without over-triggering
   // for low-trust-only source combinations.
   const maliciousRatio = maliciousWeight / totalWeight;
@@ -771,23 +550,8 @@ function calcConfidenceWithFloors(results, factors) {
   else if (suspiciousWeight >= 0.50 || (suspiciousRatio >= 0.60 && suspiciousCount >= 2)) floor = 40;
   else if (suspiciousWeight >= 0.25 || (suspiciousRatio >= 0.40 && suspiciousCount >= 1)) floor = 25;
 
-  // Fix 3: Hard signal overrides — ground-truth verdicts that override probabilistic floors.
-  // MalwareBazaar: confirmed malware sample DB hit. GreyNoise malicious: confirmed internet scanner.
-  for (const r of results) {
-    if (r.skipped || r.error) continue;
-    if (r.source === 'MalwareBazaar' && r.verdict === 'malicious') floor = Math.max(floor, 85);
-    if (r.source === 'GreyNoise'     && r.verdict === 'malicious') floor = Math.max(floor, 65);
-  }
-
   const bonus = Math.min((factors || []).reduce((sum, f) => sum + (f.bonus || 0), 0), 25);
-  let confidence = Math.min(100, Math.max(baseline, floor) + bonus);
-
-  // GreyNoise RIOT exoneration — IP is a trusted internet service (Google, Cloudflare, etc.);
-  // cap confidence at 15 regardless of what other sources say.
-  const riot = results.find(
-    r => !r.skipped && !r.error && r.source === 'GreyNoise' && r.meta?.['RIOT (trusted service)'] === 'yes'
-  );
-  if (riot) confidence = Math.min(confidence, 15);
+  const confidence = Math.min(100, Math.max(baseline, floor) + bonus);
 
   return { baseline, floor, bonus, confidence };
 }
@@ -821,9 +585,7 @@ async function lookupStableId(ioc, type) {
   }
 }
 
-async function fireAlertWebhook(ioc, type, confidence, factors) {
-  const url = process.env.ALERT_WEBHOOK_URL;
-  if (!url) return;
+async function fireAlertWebhook(url, ioc, type, confidence, factors) {
   let resultUrl = null;
   const base = process.env.APP_BASE_URL;
   if (base) {
@@ -846,6 +608,35 @@ async function fireAlertWebhook(ioc, type, confidence, factors) {
   }
 }
 
+// Resolve the webhook to fire for this request: the scanning user's own webhook
+// (from user_webhooks) takes precedence; otherwise fall back to a global
+// ALERT_WEBHOOK_URL env. The per-user min_confidence overrides ALERT_THRESHOLD.
+async function maybeFireAlert(req, ioc, type, confidence, factors) {
+  let url = null;
+  let threshold = ALERT_THRESHOLD;
+
+  const supabase = getSupabase();
+  const userId = req && req.auth ? req.auth.userId : null;
+  if (supabase && userId) {
+    try {
+      const { data } = await supabase
+        .from('user_webhooks')
+        .select('webhook_url, enabled, min_confidence')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data && data.enabled && data.webhook_url) {
+        url = data.webhook_url;
+        if (Number.isFinite(data.min_confidence)) threshold = data.min_confidence;
+      }
+    } catch {
+      /* fall through to env fallback */
+    }
+  }
+  if (!url && process.env.ALERT_WEBHOOK_URL) url = process.env.ALERT_WEBHOOK_URL;
+  if (!url || !(confidence >= threshold)) return;
+  await fireAlertWebhook(url, ioc, type, confidence, factors);
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -864,13 +655,10 @@ module.exports = async function handler(req, res) {
   const checks = [
     checkVT(ioc, type),        // all types
     checkOTX(ioc, type),       // all types
-    checkPulsedive(ioc),       // all types
   ];
 
   if (type === 'ip') {
     checks.push(checkAbuseIPDB(ioc));
-    checks.push(checkGreyNoise(ioc));
-    checks.push(checkShodan(ioc));
   }
 
   if (type === 'ip' || type === 'domain') {
@@ -879,7 +667,6 @@ module.exports = async function handler(req, res) {
   }
 
   if (type === 'domain') checks.push(checkURLScan(ioc));
-  if (type === 'hash')   checks.push(checkMalwareBazaar(ioc));
 
   const results = await Promise.all(checks);
 
@@ -893,10 +680,25 @@ module.exports = async function handler(req, res) {
     .filter(r => !r.skipped && !r.error && r.verdict !== undefined)
     .reduce((sum, r) => sum + r.weight, 0);
 
-  // Fire-and-forget MALICIOUS alert — does not block or fail the scan response.
-  if (Number.isFinite(confidence) && confidence >= ALERT_THRESHOLD && process.env.ALERT_WEBHOOK_URL) {
-    fireAlertWebhook(ioc, type, confidence, riskFactors).catch(() => {});
+  // Fire-and-forget MALICIOUS alert (per-user webhook, else env fallback) —
+  // does not block or fail the scan response.
+  if (Number.isFinite(confidence)) {
+    maybeFireAlert(req, ioc, type, confidence, riskFactors).catch(() => {});
   }
+
+  // Telemetry: log each source that actually performed an external call. The IP
+  // VirusTotal result is reused from vt.js's cache (no call here), so it's logged
+  // by vt.js, not double-counted here.
+  logApiUsage(
+    req,
+    results
+      .filter(r => !r.skipped && !(r.source === 'VirusTotal' && type === 'ip'))
+      .map(r => ({
+        service: r.source,
+        ioc_type: type,
+        outcome: r.error ? (/rate limit|429|quota/i.test(r.error) ? 'rate_limited' : 'error') : 'ok',
+      }))
+  ).catch(() => {});
 
   return res.status(200).json({
     ioc,
@@ -915,8 +717,4 @@ module.exports = async function handler(req, res) {
 module.exports.collectRiskFactors = collectRiskFactors;
 module.exports.calcConfidenceWithFloors = calcConfidenceWithFloors;
 module.exports.checkEnrichment = checkEnrichment;
-module.exports.checkGreyNoise = checkGreyNoise;
-module.exports.checkMalwareBazaar = checkMalwareBazaar;
 module.exports.checkURLScan = checkURLScan;
-module.exports.checkShodan = checkShodan;
-module.exports.checkPulsedive = checkPulsedive;

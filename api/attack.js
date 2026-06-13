@@ -1,6 +1,7 @@
 'use strict';
 const { httpGetText } = require('./_http');
 const { requireAuth } = require('./_auth');
+const { logApiUsage } = require('./_usage');
 
 // ── MITRE ATT&CK (Enterprise) technique lookup ──
 // The SPA can't fetch MITRE directly (CSP connect-src 'self'), so we proxy it:
@@ -73,8 +74,10 @@ module.exports = async function handler(req, res) {
   try {
     techniques = await getTechniques();
   } catch (e) {
+    logApiUsage(req, { service: 'ATT&CK', outcome: 'error' }).catch(() => {});
     return res.status(502).json({ error: `Cannot load ATT&CK data: ${e.message}` });
   }
+  logApiUsage(req, { service: 'ATT&CK', outcome: 'ok' }).catch(() => {});
 
   const term = q.toLowerCase();
   let results;

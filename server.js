@@ -51,6 +51,8 @@ const routes = [
   ['/api/scan-merger',            './api/scan-merger.js'],
   ['/api/scan-history',           './api/scan-history.js'],
   ['/api/user-prefs',             './api/user-prefs.js'],
+  ['/api/user-webhook',           './api/user-webhook.js'],
+  ['/api/admin/usage',            './api/admin/usage.js'],
   ['/api/kibana-combined-report', './api/kibana-combined-report.js'],
   ['/api/admin/users',            './api/admin/users.js'],
   ['/api/admin/logs',             './api/admin/logs.js'],

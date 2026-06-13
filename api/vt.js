@@ -3,6 +3,7 @@ const { getSupabase } = require('./_supabase');
 const { getVtKeys, getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
+const { logApiUsage } = require('./_usage');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -337,6 +338,12 @@ module.exports = async function handler(req, res) {
       }
 
       if (status === 200) res.setHeader('X-VT-Key-Used', `key-${i + 1}-of-${apiKeys.length}`);
+      logApiUsage(req, {
+        service: 'VirusTotal',
+        ioc_type: type,
+        outcome: status === 200 ? 'ok' : 'error',
+        vt_key: keyPrefix,
+      }).catch(() => {});
       return res.status(status).json(data);
     } catch (err) {
       keyAttempts.push({ key: keyPrefix, status: null, result: 'network_error', error: err?.message });
@@ -347,6 +354,7 @@ module.exports = async function handler(req, res) {
 
   // All keys failed: distinguish rate limit vs invalid keys vs access error
   if (badKeyCount === apiKeys.length) {
+    logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: 'error' }).catch(() => {});
     return res.status(401).json({
       error: {
         message: `All ${apiKeys.length} configured API key(s) are invalid or inactive. Check VT_API_KEY env vars.`,
@@ -356,6 +364,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (rateLimitedCount === apiKeys.length) {
+    logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: 'rate_limited' }).catch(() => {});
     res.setHeader('Retry-After', '60');
     return res.status(429).json({
       error: {
@@ -367,6 +376,7 @@ module.exports = async function handler(req, res) {
 
   // Cannot access VirusTotal (network, timeout, parse error, etc.)
   const msg = lastError?.message || 'Unknown error';
+  logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: 'error' }).catch(() => {});
   return res.status(503).json({
     error: { message: `Cannot access VirusTotal: ${msg}` },
     _debug: { keyAttempts },
