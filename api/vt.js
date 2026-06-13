@@ -342,7 +342,7 @@ module.exports = async function handler(req, res) {
         service: 'VirusTotal',
         ioc_type: type,
         outcome: status === 200 ? 'ok' : 'error',
-        vt_key: keyPrefix,
+        api_key: keyPrefix,
       }).catch(() => {});
       return res.status(status).json(data);
     } catch (err) {

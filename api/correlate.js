@@ -19,6 +19,12 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Short, non-secret prefix of whichever API key served a call — for the usage
+// log only (never store/return the full secret).
+function kp(key) {
+  return key ? String(key).slice(0, 8) + '…' : null;
+}
+
 // Substring match against commonly-abused hosting providers (case-insensitive).
 const HIGH_RISK_HOSTERS = [
   'digitalocean', 'ovh', 'vultr', 'choopa', 'linode', 'akamai connected cloud',
@@ -93,6 +99,29 @@ async function vtFromIpCache(ip) {
   return null;
 }
 
+// Reuse a previously-stored correlation for this IP — exactly like vtFromIpCache
+// reuses the VT verdict — so a re-scan of an already-seen IP spends ZERO upstream
+// calls across ALL sources (AbuseIPDB/OTX/Abuse.ch/Enrichment), not just VT.
+// Returns the cached correlate payload, or null when there's no fresh row.
+async function corrFromCache(ip) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const cutoffIso = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: row } = await supabase
+      .from('vt_ip_cache')
+      .select('corr_payload')
+      .eq('ip', ip)
+      .gt('first_scanned_at', cutoffIso)
+      .maybeSingle();
+    const p = row?.corr_payload;
+    if (p && Array.isArray(p.sources) && p.sources.length > 0) return p;
+  } catch {
+    // fall through to live correlation
+  }
+  return null;
+}
+
 async function checkVT(ioc, type) {
   // For IPs, /api/vt already fetched + cached VT — reuse it, no second API call.
   if (type === 'ip') {
@@ -129,7 +158,7 @@ async function checkVT(ioc, type) {
       if (status !== 200)
         return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
-      return buildVtResult(data.data?.attributes?.last_analysis_stats, ioc, type);
+      return { ...buildVtResult(data.data?.attributes?.last_analysis_stats, ioc, type), keyPrefix: kp(key) };
     } catch (e) {
       lastError = e;
     }
@@ -167,6 +196,7 @@ async function checkAbuseIPDB(ip) {
         source: 'AbuseIPDB',
         verdict,
         score,
+        keyPrefix: kp(key),
         weight: 0.20 * getTrustFactor('TRUST_ABUSEIPDB'),
         meta: {
           'Abuse Score': score + '%',
@@ -209,6 +239,7 @@ async function checkAbuseCh(ioc) {
         source: 'Abuse.ch',
         verdict: 'clean',
         score: 0,
+        keyPrefix: kp(apiKey),
         weight: 0.20 * getTrustFactor('TRUST_ABUSECH'),
         meta: { 'URL Count': 0, 'Online URLs': 0, 'First Seen': '—' },
         link: `https://urlhaus.abuse.ch/host/${encodeURIComponent(ioc)}/`,
@@ -222,6 +253,7 @@ async function checkAbuseCh(ioc) {
       source: 'Abuse.ch',
       verdict,
       score: verdict === 'malicious' ? 80 : verdict === 'suspicious' ? 40 : 0,
+      keyPrefix: kp(apiKey),
       weight: 0.20 * getTrustFactor('TRUST_ABUSECH'),
       meta: {
         'URL Count': urlCount || 0,
@@ -264,6 +296,7 @@ async function checkOTX(ioc, type) {
       source: 'AlienVault OTX',
       verdict,
       score: Math.min(pulseCount * 10 + (recentPulse ? 10 : 0) + (families.length > 0 ? 10 : 0), 100),
+      keyPrefix: kp(apiKey),
       weight: 0.15 * getTrustFactor('TRUST_OTX'),
       meta: {
         'Pulse Count': pulseCount,
@@ -333,6 +366,7 @@ async function checkURLScan(domain) {
       source: 'URLScan.io',
       verdict,
       score: Math.min(100, overallScore),
+      keyPrefix: kp(apiKey),
       weight: 0.20 * getTrustFactor('TRUST_URLSCAN'),
       meta: {
         Title: (result.page?.title || '—').slice(0, 60),
@@ -425,6 +459,8 @@ async function checkEnrichment(ioc, type) {
   return {
     source: 'Enrichment',
     meta,
+    // RDAP is keyless; the only key Enrichment can use is the optional ipinfo token.
+    keyPrefix: meta.GeoSource === 'ipinfo.io' ? kp(process.env.IPINFO_TOKEN) : null,
     link: type === 'ip' ? `https://rdap.org/ip/${ioc}` : `https://rdap.org/domain/${ioc}`,
   };
 }
@@ -650,6 +686,15 @@ module.exports = async function handler(req, res) {
   const type = detectType(ioc);
   if (!type) return res.status(400).json({ error: `Cannot detect IOC type for: "${ioc}"` });
 
+  // Re-scan short-circuit: an IP already correlated within the cache TTL is served
+  // straight from its stored correlation — no source is re-called, so nothing is
+  // logged to api_usage and no duplicate alert fires. This makes a repeat IP scan
+  // cost ZERO upstream calls across ALL sources, exactly like the VT cache reuse.
+  if (type === 'ip') {
+    const cachedCorr = await corrFromCache(ioc);
+    if (cachedCorr) return res.status(200).json(cachedCorr);
+  }
+
   // Build check list based on IOC type.
   // MalwareBazaar is keyless — always runs for hash types.
   const checks = [
@@ -671,8 +716,16 @@ module.exports = async function handler(req, res) {
   const results = await Promise.all(checks);
 
   // Only send sources that actually ran — skip sources with missing API keys
-  // or unsupported IOC types so the client never sees "SKIPPED" rows.
-  const visibleResults = results.filter(r => !r.skipped);
+  // or unsupported IOC types so the client never sees "SKIPPED" rows. Strip the
+  // internal `keyPrefix` (used only for usage logging below) so no key fragment
+  // is ever returned to the client or persisted into corr_payload.
+  const visibleResults = results
+    .filter(r => !r.skipped)
+    .map(r => {
+      const clone = { ...r };
+      delete clone.keyPrefix;
+      return clone;
+    });
 
   const riskFactors = collectRiskFactors(results);
   const { baseline, floor, bonus, confidence } = calcConfidenceWithFloors(results, riskFactors);
@@ -697,6 +750,7 @@ module.exports = async function handler(req, res) {
         service: r.source,
         ioc_type: type,
         outcome: r.error ? (/rate limit|429|quota/i.test(r.error) ? 'rate_limited' : 'error') : 'ok',
+        api_key: r.keyPrefix || null,
       }))
   ).catch(() => {});
 

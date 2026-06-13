@@ -49,11 +49,12 @@ module.exports = async function handler(req, res) {
   const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?${params}`;
 
   const headers = { Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' };
+  const nvdKeyPrefix = process.env.NVD_API_KEY ? process.env.NVD_API_KEY.slice(0, 8) + '…' : null;
   if (process.env.NVD_API_KEY) headers.apiKey = process.env.NVD_API_KEY;
 
   try {
     const { status, data } = await httpGet(url, headers, { timeout: 12000 });
-    logApiUsage(req, { service: 'NVD', outcome: status === 200 || status === 404 ? 'ok' : 'error' }).catch(() => {});
+    logApiUsage(req, { service: 'NVD', outcome: status === 200 || status === 404 ? 'ok' : 'error', api_key: nvdKeyPrefix }).catch(() => {});
     if (status === 404) return res.status(200).json({ ok: true, query: id || q, total: 0, results: [] });
     if (status !== 200) return res.status(502).json({ error: `NVD upstream error (HTTP ${status}).` });
 
@@ -73,7 +74,7 @@ module.exports = async function handler(req, res) {
     });
     return res.status(200).json({ ok: true, query: id || q, total: data.totalResults ?? results.length, results });
   } catch (e) {
-    logApiUsage(req, { service: 'NVD', outcome: 'error' }).catch(() => {});
+    logApiUsage(req, { service: 'NVD', outcome: 'error', api_key: nvdKeyPrefix }).catch(() => {});
     return res.status(502).json({ error: `Cannot reach NVD: ${e.message}` });
   }
 };
