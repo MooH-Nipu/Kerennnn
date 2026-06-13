@@ -13,6 +13,17 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.13-1',
+    title: "What's new",
+    changes: [
+      '🎯 New tab: MITRE ATT&CK Lookup — search techniques by ID (T1059) or keyword for tactics, detection guidance & platforms.',
+      '🛡️ New tab: CVE Lookup — search a CVE ID or keyword for CVSS score, severity, vector & references (NVD).',
+      '🔭 Passive DNS panel on IP & domain scan cards — pivot to related hosts and subdomains.',
+      '📜 Certificate History (crt.sh) panel on domain scan cards — surfaces subdomains & infrastructure history.',
+      '🚨 Optional Slack/Teams/Discord alert when a scan comes back MALICIOUS.',
+    ],
+  },
+  {
     version: '2026.06.11-2',
     title: "What's new",
     changes: [

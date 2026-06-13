@@ -4,6 +4,8 @@ import { calcVerdict, confToVerdict, countryFlag, hashLabel } from '../../lib/io
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
 import { CorrelationPanel } from './CorrelationPanel';
+import { PassiveDnsPanel } from './PassiveDnsPanel';
+import { CertHistoryPanel } from './CertHistoryPanel';
 import { CopyButton } from '../shared/CopyButton';
 
 interface Props {
@@ -145,6 +147,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
         { label: 'Reputation', value: String(rep),               color: repColor },
       ]} />
       <a className="vt-open-link" href={`https://www.virustotal.com/gui/ip-address/${item.ioc}`} target="_blank" rel="noopener">↗ Open in VirusTotal</a>
+      <PassiveDnsPanel ioc={item.ioc} type="ip" />
     </>
   );
 
@@ -282,6 +285,8 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
         { label: 'Reputation', value: String(rep), color: repColor },
       ]} />
       <a className="vt-open-link" href={`https://www.virustotal.com/gui/domain/${item.ioc}`} target="_blank" rel="noopener">↗ Open in VirusTotal</a>
+      <PassiveDnsPanel ioc={item.ioc} type="domain" />
+      <CertHistoryPanel domain={item.ioc} />
     </>
   );
 
