@@ -1,6 +1,7 @@
 'use strict';
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
+const { logApiUsage } = require('./_usage');
 
 const CVE_ID_RE = /^CVE-\d{4}-\d{4,}$/i;
 
@@ -52,6 +53,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const { status, data } = await httpGet(url, headers, { timeout: 12000 });
+    logApiUsage(req, { service: 'NVD', outcome: status === 200 || status === 404 ? 'ok' : 'error' }).catch(() => {});
     if (status === 404) return res.status(200).json({ ok: true, query: id || q, total: 0, results: [] });
     if (status !== 200) return res.status(502).json({ error: `NVD upstream error (HTTP ${status}).` });
 
@@ -71,6 +73,7 @@ module.exports = async function handler(req, res) {
     });
     return res.status(200).json({ ok: true, query: id || q, total: data.totalResults ?? results.length, results });
   } catch (e) {
+    logApiUsage(req, { service: 'NVD', outcome: 'error' }).catch(() => {});
     return res.status(502).json({ error: `Cannot reach NVD: ${e.message}` });
   }
 };

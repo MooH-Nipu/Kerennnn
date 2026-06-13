@@ -2,6 +2,7 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGetText } = require('./_http');
 const { requireAuth } = require('./_auth');
+const { logApiUsage } = require('./_usage');
 
 // ── Passive DNS via HackerTarget (free, no key; ~50 queries/day per source IP) ──
 // domain → hostsearch (returns "subdomain,ip" CSV lines)
@@ -28,6 +29,7 @@ module.exports = async function handler(req, res) {
       { timeout: 10000 }
     );
     const body = String(text || '').trim();
+    logApiUsage(req, { service: 'Passive DNS', ioc_type: type, outcome: status === 200 ? 'ok' : 'error' }).catch(() => {});
     if (status !== 200)
       return res.status(502).json({ error: `Passive DNS upstream error (HTTP ${status}).` });
 
@@ -47,6 +49,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ ok: true, ioc, type, records: records.slice(0, 200) });
   } catch (e) {
+    logApiUsage(req, { service: 'Passive DNS', ioc_type: type, outcome: 'error' }).catch(() => {});
     return res.status(502).json({ error: `Cannot reach Passive DNS provider: ${e.message}` });
   }
 };
