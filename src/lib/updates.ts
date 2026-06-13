@@ -13,6 +13,16 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.14-1',
+    title: "What's new",
+    changes: [
+      '⚡ Re-scanning an already-seen IP no longer re-calls the other threat-intel sources — it reuses the saved correlation just like VirusTotal, so repeat scans cost zero extra API calls.',
+      '📊 API Usage tab refined: calls per user and outcomes per user (all sources combined), VirusTotal usage over time, and the recent-calls list trimmed to the latest 10.',
+      '🔑 The usage "key" column now shows whichever source\'s API key served each call, not just VirusTotal.',
+      '✨ Tidier, right-sized buttons on the API Usage, CVE Lookup and ATT&CK tabs.',
+    ],
+  },
+  {
     version: '2026.06.13-2',
     title: "What's new",
     changes: [

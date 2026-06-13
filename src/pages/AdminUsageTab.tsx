@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   ResponsiveContainer,
   BarChart, Bar,
-  PieChart, Pie, Cell,
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
@@ -11,8 +10,6 @@ import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
 import type { ApiUsageResponse } from '../types/api';
 
-// Chart palette — pulled from the app theme (styles.css :root).
-const PALETTE = ['#1d6ae5', '#0fba81', '#a78bfa', '#38bdf8', '#fb923c', '#f5a623', '#e5484d', '#2f7ef7', '#7eb3ff'];
 const OUTCOME_COLORS: Record<string, string> = {
   ok: '#0fba81',
   rate_limited: '#f5a623',
@@ -36,10 +33,6 @@ const TOOLTIP_STYLE = {
 };
 const AXIS_STYLE = { fill: '#5a7aa8', fontSize: 11 };
 
-function colorFor(i: number) {
-  return PALETTE[i % PALETTE.length];
-}
-
 function outcomeLabel(o: string) {
   if (o === 'rate_limited') return 'Rate-limited';
   if (o === 'error') return 'Error';
@@ -55,6 +48,15 @@ function ChartCard({ title, hint, children }: { title: string; hint?: string; ch
         {hint && <span className="usage-chart-card__hint">{hint}</span>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function StatCard({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div className="usage-stat" style={{ borderTopColor: accent }}>
+      <span className="usage-stat__value">{value.toLocaleString()}</span>
+      <span className="usage-stat__label">{label}</span>
     </div>
   );
 }
@@ -84,6 +86,9 @@ export function AdminUsageTab() {
       )
     : {};
 
+  // Height grows with the number of users so horizontal bars stay readable.
+  const perUserHeight = data ? Math.max(200, data.byUser.length * 34 + 48) : 200;
+
   return (
     <div className="tab-content formatter-tab usage-tab">
       <div className="section-header">
@@ -92,11 +97,12 @@ export function AdminUsageTab() {
       </div>
 
       <div className="usage-toolbar">
-        <div className="usage-range">
+        <div className="usage-range" role="group" aria-label="Time range">
           {RANGES.map(r => (
             <button
               key={r.days}
-              className={`btn btn-sm ${days === r.days ? 'btn-primary' : 'btn-ghost'}`}
+              type="button"
+              className={`usage-range__btn ${days === r.days ? 'usage-range__btn--active' : ''}`}
               onClick={() => setDays(r.days)}
               disabled={loading || refreshing}
             >
@@ -105,11 +111,14 @@ export function AdminUsageTab() {
           ))}
         </div>
         <button
-          className="btn btn-ghost btn-sm"
+          type="button"
+          className="usage-refresh"
           onClick={() => load(days, true)}
           disabled={loading || refreshing}
+          title="Refresh"
         >
-          {refreshing ? 'Refreshing…' : '↻ Refresh'}
+          <span className={`usage-refresh__icon ${refreshing ? 'is-spinning' : ''}`} aria-hidden="true">↻</span>
+          {refreshing ? 'Refreshing' : 'Refresh'}
         </button>
       </div>
 
@@ -138,117 +147,60 @@ export function AdminUsageTab() {
             <div className="usage-empty">No API usage recorded in the last {data.rangeDays} day(s).</div>
           ) : (
             <div className="usage-grid">
-              <ChartCard title="Calls per user, by service" hint="Stacked by upstream service">
-                <ResponsiveContainer width="100%" height={Math.max(220, data.perUserService.length * 38 + 40)}>
-                  <BarChart
-                    data={data.perUserService}
-                    layout="vertical"
-                    margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
-                  >
+              <ChartCard title="Calls per user" hint="All threat-intel sources combined">
+                <ResponsiveContainer width="100%" height={perUserHeight}>
+                  <BarChart data={data.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" horizontal={false} />
                     <XAxis type="number" tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="#1e304d" width={90} />
+                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="#1e304d" width={96} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#5a7aa8' }} />
-                    {data.services.map((svc, i) => (
-                      <Bar key={svc} dataKey={svc} stackId="svc" fill={colorFor(i)} radius={[0, 0, 0, 0]} />
-                    ))}
+                    <Bar dataKey="total" name="Total calls" fill="#1d6ae5" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Outcomes" hint="OK vs rate-limited vs error">
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={data.byOutcome}
-                      dataKey="total"
-                      nameKey="outcome"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      label={({ name }) => outcomeLabel(String(name ?? ''))}
-                    >
-                      {data.byOutcome.map(o => (
-                        <Cell key={o.outcome} fill={OUTCOME_COLORS[o.outcome] || '#5a7aa8'} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [value as number, outcomeLabel(String(name))]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-              <ChartCard title="Calls by service" hint="Total per upstream API">
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={data.byService} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                    <XAxis dataKey="service" tick={AXIS_STYLE} stroke="#1e304d" interval={0} angle={-20} textAnchor="end" height={56} />
-                    <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} />
-                    <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                      {data.byService.map((s, i) => <Cell key={s.service} fill={colorFor(i)} />)}
-                    </Bar>
+              <ChartCard title="Outcomes per user" hint="OK vs rate-limited vs error">
+                <ResponsiveContainer width="100%" height={perUserHeight}>
+                  <BarChart data={data.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" horizontal={false} />
+                    <XAxis type="number" tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
+                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="#1e304d" width={96} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} formatter={(v, n) => [v as number, outcomeLabel(String(n))]} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: '#5a7aa8' }} formatter={(v) => outcomeLabel(String(v))} />
+                    <Bar dataKey="ok" stackId="o" fill={OUTCOME_COLORS.ok} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="rate_limited" stackId="o" fill={OUTCOME_COLORS.rate_limited} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="error" stackId="o" fill={OUTCOME_COLORS.error} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="VirusTotal key usage" hint="Calls per rotated VT API key">
-                {data.byVtKey.length === 0 ? (
-                  <div className="usage-empty usage-empty--sm">No VirusTotal key usage in this window.</div>
+              <ChartCard title="VirusTotal usage over time" hint="Total VT calls per day in this range">
+                {data.vtByDay.length === 0 ? (
+                  <div className="usage-empty usage-empty--sm">No VirusTotal calls in this window.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={data.byVtKey} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={data.vtByDay} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
+                      <defs>
+                        <linearGradient id="vtArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#1d6ae5" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#1d6ae5" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                      <XAxis dataKey="vt_key" tick={AXIS_STYLE} stroke="#1e304d" interval={0} />
+                      <XAxis dataKey="day" tick={AXIS_STYLE} stroke="#1e304d" />
                       <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} />
-                      <Bar dataKey="total" radius={[4, 4, 0, 0]} fill="#38bdf8" />
-                    </BarChart>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2a5298' }} formatter={(v) => [v as number, 'VT calls']} />
+                      <Area type="monotone" dataKey="total" name="VT calls" stroke="#1d6ae5" strokeWidth={2} fill="url(#vtArea)" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 )}
               </ChartCard>
-
-              <ChartCard title="Calls over time" hint="Daily volume">
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={data.byDay} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-                    <defs>
-                      <linearGradient id="usageArea" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1d6ae5" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#1d6ae5" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                    <XAxis dataKey="day" tick={AXIS_STYLE} stroke="#1e304d" />
-                    <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2a5298' }} />
-                    <Area type="monotone" dataKey="total" stroke="#1d6ae5" strokeWidth={2} fill="url(#usageArea)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartCard>
-
-              {data.byIocType.length > 0 && (
-                <ChartCard title="Calls by IOC type" hint="ip / domain / hash / etc.">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={data.byIocType} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                      <XAxis dataKey="ioc_type" tick={AXIS_STYLE} stroke="#1e304d" interval={0} />
-                      <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} />
-                      <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                        {data.byIocType.map((s, i) => <Cell key={s.ioc_type} fill={colorFor(i + 2)} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-              )}
             </div>
           )}
 
           {data.recent.length > 0 && (
             <div className="usage-recent">
-              <h3>Recent calls</h3>
+              <h3>Recent calls <span className="usage-recent__note">(last {data.recent.length})</span></h3>
               <div className="usage-recent__scroll">
                 <table className="usage-table">
                   <thead>
@@ -258,7 +210,7 @@ export function AdminUsageTab() {
                       <th>Service</th>
                       <th>IOC type</th>
                       <th>Outcome</th>
-                      <th>VT key</th>
+                      <th>Key</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -273,7 +225,7 @@ export function AdminUsageTab() {
                             {outcomeLabel(r.outcome)}
                           </span>
                         </td>
-                        <td className="usage-table__key">{r.vt_key || '—'}</td>
+                        <td className="usage-table__key">{r.api_key || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -283,15 +235,6 @@ export function AdminUsageTab() {
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function StatCard({ label, value, accent }: { label: string; value: number; accent: string }) {
-  return (
-    <div className="usage-stat" style={{ borderTopColor: accent }}>
-      <span className="usage-stat__value">{value.toLocaleString()}</span>
-      <span className="usage-stat__label">{label}</span>
     </div>
   );
 }

@@ -204,20 +204,12 @@ export interface UsageByUser {
   error: number;
 }
 
-// Per-user, per-service matrix row for the stacked bar chart. Service columns
-// are dynamic (one numeric key per service name in `services`).
-export type UsagePerUserService = {
-  username: string;
-  total: number;
-} & Record<string, string | number>;
-
 export interface UsageRecentRow {
-  user_id: string | null;
   username: string | null;
   service: string;
   ioc_type: string | null;
   outcome: string;
-  vt_key: string | null;
+  api_key: string | null;
   created_at: string;
 }
 
@@ -226,13 +218,8 @@ export interface ApiUsageResponse {
   rangeDays: number;
   total: number;
   capped: boolean;
-  services: string[];
   byUser: UsageByUser[];
-  perUserService: UsagePerUserService[];
-  byService: Array<{ service: string; total: number }>;
   byOutcome: Array<{ outcome: string; total: number }>;
-  byIocType: Array<{ ioc_type: string; total: number }>;
-  byVtKey: Array<{ vt_key: string; total: number }>;
-  byDay: Array<{ day: string; total: number }>;
+  vtByDay: Array<{ day: string; total: number }>;
   recent: UsageRecentRow[];
 }
