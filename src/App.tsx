@@ -21,6 +21,8 @@ import { AdminLogsTab } from './pages/AdminLogsTab';
 import { IrManagerTab } from './pages/IrManagerTab';
 import { CveTab } from './pages/CveTab';
 import { AttackTab } from './pages/AttackTab';
+import { SettingsTab } from './pages/SettingsTab';
+import { AdminUsageTab } from './pages/AdminUsageTab';
 import { ResultPage } from './pages/ResultPage';
 
 function AppInner() {
@@ -96,6 +98,8 @@ function AppInner() {
       case 'ir-manager':  return <IrManagerTab />;
       case 'cve':         return <CveTab />;
       case 'attack':      return <AttackTab />;
+      case 'settings':    return <SettingsTab />;
+      case 'admin-usage': return <AdminUsageTab />;
       default:            return <FormatterTab />;
     }
   }

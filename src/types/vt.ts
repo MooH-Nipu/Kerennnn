@@ -68,7 +68,7 @@ export interface CorrelationSource {
   source: string;
   verdict?: string;
   detail?: string;
-  weight?: number;        // absent on context-only sources (Enrichment, Shodan)
+  weight?: number;        // absent on context-only sources (e.g. Enrichment)
   score?: number;
   meta?: Record<string, string | number>;
   skipped?: boolean;

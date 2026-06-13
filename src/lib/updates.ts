@@ -13,6 +13,15 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.06.13-2',
+    title: "What's new",
+    changes: [
+      '⚙️ New Settings tab — set your own malicious-IOC alert webhook (Slack/Teams/Discord) and confidence threshold. Each user gets their own alerts.',
+      '📊 New admin tab: API Usage — visualize threat-intel API consumption per user, by service, outcome (OK / rate-limited / error), VT key & over time.',
+      '🧹 Retired GreyNoise, Shodan, Pulsedive & MalwareBazaar from the scan engine — confidence scoring now relies on the more reliable core sources.',
+    ],
+  },
+  {
     version: '2026.06.13-1',
     title: "What's new",
     changes: [

@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -60,6 +60,7 @@ export const api = {
         body: JSON.stringify({ id }),
       }),
     logs: () => apiFetch<LogsResponse>('/api/admin/logs'),
+    usage: (days = 7) => apiFetch<ApiUsageResponse>(`/api/admin/usage?days=${days}`),
   },
 
   scan: {
@@ -115,6 +116,16 @@ export const api = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tab_order, hidden_tabs }),
+      }),
+  },
+
+  userWebhook: {
+    get: () => apiFetch<UserWebhookResponse>('/api/user-webhook'),
+    save: (webhook_url: string, enabled: boolean, min_confidence: number) =>
+      apiFetch<UserWebhookResponse>('/api/user-webhook', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhook_url, enabled, min_confidence }),
       }),
   },
 

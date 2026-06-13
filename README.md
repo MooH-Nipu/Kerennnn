@@ -36,26 +36,17 @@ Set the environment variables below, then use **Refresh dari DB** in the UI.
 | `ABUSEIPDB_API_KEY` | `api/correlate.js` | AbuseIPDB (IP only) |
 | `ABUSECH_API_KEY` or `URLHAUS_API_KEY` | `api/correlate.js` | Abuse.ch / URLhaus (IP + domain) |
 | `OTX_API_KEY` | `api/correlate.js` | AlienVault OTX (all types) |
-| `GREYNOISE_API_KEY` | `api/correlate.js` | GreyNoise — noise/scanner classification (IP only). Free community tier available |
 | `URLSCAN_API_KEY` | `api/correlate.js` | URLScan.io — live browser scan + screenshot (domain only). Adds ~10–15s latency for domain IOCs |
-| `SHODAN_API_KEY` | `api/correlate.js` | Shodan — open ports + known CVEs (IP only, context source). Free tier: 100 queries/month |
-| `PULSEDIVE_API_KEY` | `api/correlate.js` | Pulsedive — risk-scored IOC enrichment (all types). Free tier available |
-| `CRIMINAL_IP_API_KEY` | `api/correlate.js` | Criminal IP — APAC-focused threat intelligence (IP + domain). Free tier available |
-| `IPINFO_TOKEN` | `api/correlate.js` | Optional. GeoIP enrichment via ipinfo.io. If unset, falls back to keyless `ipwho.is`. RDAP uses keyless `rdap.org`. MalwareBazaar and ThreatFox are also keyless |
+| `IPINFO_TOKEN` | `api/correlate.js` | Optional. GeoIP enrichment via ipinfo.io. If unset, falls back to keyless `ipwho.is`. RDAP uses keyless `rdap.org` |
 | `TRUST_VT` | `api/correlate.js` | Optional weight multiplier for VirusTotal (base 0.30) |
 | `TRUST_ABUSEIPDB` | `api/correlate.js` | Optional weight multiplier for AbuseIPDB (base 0.20) |
 | `TRUST_ABUSECH` | `api/correlate.js` | Optional weight multiplier for Abuse.ch / URLhaus (base 0.20) |
 | `TRUST_OTX` | `api/correlate.js` | Optional weight multiplier for AlienVault OTX (base 0.15) |
-| `TRUST_GREYNOISE` | `api/correlate.js` | Optional weight multiplier for GreyNoise (base 0.25) |
 | `TRUST_URLSCAN` | `api/correlate.js` | Optional weight multiplier for URLScan.io (base 0.20) |
-| `TRUST_MALWAREBAZAAR` | `api/correlate.js` | Optional weight multiplier for MalwareBazaar (base 0.25) |
-| `TRUST_THREATFOX` | `api/correlate.js` | Optional weight multiplier for ThreatFox (base 0.15) |
-| `TRUST_PULSEDIVE` | `api/correlate.js` | Optional weight multiplier for Pulsedive (base 0.10) |
-| `TRUST_CRIMINAL_IP` | `api/correlate.js` | Optional weight multiplier for Criminal IP (base 0.12) |
 
 **Correlation source weights** (base values, higher = more trusted):
-VirusTotal 0.30 · GreyNoise 0.25 · MalwareBazaar 0.25 · AbuseIPDB 0.20 · Abuse.ch 0.20 · URLScan.io 0.20 · OTX 0.15 · ThreatFox 0.15 · Criminal IP 0.12 · Pulsedive 0.10.
-Shodan and Enrichment (RDAP/GeoIP) are **context-only** — no verdict/weight, contribute only via risk-factor bonuses.
+VirusTotal 0.30 · AbuseIPDB 0.20 · Abuse.ch 0.20 · URLScan.io 0.20 · OTX 0.15.
+Enrichment (RDAP/GeoIP) is **context-only** — no verdict/weight, contributes only via risk-factor bonuses.
 Sources with no API key configured are silently excluded from results (no "SKIPPED" rows shown).
 
 The front end stores the VirusTotal key in **localStorage** for browser calls; server routes use env keys for `/api/vt` and correlation.

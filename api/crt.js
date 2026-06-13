@@ -2,6 +2,7 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
+const { logApiUsage } = require('./_usage');
 
 // ── Certificate Transparency history via crt.sh (free, no key) ──
 // Reveals every SSL/TLS cert ever issued for a domain → subdomains + infra history.
@@ -21,6 +22,7 @@ module.exports = async function handler(req, res) {
       { Accept: 'application/json', 'User-Agent': 'Charlie-kerennnn/1.0' },
       { timeout: 15000 }
     );
+    logApiUsage(req, { service: 'crt.sh', ioc_type: 'domain', outcome: status === 200 ? 'ok' : 'error' }).catch(() => {});
     if (status !== 200 || !Array.isArray(data))
       return res.status(502).json({ error: `crt.sh upstream error (HTTP ${status}).` });
 
@@ -57,6 +59,7 @@ module.exports = async function handler(req, res) {
       subdomains: subdomains.slice(0, 200),
     });
   } catch (e) {
+    logApiUsage(req, { service: 'crt.sh', ioc_type: 'domain', outcome: 'error' }).catch(() => {});
     return res.status(502).json({ error: `Cannot reach crt.sh: ${e.message}` });
   }
 };
