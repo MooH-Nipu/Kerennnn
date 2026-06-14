@@ -2809,19 +2809,6 @@
   color: var(--accent, #3b82f6);
 }
 
-/* ---------- IoC VT quota indicator ---------- */
-.ioc-vt-quota {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  margin-left: auto;
-  margin-right: 0.75rem;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--border, #1e304d);
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
 /* ---------- IoC Scan progress bar ---------- */
 .ioc-progress-bar {
   height: 4px;

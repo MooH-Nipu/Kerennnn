@@ -63,11 +63,6 @@ export const api = {
     usage: (days = 7) => apiFetch<ApiUsageResponse>(`/api/admin/usage?days=${days}`),
   },
 
-  quota: {
-    /** Current user's daily VT usage for the quota indicator in IoC Scan. */
-    myDaily: () => apiFetch<{ ok: boolean; vtToday: number; vtDailyLimit: number }>('/api/usage/my-daily'),
-  },
-
   scan: {
     vt: (ioc: string) => apiFetch<Record<string, unknown>>(`/api/vt?ioc=${encodeURIComponent(ioc)}`),
     correlate: (ioc: string) =>
