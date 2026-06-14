@@ -3,7 +3,14 @@ import { api } from '../lib/api';
 import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
 
-export function SettingsTab() {
+interface Props {
+  compact?: boolean;
+  sidebar?: boolean;
+  onToggleCompact?: () => void;
+  onToggleSidebar?: () => void;
+}
+
+export function SettingsTab({ compact, sidebar, onToggleCompact, onToggleSidebar }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
@@ -62,7 +69,32 @@ export function SettingsTab() {
     <div className="tab-content formatter-tab settings-tab">
       <div className="section-header">
         <h2>Settings</h2>
-        <span className="form-hint">Your personal alert configuration</span>
+        <span className="form-hint">Layout, alerts & preferences</span>
+      </div>
+
+      {/* Layout preferences */}
+      <div className="settings-card" style={{ marginBottom: '1rem' }}>
+        <div className="settings-card__head">
+          <h3>Layout</h3>
+        </div>
+        <label className="settings-toggle">
+          <input
+            type="checkbox"
+            checked={!!compact}
+            onChange={() => onToggleCompact?.()}
+          />
+          <span className="settings-toggle__label">Compact mode</span>
+          <span className="settings-field__hint">Denser spacing, less padding, grid background fades out.</span>
+        </label>
+        <label className="settings-toggle">
+          <input
+            type="checkbox"
+            checked={!!sidebar}
+            onChange={() => onToggleSidebar?.()}
+          />
+          <span className="settings-toggle__label">Sidebar navigation</span>
+          <span className="settings-field__hint">Move the tab bar to a left sidebar instead of the top.</span>
+        </label>
       </div>
 
       <form onSubmit={save} className="settings-card">

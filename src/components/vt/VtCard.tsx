@@ -12,10 +12,13 @@ interface Props {
   item: ScanItem;
   selected?: boolean;
   onToggleSelect?: () => void;
+  forceExpanded?: boolean | null;
 }
 
-export function VtCard({ item, selected, onToggleSelect }: Props) {
+export function VtCard({ item, selected, onToggleSelect, forceExpanded }: Props) {
   const [collapsed, setCollapsed] = useState(true);
+  // When forceExpanded is set, it overrides the per-card collapsed state.
+  const effectiveCollapsed = forceExpanded !== undefined && forceExpanded !== null ? !forceExpanded : collapsed;
 
   if (item.pending) {
     return (
@@ -29,8 +32,12 @@ export function VtCard({ item, selected, onToggleSelect }: Props) {
   }
 
   const shellProps = {
-    collapsed,
-    onToggle: () => setCollapsed(c => !c),
+    collapsed: effectiveCollapsed,
+    onToggle: () => {
+      // Always update the local collapsed state so per-card toggles
+      // survive after the expand/collapse all button is released.
+      setCollapsed(c => !c);
+    },
     selected,
     onToggleSelect,
   };
@@ -117,8 +124,6 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
           <a
             className="vt-detail-btn"
             href={`/result/${stableId}`}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >
@@ -189,8 +194,6 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
           <a
             className="vt-detail-btn"
             href={`/result/${stableId}`}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >
@@ -258,8 +261,6 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
           <a
             className="vt-detail-btn"
             href={`/result/${stableId}`}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             title={`UUID: ${stableId}`}
           >

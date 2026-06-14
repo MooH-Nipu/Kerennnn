@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { api } from '../lib/api';
 import { fmtWhen, fmtDate } from '../lib/utils';
 import type { RecentIp } from '../types/api';
@@ -21,6 +21,9 @@ export function DashboardTab({ onScanIp }: Props) {
   const [loading, setLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
+  // Quick scan input
+  const [quickInput, setQuickInput] = useState('');
+
   const fetchRecent = useCallback(async () => {
     setLoading(true);
     try {
@@ -36,6 +39,14 @@ export function DashboardTab({ onScanIp }: Props) {
   const malCount   = items.filter(i => i.vt_verdict === 'malicious').length;
   const susCount   = items.filter(i => i.vt_verdict === 'suspicious').length;
   const cleanCount = items.filter(i => i.vt_verdict === 'clean').length;
+  const unknownCount = items.length - malCount - susCount - cleanCount;
+
+  function handleQuickScan(e: FormEvent) {
+    e.preventDefault();
+    if (quickInput.trim()) onScanIp?.(quickInput.trim());
+    else onScanIp?.('');
+    setQuickInput('');
+  }
 
   return (
     <div className="tab-content dashboard-tab">
@@ -54,13 +65,44 @@ export function DashboardTab({ onScanIp }: Props) {
         </button>
       </div>
 
-      {items.length > 0 && (
-        <div className="dash-summary">
-          <div className="dash-pill malicious">{malCount} Malicious</div>
-          <div className="dash-pill suspicious">{susCount} Suspicious</div>
-          <div className="dash-pill clean">{cleanCount} Clean</div>
+      {/* Quick Scan */}
+      <form className="dash-quick-scan" onSubmit={handleQuickScan}>
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Quick scan an IP, domain, or hash…"
+          value={quickInput}
+          onChange={e => setQuickInput(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '0.4rem 1rem' }}>
+          Scan
+        </button>
+      </form>
+
+      {/* Stat cards */}
+      <div className="dash-stats">
+        <div className="dash-stat">
+          <span className="dash-stat__value">{items.length}</span>
+          <span className="dash-stat__label">Total Scanned</span>
         </div>
-      )}
+        <div className="dash-stat dash-stat--mal">
+          <span className="dash-stat__value">{malCount}</span>
+          <span className="dash-stat__label">Malicious</span>
+        </div>
+        <div className="dash-stat dash-stat--sus">
+          <span className="dash-stat__value">{susCount}</span>
+          <span className="dash-stat__label">Suspicious</span>
+        </div>
+        <div className="dash-stat dash-stat--clean">
+          <span className="dash-stat__value">{cleanCount}</span>
+          <span className="dash-stat__label">Clean</span>
+        </div>
+        <div className="dash-stat">
+          <span className="dash-stat__value">{unknownCount}</span>
+          <span className="dash-stat__label">Unknown</span>
+        </div>
+      </div>
 
       <div className="dash-table-wrap">
         <table className="dash-table">
@@ -97,7 +139,14 @@ export function DashboardTab({ onScanIp }: Props) {
             {!loading && items.length === 0 && (
               <tr>
                 <td colSpan={4} className="dash-empty">
-                  No data yet. Scan an IP to see history.
+                  No data yet.{' '}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => onScanIp?.('')}
+                    style={{ marginLeft: '0.5rem', padding: '0.25rem 0.75rem', fontSize: '0.78rem' }}
+                  >
+                    Scan Now
+                  </button>
                 </td>
               </tr>
             )}
