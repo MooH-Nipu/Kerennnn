@@ -5,7 +5,6 @@ import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { CountryFilter } from '../components/vt/CountryFilter';
 import { parseIocList } from '../lib/ioc';
-import { api } from '../lib/api';
 import { CopyButton } from '../components/shared/CopyButton';
 
 interface Props {
@@ -24,13 +23,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   // Expand/collapse all: null = per-card, true = all expanded, false = all collapsed.
   const [expandAll, setExpandAll] = useState<boolean | null>(null);
 
-  // Daily VT quota indicator
-  const [vtQuota, setVtQuota] = useState<{ today: number; limit: number } | null>(null);
-  useEffect(() => {
-    api.quota.myDaily()
-      .then(r => { if (r.ok) setVtQuota({ today: r.vtToday, limit: r.vtDailyLimit }); })
-      .catch(() => {});
-  }, [scanning]); // refresh after each scan completes
+
 
   // Track the input that started the current scan so we can persist it on completion
   const lastScanInputRef = useRef<string>('');
@@ -122,15 +115,6 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     <div className="tab-content ioc-scan-tab">
       <div className="section-header">
         <h2>IoC Scan</h2>
-        {vtQuota && (
-          <span
-            className="ioc-vt-quota"
-            title={`VirusTotal: ${vtQuota.today} / ${vtQuota.limit} calls today`}
-            style={{ color: vtQuota.today > vtQuota.limit * 0.9 ? 'var(--red,#e5484d)' : vtQuota.today > vtQuota.limit * 0.7 ? 'var(--yellow,#f5a623)' : 'var(--text-sec,#6b8cc0)' }}
-          >
-            VT {vtQuota.today}/{vtQuota.limit}
-          </span>
-        )}
         {lineCount > 0 && !scanning && <span className="line-count">{lineCount} IOC</span>}
         {scanning && <span className="line-count">{progress.done}/{progress.total} done</span>}
       </div>
