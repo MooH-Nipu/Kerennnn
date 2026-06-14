@@ -53,7 +53,6 @@ const routes = [
   ['/api/user-prefs',             './api/user-prefs.js'],
   ['/api/user-webhook',           './api/user-webhook.js'],
   ['/api/admin/usage',            './api/admin/usage.js'],
-  ['/api/usage/my-daily',         './api/usage/my-daily.js'],
   ['/api/kibana-combined-report', './api/kibana-combined-report.js'],
   ['/api/admin/users',            './api/admin/users.js'],
   ['/api/admin/logs',             './api/admin/logs.js'],
