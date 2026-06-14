@@ -5,6 +5,7 @@ import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { CountryFilter } from '../components/vt/CountryFilter';
 import { parseIocList } from '../lib/ioc';
+import { api } from '../lib/api';
 import { CopyButton } from '../components/shared/CopyButton';
 
 interface Props {
@@ -20,6 +21,16 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
 
   // Selection state for multi-copy
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Expand/collapse all: null = per-card, true = all expanded, false = all collapsed.
+  const [expandAll, setExpandAll] = useState<boolean | null>(null);
+
+  // Daily VT quota indicator
+  const [vtQuota, setVtQuota] = useState<{ today: number; limit: number } | null>(null);
+  useEffect(() => {
+    api.quota.myDaily()
+      .then(r => { if (r.ok) setVtQuota({ today: r.vtToday, limit: r.vtDailyLimit }); })
+      .catch(() => {});
+  }, [scanning]); // refresh after each scan completes
 
   // Track the input that started the current scan so we can persist it on completion
   const lastScanInputRef = useRef<string>('');
@@ -111,9 +122,27 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     <div className="tab-content ioc-scan-tab">
       <div className="section-header">
         <h2>IoC Scan</h2>
+        {vtQuota && (
+          <span
+            className="ioc-vt-quota"
+            title={`VirusTotal: ${vtQuota.today} / ${vtQuota.limit} calls today`}
+            style={{ color: vtQuota.today > vtQuota.limit * 0.9 ? 'var(--red,#e5484d)' : vtQuota.today > vtQuota.limit * 0.7 ? 'var(--yellow,#f5a623)' : 'var(--text-sec,#6b8cc0)' }}
+          >
+            VT {vtQuota.today}/{vtQuota.limit}
+          </span>
+        )}
         {lineCount > 0 && !scanning && <span className="line-count">{lineCount} IOC</span>}
         {scanning && <span className="line-count">{progress.done}/{progress.total} done</span>}
       </div>
+
+      {scanning && (
+        <div className="ioc-progress-bar">
+          <div
+            className="ioc-progress-bar__fill"
+            style={{ width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%` }}
+          />
+        </div>
+      )}
 
       <div className="ioc-scan-layout">
         {/* ── LEFT: input ─────────────────────────────────────── */}
@@ -169,6 +198,14 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
               <div className="scan-results-header">
                 <span className="scan-results-count">{visibleItems.length} / {items.length} results</span>
                 <div className="scan-results-filters">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setExpandAll(prev => prev === null ? true : prev ? false : null)}
+                    title={expandAll === null ? 'Expand all cards' : expandAll ? 'Collapse all cards' : 'Reset to per-card view'}
+                  >
+                    {expandAll === null ? '↕ All' : expandAll ? '↕ Collapse all' : '↕ Per-card'}
+                  </button>
                   <VtFilterChips filters={filters} onToggle={setFilter} />
                   <CountryFilter countries={availableCountries} filters={countryFilters} onChange={setCountryFilters} />
                 </div>
@@ -207,6 +244,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                     item={item}
                     selected={selected.has(item.id)}
                     onToggleSelect={() => toggleSelect(item.id)}
+                    forceExpanded={expandAll}
                   />
                 ))}
               </div>

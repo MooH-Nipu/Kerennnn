@@ -8,6 +8,7 @@ import { useUiPrefs } from './hooks/useUiPrefs';
 import { useTabPrefs } from './hooks/useTabPrefs';
 import { getRestoredTab, orderedAllowedTabs } from './components/layout/TabNav';
 import { UpdateToast } from './components/shared/UpdateToast';
+import { ShortcutHelp } from './components/shared/ShortcutHelp';
 import type { TabId } from './lib/permissions';
 import { FormatterTab } from './pages/FormatterTab';
 import { JsonTab } from './pages/JsonTab';
@@ -34,6 +35,25 @@ function AppInner() {
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
   // Lazy-mount: track which tabs have been visited so their state survives tab switches.
   const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(() => new Set(['formatter']));
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Keyboard shortcut: ? toggles help overlay
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Don't trigger when focused on an input/textarea
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        setShowShortcuts(s => !s);
+      }
+      if (e.key === 'Escape' && showShortcuts) {
+        setShowShortcuts(false);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showShortcuts]);
 
   // Restore last tab for the user's role after login
   useEffect(() => {
@@ -90,7 +110,7 @@ function AppInner() {
       case 'json':        return <JsonTab />;
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
-      case 'history':     return <HistoryTab onReScan={handleReScan} />;
+      case 'history':     return <HistoryTab onReScan={handleReScan} onGoToScan={() => setActiveTab('ioc-scan')} />;
       case 'pac-filter':  return <PacFilterTab onCountChange={setPacFilterCount} />;
       case 'daily-eod':   return <DailyEodTab />;
       case 'admin-users': return <AdminUsersTab />;
@@ -98,7 +118,7 @@ function AppInner() {
       case 'ir-manager':  return <IrManagerTab />;
       case 'cve':         return <CveTab />;
       case 'attack':      return <AttackTab />;
-      case 'settings':    return <SettingsTab />;
+      case 'settings':    return <SettingsTab compact={compact} sidebar={sidebar} onToggleCompact={toggleCompact} onToggleSidebar={toggleSidebar} />;
       case 'admin-usage': return <AdminUsageTab />;
       default:            return <FormatterTab />;
     }
@@ -132,6 +152,7 @@ function AppInner() {
       </AppShell>
 
       <UpdateToast />
+      {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
     </>
   );
 }

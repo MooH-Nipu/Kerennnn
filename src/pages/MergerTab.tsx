@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { OutputBox } from '../components/shared/OutputBox';
 import { StatusMessage } from '../components/shared/StatusMessage';
 
@@ -26,6 +26,7 @@ export function MergerTab() {
   const [newIps, setNewIps] = useState('');
   const [output, setOutput] = useState('');
   const [status, setStatus] = useState<StatusMsg | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function process() {
     setStatus(null);
@@ -83,6 +84,16 @@ export function MergerTab() {
     const note = arrayKeys.length > 1 ? ` (${arrayKeys.length} keys detected, using "${ipKey}")` : '';
     setStatus({ type: 'success', text: `${added} IPs added. Total: ${combined.length}${note}` });
   }
+
+  // Auto-run on input change (300ms debounce) when both inputs are populated.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (oldQuery.trim() && newIps.trim()) process();
+      else { setOutput(''); setStatus(null); }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [oldQuery, newIps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="tab-content merger-tab">

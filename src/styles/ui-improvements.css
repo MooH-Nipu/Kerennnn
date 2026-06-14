@@ -33,6 +33,11 @@
   padding: 0.75rem;
 }
 
+/* In compact mode the background grid fades out (--bg-grid-opacity → 0). */
+:root[data-compact="true"] {
+  --bg-grid-opacity: 0;
+}
+
 /* ---------- App Header ---------- */
 .app-header {
   display: flex;
@@ -1486,6 +1491,52 @@
   flex-wrap: wrap;
 }
 
+/* Dashboard quick-scan inline form */
+.dash-quick-scan {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+.dash-quick-scan .form-input {
+  font-size: 0.82rem;
+  padding: 0.45rem 0.75rem;
+}
+
+/* Dashboard stat cards */
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.dash-stat {
+  background: var(--bg-card, #0e1829);
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  text-align: center;
+}
+.dash-stat__value {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-pri, #d4e4ff);
+}
+.dash-stat__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-sec, #6b8cc0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 0.15rem;
+}
+.dash-stat--mal .dash-stat__value { color: var(--red, #e5484d); }
+.dash-stat--sus .dash-stat__value { color: var(--yellow, #f5a623); }
+.dash-stat--clean .dash-stat__value { color: var(--green, #0fba81); }
+
 .dash-table-wrap,
 .pac-table-wrap {
   overflow-x: auto;
@@ -2756,6 +2807,118 @@
   background: rgba(59, 130, 246, 0.08);
   border-left-color: var(--accent, #3b82f6);
   color: var(--accent, #3b82f6);
+}
+
+/* ---------- IoC VT quota indicator ---------- */
+.ioc-vt-quota {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: auto;
+  margin-right: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ---------- IoC Scan progress bar ---------- */
+.ioc-progress-bar {
+  height: 4px;
+  background: var(--border, #1e304d);
+  border-radius: 2px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.ioc-progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #1d6ae5), var(--accent-hl, #2f7ef7));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ---------- Shortcut help modal ---------- */
+.shortcut-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1.5rem;
+}
+.shortcut-modal {
+  background: var(--bg-card, #0e1829);
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+.shortcut-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.shortcut-modal__head h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-pri, #d4e4ff);
+  margin: 0;
+}
+.shortcut-modal__close {
+  background: none;
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 6px;
+  color: var(--text-sec, #6b8cc0);
+  cursor: pointer;
+  font-size: 1.1rem;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.shortcut-modal__close:hover {
+  color: var(--text-pri, #d4e4ff);
+  border-color: var(--accent, #1d6ae5);
+}
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.shortcut-table td {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(30, 48, 77, 0.4);
+  color: var(--text-pri, #d4e4ff);
+}
+.shortcut-table td:first-child {
+  white-space: nowrap;
+  padding-right: 1.25rem;
+  width: 1%;
+}
+.shortcut-table td:last-child {
+  color: var(--text-sec, #6b8cc0);
+}
+.shortcut-table kbd {
+  background: var(--bg-input, #060b14);
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 4px;
+  padding: 0.12em 0.4em;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-code, #7eb3ff);
+}
+.shortcut-modal__hint {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-sec, #6b8cc0);
+  line-height: 1.4;
 }
 
 /* ============================================================

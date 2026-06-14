@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Role } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
 import { AppHeader } from './AppHeader';
@@ -24,6 +25,11 @@ export function AppShell({
   compact, sidebar, onToggleCompact, onToggleSidebar, onQuickScan,
   pacFilterCount, tabOrder, onReorderTabs, children,
 }: Props) {
+  // Toggle the background grid via a CSS custom property on :root.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-compact', compact ? 'true' : 'false');
+  }, [compact]);
+
   return (
     <div className={`app-shell ${sidebar ? 'app-shell--sidebar' : 'app-shell--topnav'} ${compact ? 'app-shell--compact' : ''}`}>
       <AppHeader

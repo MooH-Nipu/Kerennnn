@@ -6,9 +6,10 @@ import { fmtWhen } from '../lib/utils';
 
 interface Props {
   onReScan?: (ioc: string) => void;
+  onGoToScan?: () => void;
 }
 
-export function HistoryTab({ onReScan }: Props) {
+export function HistoryTab({ onReScan, onGoToScan }: Props) {
   const { entries, search, setSearch, removeEntry, clearAll } = useScanHistory();
   const [selected, setSelected] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -64,7 +65,17 @@ export function HistoryTab({ onReScan }: Props) {
           {entries.length === 0 && (
             <div className="history-empty">
               No history yet.{' '}
-              <span className="text-muted">Run a scan in the IoC Scan tab.</span>
+              {onGoToScan ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={onGoToScan}
+                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.78rem' }}
+                >
+                  Scan IOCs
+                </button>
+              ) : (
+                <span className="text-muted">Run a scan in the IoC Scan tab.</span>
+              )}
             </div>
           )}
 
