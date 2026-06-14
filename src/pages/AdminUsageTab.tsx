@@ -16,6 +16,20 @@ const OUTCOME_COLORS: Record<string, string> = {
   error: '#e5484d',
 };
 
+// Per-service line colors for the TI usage-over-time chart. Services not
+// listed here get assigned from the FALLBACK_PALETTE in order.
+const SERVICE_COLORS: Record<string, string> = {
+  'VirusTotal':      '#1d6ae5',
+  'AbuseIPDB':       '#e5484d',
+  'Abuse.ch':        '#f5a623',
+  'AlienVault OTX':  '#a78bfa',
+  'URLScan.io':      '#0fba81',
+  'Enrichment':      '#38bdf8',
+  'Passive DNS':     '#fb923c',
+  'crt.sh':          '#a3e635',
+};
+const FALLBACK_PALETTE = ['#1d6ae5', '#e5484d', '#f5a623', '#a78bfa', '#0fba81', '#38bdf8', '#fb923c', '#a3e635', '#c084fc', '#f472b6'];
+
 const RANGES = [
   { days: 1, label: '24h' },
   { days: 7, label: '7d' },
@@ -174,25 +188,56 @@ export function AdminUsageTab() {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="VirusTotal usage over time" hint="Total VT calls per day in this range">
-                {data.vtByDay.length === 0 ? (
-                  <div className="usage-empty usage-empty--sm">No VirusTotal calls in this window.</div>
+              <ChartCard title="TI usage over time" hint="Calls per day by threat-intel source">
+                {data.byDay.length === 0 ? (
+                  <div className="usage-empty usage-empty--sm">No threat-intel calls in this window.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <AreaChart data={data.vtByDay} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
-                      <defs>
-                        <linearGradient id="vtArea" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#1d6ae5" stopOpacity={0.5} />
-                          <stop offset="100%" stopColor="#1d6ae5" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                      <XAxis dataKey="day" tick={AXIS_STYLE} stroke="#1e304d" />
-                      <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2a5298' }} formatter={(v) => [v as number, 'VT calls']} />
-                      <Area type="monotone" dataKey="total" name="VT calls" stroke="#1d6ae5" strokeWidth={2} fill="url(#vtArea)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  (() => {
+                    // Collect every service key from all days (keys other than "day").
+                    const svcSet = new Set<string>();
+                    for (const d of data.byDay) {
+                      for (const k of Object.keys(d)) {
+                        if (k !== 'day') svcSet.add(k);
+                      }
+                    }
+                    const services = [...svcSet].sort();
+                    if (services.length === 0) {
+                      return <div className="usage-empty usage-empty--sm">No threat-intel calls in this window.</div>;
+                    }
+                    function svcColor(svc: string, i: number) {
+                      return SERVICE_COLORS[svc] || FALLBACK_PALETTE[i % FALLBACK_PALETTE.length];
+                    }
+                    return (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart data={data.byDay} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
+                          <defs>
+                            {services.map(svc => (
+                              <linearGradient key={svc} id={`byDay-grad-${svc.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={svcColor(svc, 0)} stopOpacity={0.45} />
+                                <stop offset="100%" stopColor={svcColor(svc, 0)} stopOpacity={0} />
+                              </linearGradient>
+                            ))}
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
+                          <XAxis dataKey="day" tick={AXIS_STYLE} stroke="#1e304d" />
+                          <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
+                          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2a5298' }} />
+                          <Legend wrapperStyle={{ fontSize: 11, color: '#5a7aa8' }} />
+                          {services.map((svc, i) => (
+                            <Area
+                              key={svc}
+                              type="monotone"
+                              dataKey={svc}
+                              name={svc}
+                              stroke={svcColor(svc, i)}
+                              strokeWidth={2}
+                              fill={`url(#byDay-grad-${svc.replace(/\s+/g, '-')})`}
+                            />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    );
+                  })()
                 )}
               </ChartCard>
             </div>
