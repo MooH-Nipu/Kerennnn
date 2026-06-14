@@ -37,8 +37,13 @@ module.exports = async function handler(req, res) {
 
     const rows = data ?? [];
 
+    // Services that are separate analyst tools (not IoC-scan TI calls) — excluded
+    // from per-user counts and the TI usage-over-time chart.
+    const NON_TI_SERVICES = new Set(['ATT&CK', 'NVD']);
+
     const byOutcomeMap = new Map(); // outcome → count (for the summary stat cards)
-    const vtByDayMap = new Map();   // YYYY-MM-DD → VirusTotal call count
+    // day → service → count  (per-service per-day for the TI usage over time chart)
+    const byDayMap = new Map();
     // username → { total, ok, rate_limited, error }
     const userAgg = new Map();
 
@@ -46,10 +51,16 @@ module.exports = async function handler(req, res) {
       const outcome = r.outcome || 'ok';
       byOutcomeMap.set(outcome, (byOutcomeMap.get(outcome) || 0) + 1);
 
-      if (r.service === 'VirusTotal') {
+      // Per-service per-day counts for ALL services except ATT&CK/NVD.
+      if (!NON_TI_SERVICES.has(r.service)) {
         const day = String(r.created_at).slice(0, 10);
-        vtByDayMap.set(day, (vtByDayMap.get(day) || 0) + 1);
+        if (!byDayMap.has(day)) byDayMap.set(day, new Map());
+        const svcMap = byDayMap.get(day);
+        svcMap.set(r.service, (svcMap.get(r.service) || 0) + 1);
       }
+
+      // Per-user counts: skip ATT&CK and NVD (separate analyst tools, not IoC scan).
+      if (NON_TI_SERVICES.has(r.service)) continue;
 
       const uname = r.username || '(unknown)';
       if (!userAgg.has(uname)) {
@@ -69,9 +80,18 @@ module.exports = async function handler(req, res) {
       .map(([outcome, total]) => ({ outcome, total }))
       .sort((a, b) => b.total - a.total);
 
-    // Total VirusTotal calls per day across the selected timeframe.
-    const vtByDay = [...vtByDayMap.entries()]
-      .map(([day, total]) => ({ day, total }))
+    // Per-service per-day TI usage (all services except ATT&CK/NVD).
+    // Collect all unique service names first so every day object has the same keys.
+    const allServices = new Set();
+    for (const svcMap of byDayMap.values()) {
+      for (const svc of svcMap.keys()) allServices.add(svc);
+    }
+    const byDay = [...byDayMap.entries()]
+      .map(([day, svcMap]) => {
+        const entry = { day };
+        for (const svc of allServices) entry[svc] = svcMap.get(svc) || 0;
+        return entry;
+      })
       .sort((a, b) => a.day.localeCompare(b.day));
 
     return res.status(200).json({
@@ -81,7 +101,7 @@ module.exports = async function handler(req, res) {
       capped: rows.length >= MAX_ROWS,
       byUser,
       byOutcome,
-      vtByDay,
+      byDay,
       recent: rows.slice(0, 10),
     });
   } catch (e) {

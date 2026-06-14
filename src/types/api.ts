@@ -220,6 +220,6 @@ export interface ApiUsageResponse {
   capped: boolean;
   byUser: UsageByUser[];
   byOutcome: Array<{ outcome: string; total: number }>;
-  vtByDay: Array<{ day: string; total: number }>;
+  byDay: Array<{ day: string } & Record<string, number>>;
   recent: UsageRecentRow[];
 }
