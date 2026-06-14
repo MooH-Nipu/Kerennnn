@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { OutputBox } from '../components/shared/OutputBox';
 import { StatusMessage } from '../components/shared/StatusMessage';
 
@@ -11,6 +11,7 @@ export function FormatterTab() {
   const [raw, setRaw] = useState('');
   const [output, setOutput] = useState('');
   const [status, setStatus] = useState<StatusMsg | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function process() {
     setStatus(null);
@@ -30,6 +31,16 @@ export function FormatterTab() {
   }
 
   const lineCount = raw.split('\n').filter(s => s.trim()).length;
+
+  // Auto-run on input change (300ms debounce), same pattern as JsonTab.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (raw.trim()) process();
+      else { setOutput(''); setStatus(null); }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [raw]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="tab-content formatter-tab">

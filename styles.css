@@ -5,7 +5,7 @@
             --border:    #1e304d;
             --border-hl: #2a5298;
             --text-pri:  #d4e4ff;
-            --text-sec:  #5a7aa8;
+            --text-sec:  #6b8cc0;
             --text-code: #7eb3ff;
             --accent:    #1d6ae5;
             --accent-hl: #2f7ef7;
@@ -15,6 +15,7 @@
             --purple:    #a78bfa;
             --cyan:      #38bdf8;
             --orange:    #fb923c;
+            --bg-grid-opacity: 1;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -25,8 +26,8 @@
             padding: 2rem 1.5rem 4rem;
             background-image:
                 radial-gradient(ellipse 80% 40% at 50% -10%, rgba(29,106,229,0.12) 0%, transparent 70%),
-                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px),
-                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,48,77,0.2) 39px, rgba(30,48,77,0.2) 40px);
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,48,77,calc(0.2 * var(--bg-grid-opacity))) 39px, rgba(30,48,77,calc(0.2 * var(--bg-grid-opacity))) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,48,77,calc(0.2 * var(--bg-grid-opacity))) 39px, rgba(30,48,77,calc(0.2 * var(--bg-grid-opacity))) 40px);
         }
         .wrapper { max-width: 1440px; margin: 0 auto; }
 
