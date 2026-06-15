@@ -30,13 +30,6 @@ const SERVICE_COLORS: Record<string, string> = {
 };
 const FALLBACK_PALETTE = ['#1d6ae5', '#e5484d', '#f5a623', '#a78bfa', '#0fba81', '#38bdf8', '#fb923c', '#a3e635', '#c084fc', '#f472b6'];
 
-const RANGES = [
-  { days: 1, label: '24h' },
-  { days: 7, label: '7d' },
-  { days: 30, label: '30d' },
-  { days: 90, label: '90d' },
-];
-
 // Dark-theme tooltip box matching the rest of the UI.
 const TOOLTIP_STYLE = {
   background: '#0e1829',
@@ -76,22 +69,39 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
 }
 
 export function AdminUsageTab() {
-  const [days, setDays] = useState(7);
+  // Time window state: from/to ISO strings for the datetime-local inputs.
+  const now = new Date();
+  const [from, setFrom] = useState(() => new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
+  const [to, setTo] = useState(() => now.toISOString().slice(0, 16));
+  const [activePreset, setActivePreset] = useState('7d');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
   const [data, setData] = useState<ApiUsageResponse | null>(null);
 
-  const load = useCallback((d: number, isRefresh: boolean) => {
+  const load = useCallback((f: string, t: string, isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setStatus(null);
-    api.admin.usage(d)
+    api.admin.usage({ from: new Date(f).toISOString(), to: new Date(t).toISOString() })
       .then(r => setData(r))
       .catch(err => setStatus({ type: 'error', text: err instanceof Error ? err.message : String(err) }))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(days, false); }, [days, load]);
+  useEffect(() => { load(from, to, false); }, [from, to, load]);
+
+  function setQuickRange(label: string, hoursBack: number) {
+    setActivePreset(label);
+    const t = new Date();
+    const f = new Date(t.getTime() - hoursBack * 60 * 60 * 1000);
+    setFrom(f.toISOString().slice(0, 16));
+    setTo(t.toISOString().slice(0, 16));
+  }
+
+  function handleFromToChange() {
+    setActivePreset('');
+    load(from, to, true);
+  }
 
   const totals = data
     ? data.byOutcome.reduce(
@@ -111,29 +121,53 @@ export function AdminUsageTab() {
       </div>
 
       <div className="usage-toolbar">
-        <div className="usage-range" role="group" aria-label="Time range">
-          {RANGES.map(r => (
+        <div className="usage-range" role="group" aria-label="Quick time range">
+          {[{l:'15m',h:0.25},{l:'1h',h:1},{l:'6h',h:6},{l:'24h',h:24},{l:'7d',h:168},{l:'30d',h:720}].map(r => (
             <button
-              key={r.days}
+              key={r.l}
               type="button"
-              className={`usage-range__btn ${days === r.days ? 'usage-range__btn--active' : ''}`}
-              onClick={() => setDays(r.days)}
+              className={`usage-range__btn ${activePreset === r.l ? 'usage-range__btn--active' : ''}`}
+              onClick={() => setQuickRange(r.l, r.h)}
               disabled={loading || refreshing}
             >
-              {r.label}
+              {r.l}
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          className="usage-refresh"
-          onClick={() => load(days, true)}
-          disabled={loading || refreshing}
-          title="Refresh"
-        >
-          <span className={`usage-refresh__icon ${refreshing ? 'is-spinning' : ''}`} aria-hidden="true">↻</span>
-          {refreshing ? 'Refreshing' : 'Refresh'}
-        </button>
+        <div className="usage-datetime-row">
+          <label className="usage-dt-label">
+            From
+            <input
+              type="datetime-local"
+              className="usage-datetime"
+              value={from}
+              onChange={e => { setFrom(e.target.value); setActivePreset(''); }}
+              onBlur={handleFromToChange}
+              disabled={loading || refreshing}
+            />
+          </label>
+          <label className="usage-dt-label">
+            To
+            <input
+              type="datetime-local"
+              className="usage-datetime"
+              value={to}
+              onChange={e => { setTo(e.target.value); setActivePreset(''); }}
+              onBlur={handleFromToChange}
+              disabled={loading || refreshing}
+            />
+          </label>
+          <button
+            type="button"
+            className="usage-refresh"
+            onClick={() => load(from, to, true)}
+            disabled={loading || refreshing}
+            title="Refresh"
+          >
+            <span className={`usage-refresh__icon ${refreshing ? 'is-spinning' : ''}`} aria-hidden="true">↻</span>
+            {refreshing ? 'Refreshing' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {status && <StatusMessage type={status.type} message={status.text} onDismiss={() => setStatus(null)} />}
@@ -158,7 +192,7 @@ export function AdminUsageTab() {
           )}
 
           {data.total === 0 ? (
-            <div className="usage-empty">No API usage recorded in the last {data.rangeDays} day(s).</div>
+            <div className="usage-empty">No API usage recorded in this time window.</div>
           ) : (
             <div className="usage-grid">
               <ChartCard title="Calls per user" hint="All threat-intel sources combined">
@@ -188,7 +222,7 @@ export function AdminUsageTab() {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="TI usage over time" hint="Calls per day by threat-intel source">
+              <ChartCard title="TI usage over time" hint={data.bucket === '30m' ? 'per 30 min' : data.bucket === '1w' ? 'per week' : 'per day'}>
                 {data.byDay.length === 0 ? (
                   <div className="usage-empty usage-empty--sm">No threat-intel calls in this window.</div>
                 ) : (

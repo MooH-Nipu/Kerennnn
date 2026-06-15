@@ -60,7 +60,12 @@ export const api = {
         body: JSON.stringify({ id }),
       }),
     logs: () => apiFetch<LogsResponse>('/api/admin/logs'),
-    usage: (days = 7) => apiFetch<ApiUsageResponse>(`/api/admin/usage?days=${days}`),
+    usage: (opts: { days?: number; from?: string; to?: string } = { days: 7 }) => {
+      const p = new URLSearchParams();
+      if (opts.from && opts.to) { p.set('from', opts.from); p.set('to', opts.to); }
+      else p.set('days', String(opts.days ?? 7));
+      return apiFetch<ApiUsageResponse>(`/api/admin/usage?${p}`);
+    },
   },
 
   scan: {
