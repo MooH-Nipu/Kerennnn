@@ -27,15 +27,23 @@ module.exports = async function handler(req, res) {
   const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   try {
-    const { data, error } = await supabase
-      .from('api_usage')
-      .select('username, service, ioc_type, outcome, api_key, created_at')
-      .gte('created_at', cutoffIso)
-      .order('created_at', { ascending: false })
-      .limit(MAX_ROWS);
-    if (error) return serverError(res, error, 'admin/usage');
-
-    const rows = data ?? [];
+    // Supabase/PostgREST caps at 1000 rows per request — paginate to collect
+    // up to MAX_ROWS rows. Most efficient: fetch descending, newest first.
+    const PAGE = 1000;
+    const rows = [];
+    for (let from = 0; from < MAX_ROWS; from += PAGE) {
+      const to = from + PAGE - 1;
+      const { data, error } = await supabase
+        .from('api_usage')
+        .select('username, service, ioc_type, outcome, api_key, created_at')
+        .gte('created_at', cutoffIso)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) return serverError(res, error, 'admin/usage');
+      const chunk = data ?? [];
+      rows.push(...chunk);
+      if (chunk.length < PAGE) break; // no more rows in this window
+    }
 
     // Services that are separate analyst tools (not IoC-scan TI calls) — excluded
     // from per-user counts and the TI usage-over-time chart.
