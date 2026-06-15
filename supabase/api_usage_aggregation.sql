@@ -1,25 +1,29 @@
 -- Run in Supabase SQL Editor (public schema).
 -- Postgres function that aggregates api_usage data server-side so the
 -- /api/admin/usage handler makes ONE round-trip instead of pulling raw
--- rows into memory. Replaces the old paginated JS aggregation.
+-- rows into memory. v3: accepts from/to timestamps instead of days.
 
-create or replace function public.get_api_usage_stats(days_param integer)
+drop function if exists public.get_api_usage_stats(integer);
+drop function if exists public.get_api_usage_stats(integer, text);
+
+create or replace function public.get_api_usage_stats(
+  from_ts     timestamptz,
+  to_ts       timestamptz,
+  bucket_param text default '1d'
+)
 returns jsonb
 language plpgsql stable
 as $$
 declare
-  cutoff_ts timestamptz;
-  raw_total bigint;
-  by_outcome jsonb;
-  by_user    jsonb;
-  by_day     jsonb;
+  raw_total   bigint;
+  by_outcome  jsonb;
+  by_user     jsonb;
+  by_day      jsonb;
   recent_rows jsonb;
 begin
-  cutoff_ts := now() - (days_param || ' days')::interval;
-
   -- Total rows in window (uncapped, includes ATT&CK / NVD).
   select count(*) into raw_total from public.api_usage
-  where created_at >= cutoff_ts;
+  where created_at >= from_ts and created_at < to_ts;
 
   -- By outcome (for the summary stat cards).
   select coalesce(jsonb_agg(
@@ -30,7 +34,7 @@ begin
   from (
     select coalesce(outcome, 'ok') as outcome, count(*) as c
     from public.api_usage
-    where created_at >= cutoff_ts
+    where created_at >= from_ts and created_at < to_ts
     group by outcome
   ) sub;
 
@@ -53,27 +57,45 @@ begin
       count(*) filter (where outcome = 'rate_limited') as rate_limited,
       count(*) filter (where outcome = 'error') as error
     from public.api_usage
-    where created_at >= cutoff_ts
+    where created_at >= from_ts and created_at < to_ts
       and service not in ('ATT&CK', 'NVD')
     group by username
     order by total desc
   ) sub;
 
-  -- Per-service per-day (for the TI usage-over-time chart) — excludes ATT&CK / NVD.
-  -- Each returned row is { day: "2026-06-01", "VirusTotal": 42, "AbuseIPDB": 15, … }.
-  select coalesce(jsonb_agg(entry order by day), '[]'::jsonb)
+  -- Per-service per-bucket (for the TI usage-over-time chart) — excludes ATT&CK / NVD.
+  -- Bucket granularities: '30m' = 30-minute, '1d' = daily, '1w' = weekly (Monday start).
+  -- Each returned row is { day: "2026-06-14T14:00", "VirusTotal": 42, … }.
+  select coalesce(jsonb_agg(entry order by sort_key), '[]'::jsonb)
   into by_day
   from (
-    select jsonb_build_object('day', d::text) || jsonb_object_agg(service, c) as entry,
-           d as day
+    select jsonb_build_object('day', label) || jsonb_object_agg(service, c) as entry,
+           sort_key
     from (
-      select created_at::date as d, service, count(*) as c
+      select
+        case bucket_param
+          when '30m' then to_char(
+            date_trunc('hour', created_at) +
+              (floor(extract(minute from created_at) / 30) * 30 || ' minutes')::interval,
+            'YYYY-MM-DD HH24:MI'
+          )
+          when '1w'  then to_char(date_trunc('week', created_at)::date, 'YYYY-MM-DD')
+          else            to_char(created_at::date, 'YYYY-MM-DD')
+        end as label,
+        case bucket_param
+          when '30m' then date_trunc('hour', created_at) +
+              (floor(extract(minute from created_at) / 30) * 30 || ' minutes')::interval
+          when '1w'  then date_trunc('week', created_at)::date
+          else            created_at::date
+        end as sort_key,
+        service,
+        count(*) as c
       from public.api_usage
-      where created_at >= cutoff_ts
+      where created_at >= from_ts and created_at < to_ts
         and service not in ('ATT&CK', 'NVD')
-      group by d, service
+      group by sort_key, label, service
     ) agg
-    group by d
+    group by label, sort_key
   ) outer_sub;
 
   -- Recent 10 rows.
@@ -82,7 +104,7 @@ begin
   from (
     select username, service, ioc_type, outcome, api_key, created_at
     from public.api_usage
-    where created_at >= cutoff_ts
+    where created_at >= from_ts and created_at < to_ts
     order by created_at desc
     limit 10
   ) t;
