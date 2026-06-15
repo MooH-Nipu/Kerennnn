@@ -216,6 +216,7 @@ export interface UsageRecentRow {
 export interface ApiUsageResponse {
   ok: boolean;
   rangeDays: number;
+  bucket?: string;
   total: number;
   capped: boolean;
   byUser: UsageByUser[];
