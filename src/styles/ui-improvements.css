@@ -3372,6 +3372,38 @@
 .usage-range__btn:hover:not(:disabled) { color: var(--text-pri); }
 .usage-range__btn--active { background: var(--accent); color: #fff; }
 .usage-range__btn:disabled { opacity: 0.5; cursor: default; }
+/* Datetime-local inputs for Elastic-style time range picker. */
+.usage-datetime-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.usage-dt-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-sec, #6b8cc0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.usage-datetime {
+  background: var(--bg-input, #060b14);
+  border: 1px solid var(--border, #1e304d);
+  border-radius: 6px;
+  color: var(--text-code, #7eb3ff);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.4rem;
+  transition: border-color 0.15s;
+}
+.usage-datetime:focus {
+  outline: none;
+  border-color: var(--accent, #1d6ae5);
+}
+.usage-datetime:disabled { opacity: 0.5; }
 /* Compact refresh button — sized to content, not stretched like the global .btn. */
 .usage-refresh {
   display: inline-flex;
