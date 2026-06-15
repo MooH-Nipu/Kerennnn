@@ -68,39 +68,47 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
   );
 }
 
+/** Format a Date as local datetime-local string: YYYY-MM-DDTHH:MM. */
+function toLocalDatetime(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function AdminUsageTab() {
-  // Time window state: from/to ISO strings for the datetime-local inputs.
+  // Time window state: local datetime strings for the inputs.
   const now = new Date();
-  const [from, setFrom] = useState(() => new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
-  const [to, setTo] = useState(() => now.toISOString().slice(0, 16));
+  const [from, setFrom] = useState(() => toLocalDatetime(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)));
+  const [to, setTo] = useState(() => toLocalDatetime(now));
   const [activePreset, setActivePreset] = useState('7d');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
   const [data, setData] = useState<ApiUsageResponse | null>(null);
 
-  const load = useCallback((f: string, t: string, isRefresh: boolean) => {
+  const fetchData = useCallback((f: string, t: string, isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setStatus(null);
-    api.admin.usage({ from: new Date(f).toISOString(), to: new Date(t).toISOString() })
+    // Append seconds + local offset so the backend gets an exact instant.
+    const fromISO = new Date(f).toISOString();
+    const toISO   = new Date(t).toISOString();
+    api.admin.usage({ from: fromISO, to: toISO })
       .then(r => setData(r))
       .catch(err => setStatus({ type: 'error', text: err instanceof Error ? err.message : String(err) }))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(from, to, false); }, [from, to, load]);
+  // Fetch on mount only — quick-range buttons and Refresh trigger fetches explicitly.
+  useEffect(() => { fetchData(from, to, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function setQuickRange(label: string, hoursBack: number) {
+  function applyQuickRange(label: string, hoursBack: number) {
     setActivePreset(label);
     const t = new Date();
     const f = new Date(t.getTime() - hoursBack * 60 * 60 * 1000);
-    setFrom(f.toISOString().slice(0, 16));
-    setTo(t.toISOString().slice(0, 16));
-  }
-
-  function handleFromToChange() {
-    setActivePreset('');
-    load(from, to, true);
+    const fStr = toLocalDatetime(f);
+    const tStr = toLocalDatetime(t);
+    setFrom(fStr);
+    setTo(tStr);
+    fetchData(fStr, tStr, true);
   }
 
   const totals = data
@@ -127,7 +135,7 @@ export function AdminUsageTab() {
               key={r.l}
               type="button"
               className={`usage-range__btn ${activePreset === r.l ? 'usage-range__btn--active' : ''}`}
-              onClick={() => setQuickRange(r.l, r.h)}
+              onClick={() => applyQuickRange(r.l, r.h)}
               disabled={loading || refreshing}
             >
               {r.l}
@@ -142,7 +150,6 @@ export function AdminUsageTab() {
               className="usage-datetime"
               value={from}
               onChange={e => { setFrom(e.target.value); setActivePreset(''); }}
-              onBlur={handleFromToChange}
               disabled={loading || refreshing}
             />
           </label>
@@ -153,14 +160,13 @@ export function AdminUsageTab() {
               className="usage-datetime"
               value={to}
               onChange={e => { setTo(e.target.value); setActivePreset(''); }}
-              onBlur={handleFromToChange}
               disabled={loading || refreshing}
             />
           </label>
           <button
             type="button"
             className="usage-refresh"
-            onClick={() => load(from, to, true)}
+            onClick={() => fetchData(from, to, true)}
             disabled={loading || refreshing}
             title="Refresh"
           >
