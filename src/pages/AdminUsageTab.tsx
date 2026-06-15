@@ -77,7 +77,6 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
 
 export function AdminUsageTab() {
   const [days, setDays] = useState(7);
-  const [customDays, setCustomDays] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
@@ -91,20 +90,6 @@ export function AdminUsageTab() {
       .catch(err => setStatus({ type: 'error', text: err instanceof Error ? err.message : String(err) }))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
-
-  function applyCustom() {
-    const n = parseInt(customDays, 10);
-    if (Number.isFinite(n) && n >= 1 && n <= 365) {
-      setDays(n);
-      setCustomDays('');
-    }
-  }
-
-  function bucketHint(bucket: string | undefined, rangeDays: number): string {
-    if (bucket === '30m') return `per 30 min (${rangeDays}d range)`;
-    if (bucket === '1w') return `per week (${rangeDays}d range)`;
-    return `per day (${rangeDays}d range)`;
-  }
 
   useEffect(() => { load(days, false); }, [days, load]);
 
@@ -131,26 +116,13 @@ export function AdminUsageTab() {
             <button
               key={r.days}
               type="button"
-              className={`usage-range__btn ${days === r.days && !customDays ? 'usage-range__btn--active' : ''}`}
-              onClick={() => { setDays(r.days); setCustomDays(''); }}
+              className={`usage-range__btn ${days === r.days ? 'usage-range__btn--active' : ''}`}
+              onClick={() => setDays(r.days)}
               disabled={loading || refreshing}
             >
               {r.label}
             </button>
           ))}
-          <input
-            type="number"
-            className="usage-custom-days"
-            placeholder="d"
-            min={1}
-            max={365}
-            value={customDays}
-            onChange={e => setCustomDays(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') applyCustom(); }}
-            onBlur={applyCustom}
-            disabled={loading || refreshing}
-            title="Custom days (1–365)"
-          />
         </div>
         <button
           type="button"
@@ -216,7 +188,7 @@ export function AdminUsageTab() {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="TI usage over time" hint={bucketHint(data.bucket, data.rangeDays)}>
+              <ChartCard title="TI usage over time" hint="Calls per day by threat-intel source">
                 {data.byDay.length === 0 ? (
                   <div className="usage-empty usage-empty--sm">No threat-intel calls in this window.</div>
                 ) : (

@@ -3372,26 +3372,6 @@
 .usage-range__btn:hover:not(:disabled) { color: var(--text-pri); }
 .usage-range__btn--active { background: var(--accent); color: #fff; }
 .usage-range__btn:disabled { opacity: 0.5; cursor: default; }
-.usage-custom-days {
-  width: 3rem;
-  background: var(--bg-input, #060b14);
-  border: 1px solid var(--border, #1e304d);
-  border-radius: 6px;
-  color: var(--text-code, #7eb3ff);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  text-align: center;
-  padding: 0.25rem 0.25rem;
-  transition: border-color 0.15s;
-}
-.usage-custom-days:focus {
-  outline: none;
-  border-color: var(--accent, #1d6ae5);
-}
-.usage-custom-days::placeholder {
-  color: var(--text-sec, #6b8cc0);
-  font-size: 0.65rem;
-}
 /* Compact refresh button — sized to content, not stretched like the global .btn. */
 .usage-refresh {
   display: inline-flex;

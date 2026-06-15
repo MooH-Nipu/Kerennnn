@@ -3,14 +3,7 @@ const { requireRole } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
 
-const PRESET_DAYS = [1, 7, 30, 90];
-
-/** Auto-select the TI usage-over-time bucket granularity from the day range. */
-function pickBucket(days) {
-  if (days <= 1) return '30m';   // 24h  → 30-minute buckets
-  if (days <= 30) return '1d';   // 7d, 30d → daily buckets
-  return '1w';                   // 90d+ → weekly buckets
-}
+const ALLOWED_DAYS = [1, 7, 30, 90];
 
 // Admin API-usage aggregation for the "API Usage" tab. Calls a Postgres
 // function (supabase/api_usage_aggregation.sql) that does all GROUP BY
@@ -30,16 +23,10 @@ module.exports = async function handler(req, res) {
   }
 
   let days = parseInt(String(req.query?.days ?? ''), 10);
-  if (!Number.isFinite(days) || days < 1) days = 7;
-  days = Math.min(days, 365);
-
-  const bucket = pickBucket(days);
+  if (!ALLOWED_DAYS.includes(days)) days = 7;
 
   try {
-    const { data, error } = await supabase.rpc('get_api_usage_stats', {
-      days_param: days,
-      bucket_param: bucket,
-    });
+    const { data, error } = await supabase.rpc('get_api_usage_stats', { days_param: days });
 
     if (error) {
       // If the function hasn't been created in Supabase yet, fall back to a
@@ -59,7 +46,6 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       rangeDays: days,
-      bucket,
       total: data.total ?? 0,
       capped: false,
       byUser: data.byUser ?? [],
