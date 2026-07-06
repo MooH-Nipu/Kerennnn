@@ -97,19 +97,25 @@ export function useMergerDb() {
     setLoading(true);
     setError(null);
     try {
-      await api.mergerDb.delete(ips);
-      setItems(prev => {
-        const next = prev.filter(i => !ips.includes(i.ip));
-        syncSession(next);
-        return next;
-      });
-      setStatusMsg(`✓ ${ips.length} IPs deleted.`);
+      const res = await api.mergerDb.delete(ips) as { deletedCount?: number };
+      const deleted = res.deletedCount ?? 0;
+      // Always refresh from DB — if delete silently matched 0 rows (normalization
+      // mismatch, stale session cache, etc.) the IPs reappear instead of being
+      // ghost-removed from the UI while still in the database.
+      await refresh();
+      if (deleted === 0) {
+        setStatusMsg('⚠ 0 IPs deleted — DB did not match. Reloaded from DB.');
+      } else if (deleted < ips.length) {
+        setStatusMsg(`⚠ ${deleted}/${ips.length} IPs deleted. Some not in DB. Reloaded.`);
+      } else {
+        setStatusMsg(`✓ ${deleted} IPs deleted from DB.`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   return {
     items,

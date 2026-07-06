@@ -190,7 +190,7 @@ module.exports = async function handler(req, res) {
           .delete()
           .eq('ip', norm)
           .select('ip');
-        if (error) return serverError(res, error, 'scan-merger GET');
+        if (error) return serverError(res, error, 'scan-merger DELETE (single)');
         const deletedCount = (delRows || []).length;
         return res.status(200).json({ ok: true, deleted: norm, deletedCount });
       }
@@ -228,7 +228,7 @@ module.exports = async function handler(req, res) {
             .delete()
             .in('ip', slice)
             .select('ip');
-          if (error) return serverError(res, error, 'scan-merger GET');
+          if (error) return serverError(res, error, 'scan-merger DELETE (batch)');
           deletedCount += (delRows || []).length;
         }
         return res.status(200).json({
