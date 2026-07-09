@@ -277,6 +277,7 @@ export function DashboardTab({ onScanIp }: Props) {
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* ── TI usage over time (full width) ─────────────────── */}
