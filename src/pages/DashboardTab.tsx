@@ -242,8 +242,9 @@ export function DashboardTab({ onScanIp }: Props) {
           {/* Calls per user */}
           <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Calls per user</h3></div>
-            <div className="card__body" style={{ overflow: 'hidden' }}>
-              <ResponsiveContainer width="100%" height={perUserHeight}>
+            <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
+                <ResponsiveContainer width="100%" height={perUserHeight}>
                 <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                   <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
@@ -252,14 +253,16 @@ export function DashboardTab({ onScanIp }: Props) {
                   <Bar dataKey="total" name="Total calls" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
           {/* Outcomes per user */}
           <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Outcomes per user</h3></div>
-            <div className="card__body" style={{ overflow: 'hidden' }}>
-              <ResponsiveContainer width="100%" height={perUserHeight}>
+            <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
+                <ResponsiveContainer width="100%" height={perUserHeight}>
                 <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                   <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
@@ -309,6 +312,7 @@ export function DashboardTab({ onScanIp }: Props) {
                   </ResponsiveContainer>
                 );
               })()}
+              </div>
             </div>
           </div>
         </div>
