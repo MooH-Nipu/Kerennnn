@@ -13,6 +13,7 @@ export interface TabDef {
 // Canonical tab list in DEFAULT order. Per-user order is layered on top via the
 // `order` prop (see useTabPrefs); users reorder by dragging tabs directly.
 const ALL_TABS: TabDef[] = [
+  { id: 'dashboard',   label: 'Dashboard',  shortLabel: 'Dash',   icon: '▦'  },
   { id: 'formatter',   label: 'Formatter',  shortLabel: 'Fmt',    icon: '≋'  },
   { id: 'merger',      label: 'Merger',     shortLabel: 'Merge',  icon: '⇄'  },
   { id: 'ioc-scan',    label: 'IoC Scan',   shortLabel: 'Scan',   icon: '◎'  },
@@ -176,5 +177,5 @@ export function getRestoredTab(role: Role): TabId {
       return saved;
     }
   } catch { /* ignore */ }
-  return 'formatter';
+  return 'dashboard';
 }
