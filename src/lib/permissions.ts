@@ -26,7 +26,7 @@ export const PAC_ROLES: Role[] = ['admin', 'pac', 'charlie', 'l2'];
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
-  'dashboard':   null,
+  'dashboard':   ADMIN_ROLES,
   'formatter':   null,
   'json':        null,
   'merger':      null,
