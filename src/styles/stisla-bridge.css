@@ -1,0 +1,114 @@
+/* ============================================================
+   Stisla Bridge — maps Stisla OKLCH tokens to Kerennnn's dark theme
+   Loaded AFTER stisla.css so these win at equal specificity.
+   Stisla's layers (base/components) are lower priority than
+   Kerennnn's unlayered CSS, so existing styles are safe.
+   ============================================================ */
+
+/* ── Activate Stisla dark mode ─────────────────────────────── */
+:root {
+  /* Pull Stisla's dark surface tokens closer to Kerennnn's palette */
+  --color-background: oklch(15% 0.02 260);      /* #080d17-ish */
+  --color-foreground: oklch(92% 0.01 260);      /* #d4e4ff-ish */
+  --color-surface: oklch(17% 0.03 260);         /* #0e1829-ish */
+  --color-surface-2: oklch(20% 0.03 260);       /* slightly lighter */
+  --color-surface-3: oklch(23% 0.03 260);
+  --color-border: oklch(28% 0.03 260);          /* #1e304d-ish */
+  --color-border-strong: oklch(35% 0.04 260);
+  --color-muted-foreground: oklch(68% 0.02 260); /* #6b8cc0-ish */
+
+  /* Match Kerennnn's blue accent (#1d6ae5 ≈ oklch(54% 0.19 256)) */
+  --color-primary: oklch(54% 0.19 257);
+  --color-primary-foreground: oklch(100% 0 0);
+  --color-primary-emphasis: oklch(60% 0.19 257);
+
+  /* Status colors aligned to Kerennnn vars */
+  --color-success: oklch(60% 0.17 150);         /* #0fba81-ish */
+  --color-success-foreground: oklch(100% 0 0);
+  --color-danger: oklch(58% 0.22 27);           /* #e5484d-ish */
+  --color-danger-foreground: oklch(100% 0 0);
+  --color-warning: oklch(75% 0.16 71);          /* #f5a623-ish */
+  --color-warning-foreground: oklch(27% 0 0);
+  --color-info: oklch(62% 0.15 238);
+  --color-info-foreground: oklch(100% 0 0);
+
+  /* Neutral + accent surfaces */
+  --color-neutral: oklch(27% 0.02 260);
+  --color-neutral-foreground: oklch(92% 0.01 260);
+  --color-accent: oklch(26% 0.03 260);
+  --color-accent-foreground: oklch(92% 0.01 260);
+
+  /* Radius — Kerennnn uses 8-14px, Stisla default 1rem=16px is too round */
+  --radius: 0.5rem;
+}
+
+/* ── Cross-reference: Kerennnn vars → Stisla tokens ────────── */
+/* This lets existing Kerennnn CSS read Stisla values where they
+   were using fallbacks, so both systems stay in sync. */
+:root {
+  --bg-base:   var(--color-background);
+  --bg-card:   var(--color-surface);
+  --bg-input:  var(--color-surface-3);
+  --bg-surface: var(--color-surface);
+  --border:    var(--color-border);
+  --border-hl: var(--color-primary);
+  --text-primary: var(--color-foreground);
+  --text-secondary: var(--color-muted-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --text-code: var(--color-info);
+  --accent:    var(--color-primary);
+  --accent-hl: var(--color-primary-emphasis);
+  --green:     var(--color-success);
+  --red:       var(--color-danger);
+  --yellow:    var(--color-warning);
+}
+
+/* ── Stisla component tweaks for Kerennnn context ──────────── */
+
+/* Stisla's body reset sets font-size: var(--text-sm) = 0.875rem.
+   Kerennnn uses Syne font + different sizing. Let existing win. */
+body {
+  font-family: 'Syne', var(--font-sans);
+}
+
+/* Stisla cards in dark mode should match Kerennnn card aesthetic */
+.card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 24px oklch(0% 0 0 / 0.3);
+}
+
+/* Stisla table in dark context */
+.table {
+  color: var(--color-foreground);
+}
+.table > :not(caption) > * > * {
+  border-color: var(--color-border);
+  padding: 0.625rem 1rem;
+}
+
+/* Stisla badges — make them work like Kerennnn's pills */
+.badge {
+  font-family: 'JetBrains Mono', var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+}
+
+/* Stisla empty-state — center like Kerennnn's dash-empty */
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-muted-foreground);
+}
+
+/* Stisla placeholder — match dark bg */
+.placeholder {
+  background: var(--color-surface-3);
+}
+
+/* Stisla spinner inherits currentColor — good, no override needed */
+
+/* Stisla progress bar track */
+.progress__track {
+  background: var(--color-surface-3);
+}
