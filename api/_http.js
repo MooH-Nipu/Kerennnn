@@ -99,3 +99,17 @@ function httpGetText(url, headers = {}, opts = {}) {
 }
 
 module.exports = { httpGet, httpPost, httpGetText };
+
+/**
+ * Wraps a promise with a timeout — rejects if it takes longer than ms.
+ * Used by correlate.js to prevent a single slow source from blocking the whole request.
+ */
+function withTimeout(promise, ms, label = 'operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+module.exports.withTimeout = withTimeout;

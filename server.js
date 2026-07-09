@@ -36,6 +36,31 @@ app.use((req, res, next) => {
   express.json({ limit: '10mb' })(req, res, next);
 });
 
+// In-memory per-IP rate limiter (100 req/min per IP, 200 burst)
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 100;
+app.use('/api/', (req, res, next) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = rateLimitStore.get(ip) || { count: 0, reset: now + RATE_LIMIT_WINDOW_MS };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + RATE_LIMIT_WINDOW_MS; }
+  entry.count++;
+  rateLimitStore.set(ip, entry);
+  res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX);
+  res.setHeader('X-RateLimit-Remaining', Math.max(0, RATE_LIMIT_MAX - entry.count));
+  res.setHeader('X-RateLimit-Reset', Math.ceil(entry.reset / 1000));
+  if (entry.count > RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+  }
+  // Cleanup old entries every 5 min
+  if (Math.random() < 0.01) {
+    for (const [k, v] of rateLimitStore) { if (now > v.reset) rateLimitStore.delete(k); }
+  }
+  next();
+});
+
 // API routes
 const routes = [
   ['/api/health',                 './api/health.js'],
