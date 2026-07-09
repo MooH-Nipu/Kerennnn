@@ -238,11 +238,11 @@ export function DashboardTab({ onScanIp }: Props) {
 
       {/* ── Charts row ─────────────────────────────────────── */}
       {!loading && usageData && usageData.total > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           {/* Calls per user */}
-          <div className="card" style={{ minWidth: 0, width: '100%' }}>
+          <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Calls per user</h3></div>
-            <div className="card__body" style={{ width: '100%', padding: '0.5rem 0.25rem 0.5rem 0' }}>
+            <div className="card__body" style={{ overflow: 'hidden' }}>
               <ResponsiveContainer width="100%" height={perUserHeight}>
                 <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
@@ -256,9 +256,9 @@ export function DashboardTab({ onScanIp }: Props) {
           </div>
 
           {/* Outcomes per user */}
-          <div className="card" style={{ minWidth: 0, width: '100%' }}>
+          <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Outcomes per user</h3></div>
-            <div className="card__body" style={{ width: '100%', padding: '0.5rem 0.25rem 0.5rem 0' }}>
+            <div className="card__body" style={{ overflow: 'hidden' }}>
               <ResponsiveContainer width="100%" height={perUserHeight}>
                 <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
@@ -275,9 +275,9 @@ export function DashboardTab({ onScanIp }: Props) {
           </div>
 
           {/* TI usage over time */}
-          <div className="card" style={{ gridColumn: '1 / -1', minWidth: 0, width: '100%' }}>
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
-            <div className="card__body" style={{ width: '100%', padding: '0.5rem 0.25rem 0.5rem 0' }}>
+            <div className="card__body" style={{ overflow: 'hidden' }}>
               {(() => {
                 const svcSet = new Set<string>();
                 for (const d of usageData.byDay) {
