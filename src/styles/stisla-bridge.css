@@ -112,3 +112,222 @@ body {
 .progress__track {
   background: var(--color-surface-3);
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Bridge: old Kerennnn classes → Stisla visual tokens
+   stisla-bridge.css is loaded LAST (after ui-improvements.css)
+   so these overrides win at equal specificity.
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Buttons: .btn → Stisla .button look ───────────────────── */
+.btn {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  padding: 0.5rem 1rem;
+  line-height: 1.5;
+}
+.btn:hover:not(:disabled) {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  border-color: var(--color-primary);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-emphasis);
+  opacity: 1;
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-muted-foreground);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-foreground);
+}
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-danger-foreground);
+  border-color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.btn-sm {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+/* ── Form elements → Stisla .input look ─────────────────────── */
+.form-input,
+.form-textarea {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-foreground);
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 20%, transparent);
+}
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-muted-foreground);
+}
+.form-input:disabled,
+.form-textarea:disabled {
+  opacity: 0.5;
+}
+.form-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-foreground);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.form-hint {
+  font-size: 0.7rem;
+  color: var(--color-muted-foreground);
+}
+
+/* ── Verdict badges → Stisla .badge--soft ───────────────────── */
+.verdict-malicious,
+.verdict-suspicious,
+.verdict-clean,
+.verdict-unknown {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+.verdict-malicious {
+  background: color-mix(in oklch, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in oklch, var(--color-danger) 30%, transparent);
+}
+.verdict-suspicious {
+  background: color-mix(in oklch, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in oklch, var(--color-warning) 30%, transparent);
+}
+.verdict-clean {
+  background: color-mix(in oklch, var(--color-success) 15%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in oklch, var(--color-success) 30%, transparent);
+}
+.verdict-unknown {
+  background: color-mix(in oklch, var(--color-muted-foreground) 10%, transparent);
+  color: var(--color-muted-foreground);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Confidence badges → Stisla .badge--soft ────────────────── */
+.conf-critical,
+.conf-high,
+.conf-medium,
+.conf-low,
+.conf-none {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+}
+.conf-critical {
+  background: color-mix(in oklch, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in oklch, var(--color-danger) 30%, transparent);
+}
+.conf-high {
+  background: color-mix(in oklch, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in oklch, var(--color-warning) 30%, transparent);
+}
+.conf-medium {
+  background: color-mix(in oklch, var(--color-info) 15%, transparent);
+  color: var(--color-info);
+  border: 1px solid color-mix(in oklch, var(--color-info) 30%, transparent);
+}
+.conf-low {
+  background: color-mix(in oklch, var(--color-success) 15%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in oklch, var(--color-success) 30%, transparent);
+}
+.conf-none {
+  background: color-mix(in oklch, var(--color-muted-foreground) 10%, transparent);
+  color: var(--color-muted-foreground);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Section headers ────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.section-header h2 {
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0;
+}
+
+/* ── Tab content wrapper ────────────────────────────────────── */
+.tab-content {
+  padding: 0;
+}
+.tab-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+/* ── Line count / status chips ──────────────────────────────── */
+.line-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-muted-foreground);
+  background: var(--color-surface-2);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius);
+}

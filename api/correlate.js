@@ -1,6 +1,6 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
-const { httpGet, httpPost } = require('./_http');
+const { httpGet, httpPost, withTimeout } = require('./_http');
 const { getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
@@ -713,7 +713,11 @@ module.exports = async function handler(req, res) {
 
   if (type === 'domain') checks.push(checkURLScan(ioc));
 
-  const results = await Promise.all(checks);
+  const results = await Promise.all(checks.map(p =>
+    withTimeout(p, 15_000, 'correlation source').catch(e => ({
+      source: 'Unknown', error: e.message || 'timed out', skipped: false
+    }))
+  ));
 
   // Only send sources that actually ran — skip sources with missing API keys
   // or unsupported IOC types so the client never sees "SKIPPED" rows. Strip the
