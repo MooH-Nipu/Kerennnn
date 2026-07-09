@@ -170,52 +170,53 @@ export function DashboardTab({ onScanIp }: Props) {
       </form>
 
       {/* ── Unified stat cards ─────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        {/* IP stats */}
-        <div className="card"><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-foreground)' }}>{items.length}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>IPs Scanned</div>
-        </div></div>
-        <div className="card" style={{ borderColor: 'var(--color-danger)' }}><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-danger)' }}>{malCount}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Malicious</div>
-        </div></div>
-        <div className="card" style={{ borderColor: 'var(--color-warning)' }}><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-warning)' }}>{susCount}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suspicious</div>
-        </div></div>
-        <div className="card" style={{ borderColor: 'var(--color-success)' }}><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-success)' }}>{cleanCount}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Clean</div>
-        </div></div>
-        {/* Usage stats */}
-        <div className="card" style={{ borderColor: 'var(--color-primary)' }}><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>{usageData ? usageData.total.toLocaleString() : '—'}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>API Calls</div>
-        </div></div>
-        <div className="card"><div className="card__body" style={{ textAlign: 'center', padding: '1rem 0.75rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-muted-foreground)' }}>{usageTotals.error || 0}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Errors</div>
-        </div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        {[
+          { label: 'IPs Scanned', value: items.length, color: 'var(--color-foreground)' },
+          { label: 'Malicious',   value: malCount,     color: 'var(--color-danger)' },
+          { label: 'Suspicious',  value: susCount,     color: 'var(--color-warning)' },
+          { label: 'Clean',       value: cleanCount,   color: 'var(--color-success)' },
+          { label: 'API Calls',   value: usageData ? usageData.total.toLocaleString() : '—', color: 'var(--color-primary)' },
+          { label: 'Errors',      value: usageTotals.error || 0, color: 'var(--color-muted-foreground)' },
+        ].map(stat => (
+          <div key={stat.label} className="card" style={{ boxShadow: 'none' }}>
+            <div className="card__body" style={{ textAlign: 'center', padding: '1.1rem 0.75rem' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: stat.color, lineHeight: 1.2 }}>{stat.value}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '0.25rem' }}>{stat.label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── Usage time range ───────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', fontWeight: 600 }}>API Usage:</span>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', fontWeight: 600, marginRight: '0.25rem' }}>Range:</span>
         {[{l:'15m',h:0.25},{l:'1h',h:1},{l:'6h',h:6},{l:'24h',h:24},{l:'7d',h:168},{l:'30d',h:720}].map(r => (
           <button
             key={r.l}
-            className={`toggle toggle--sm ${activePreset === r.l ? '' : ''}`}
-            data-state={activePreset === r.l ? 'active' : undefined}
             onClick={() => applyQuickRange(r.l, r.h)}
             disabled={loading}
-            style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+            style={{
+              padding: '0.3rem 0.65rem',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              border: '1px solid ' + (activePreset === r.l ? 'var(--color-primary)' : 'var(--color-border)'),
+              borderRadius: 'var(--radius-sm)',
+              background: activePreset === r.l ? 'var(--color-primary)' : 'transparent',
+              color: activePreset === r.l ? 'var(--color-primary-foreground)' : 'var(--color-muted-foreground)',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
             {r.l}
           </button>
         ))}
-        <input type="datetime-local" className="input input--sm" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading} style={{ width: 'auto', fontSize: '0.75rem' }} />
-        <input type="datetime-local" className="input input--sm" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading} style={{ width: 'auto', fontSize: '0.75rem' }} />
+        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', margin: '0 0.25rem' }}>|</span>
+        <input type="datetime-local" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading}
+          style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
+        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>→</span>
+        <input type="datetime-local" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading}
+          style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
       </div>
 
       {/* ── Error ──────────────────────────────────────────── */}
