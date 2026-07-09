@@ -236,9 +236,9 @@ export function DashboardTab({ onScanIp }: Props) {
         </div>
       )}
 
-      {/* ── Charts row ─────────────────────────────────────── */}
+      {/* ── Charts: per-user bar charts ────────────────────── */}
       {!loading && usageData && usageData.total > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           {/* Calls per user */}
           <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Calls per user</h3></div>
@@ -276,11 +276,15 @@ export function DashboardTab({ onScanIp }: Props) {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* TI usage over time */}
-          <div className="card" style={{ gridColumn: '1 / -1' }}>
-            <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
-            <div className="card__body" style={{ overflow: 'hidden' }}>
+      {/* ── TI usage over time (full width) ─────────────────── */}
+      {!loading && usageData && usageData.total > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
+          <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
               {(() => {
                 const svcSet = new Set<string>();
                 for (const d of usageData.byDay) {
@@ -312,7 +316,6 @@ export function DashboardTab({ onScanIp }: Props) {
                   </ResponsiveContainer>
                 );
               })()}
-              </div>
             </div>
           </div>
         </div>
