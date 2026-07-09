@@ -10,6 +10,7 @@ import { getRestoredTab, orderedAllowedTabs } from './components/layout/TabNav';
 import { UpdateToast } from './components/shared/UpdateToast';
 import { ShortcutHelp } from './components/shared/ShortcutHelp';
 import type { TabId } from './lib/permissions';
+import { DashboardTab } from './pages/DashboardTab';
 import { FormatterTab } from './pages/FormatterTab';
 import { JsonTab } from './pages/JsonTab';
 import { MergerTab } from './pages/MergerTab';
@@ -30,11 +31,11 @@ function AppInner() {
   const { ready, authed, role, username } = useAuthState();
   const { compact, sidebar, toggleCompact, toggleSidebar } = useUiPrefs();
   const { order: tabOrder, save: saveTabPrefs } = useTabPrefs();
-  const [activeTab, setActiveTab] = useState<TabId>('formatter');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
   // Lazy-mount: track which tabs have been visited so their state survives tab switches.
-  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(() => new Set(['formatter']));
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(() => new Set(['dashboard']));
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Keyboard shortcut: ? toggles help overlay
@@ -106,6 +107,7 @@ function AppInner() {
 
   function tabElement(id: TabId) {
     switch (id) {
+      case 'dashboard':  return <DashboardTab onScanIp={handleQuickScan} />;
       case 'formatter':   return <FormatterTab />;
       case 'json':        return <JsonTab />;
       case 'merger':      return <MergerTab />;

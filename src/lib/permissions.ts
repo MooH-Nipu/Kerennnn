@@ -3,6 +3,7 @@ import type { Role } from '../types/api';
 export const ROLES = ['admin', 'pac', 'charlie', 'l1', 'l2'] as const;
 
 export type TabId =
+  | 'dashboard'
   | 'formatter'
   | 'json'
   | 'merger'
@@ -25,6 +26,7 @@ export const PAC_ROLES: Role[] = ['admin', 'pac', 'charlie', 'l2'];
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
+  'dashboard':   null,
   'formatter':   null,
   'json':        null,
   'merger':      null,
