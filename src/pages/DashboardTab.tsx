@@ -6,7 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { api } from '../lib/api';
-import { fmtWhen, fmtDate } from '../lib/utils';
+import { fmtWhen } from '../lib/utils';
 import { Spinner } from '../components/shared/Spinner';
 import type { RecentIp, ApiUsageResponse } from '../types/api';
 
@@ -84,7 +84,7 @@ export function DashboardTab({ onScanIp }: Props) {
   const [to, setTo] = useState(() => toLocalDatetime(now));
   const [activePreset, setActivePreset] = useState('7d');
   const [usageLoading, setUsageLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [, setRefreshing] = useState(false);
   const [usageData, setUsageData] = useState<ApiUsageResponse | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
 
@@ -125,7 +125,6 @@ export function DashboardTab({ onScanIp }: Props) {
   const malCount   = items.filter(i => i.vt_verdict === 'malicious').length;
   const susCount   = items.filter(i => i.vt_verdict === 'suspicious').length;
   const cleanCount = items.filter(i => i.vt_verdict === 'clean').length;
-  const unknownCount = items.length - malCount - susCount - cleanCount;
 
   const usageTotals = usageData
     ? usageData.byOutcome.reduce((acc, o) => { acc[o.outcome] = o.total; return acc; }, {} as Record<string, number>)
