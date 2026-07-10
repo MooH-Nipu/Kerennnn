@@ -42,6 +42,12 @@ module.exports = async function handler(req, res) {
     .limit(limit);
 
   if (error) return serverError(res, error, 'ip-cache recent');
-  return res.status(200).json({ ok: true, ttlDays, items: data || [] });
+
+  // Get total count of all IPs in cache (not limited)
+  const { count: total } = await supabase
+    .from('vt_ip_cache')
+    .select('id', { count: 'exact', head: true });
+
+  return res.status(200).json({ ok: true, ttlDays, total: total ?? (data || []).length, items: data || [] });
 };
 
