@@ -303,54 +303,56 @@ function addMmsSheets(wb, mmsData, fields) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
 
-  const thin = {
-    top: { style: 'thin' },
-    left: { style: 'thin' },
-    bottom: { style: 'thin' },
-    right: { style: 'thin' },
-  };
+  const M = { style: 'medium' };
+  const T = { style: 'thin' };
+  const medAll  = { top: M, left: M, bottom: M, right: M };
+  const medRight = { top: M, left: M, bottom: M, right: M }; // B-col data rows
+  const medNoLeft = { top: M, bottom: M, right: M };          // C-col after merge (no left)
+  const medCData  = { top: M, bottom: M, right: M };          // C-col data rows
+  const medThinR  = { top: M, left: M, bottom: M, right: T }; // Summary B5 merged (right=thin)
+  const medThinRc = { top: M, bottom: M, right: T };          // Summary C5
+
   const cambria = (size, bold = false) => ({ name: 'Cambria', size, bold });
-  // Theme 3 tint 0.1 = light blue, Theme 3 tint 0.5 = medium blue
   const fillSection = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
   const fillLabel   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9BC2E6' } };
+  const center = { horizontal: 'center', vertical: 'center' };
+  const centerV = { vertical: 'center' };
+  const centerH = { horizontal: 'center', vertical: 'center' };
+
+  // Helper: set cell value + font + border + align + optional fill
+  function sc(cell, { val, font, border, align, fill }) {
+    if (val !== undefined) cell.value = val;
+    if (font) cell.font = font;
+    if (border) cell.border = border;
+    if (align) cell.alignment = align;
+    if (fill) cell.fill = fill;
+  }
 
   // --- Sheet 1: Document Control ---
   const dc = wb.addWorksheet('Document Control');
-  dc.columns = [
-    { width: 5 }, { width: 30 }, { width: 30 },
-  ];
+  dc.columns = [{ width: 5 }, { width: 30 }, { width: 30 }];
 
-  // B2:C2 merged — section header
+  // B2:C2 merged — PROJECT INFORMATION
   dc.mergeCells('B2:C2');
-  dc.getCell('B2').value = 'PROJECT INFORMATION';
-  dc.getCell('B2').font = cambria(10, true);
-  dc.getCell('B2').fill = fillSection;
+  sc(dc.getCell('B2'), { val: 'PROJECT INFORMATION', font: cambria(10, true), border: medAll, align: center, fill: fillSection });
+  sc(dc.getCell('C2'), { border: medNoLeft });
 
-  dc.getCell('B3').value = 'Project Name';
-  dc.getCell('B3').font = cambria(10);
-  dc.getCell('C3').value = fields.project_name || 'MMS';
-  dc.getCell('C3').font = cambria(10);
+  sc(dc.getCell('B3'), { val: 'Project Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
+  sc(dc.getCell('C3'), { val: fields.project_name || 'MMS', font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
 
-  dc.getCell('B4').value = 'Customer Name';
-  dc.getCell('B4').font = cambria(10);
-  dc.getCell('C4').value = fields.customer_name || 'MMS Resources';
-  dc.getCell('C4').font = cambria(10);
+  sc(dc.getCell('B4'), { val: 'Customer Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
+  sc(dc.getCell('C4'), { val: fields.customer_name || 'MMS Resources', font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
 
-  // B6:C6 merged — section header
+  // B6:C6 merged — DOCUMENT INFORMATION
   dc.mergeCells('B6:C6');
-  dc.getCell('B6').value = 'DOCUMENT INFORMATION';
-  dc.getCell('B6').font = cambria(10, true);
-  dc.getCell('B6').fill = fillSection;
+  sc(dc.getCell('B6'), { val: 'DOCUMENT INFORMATION', font: cambria(10, true), border: medAll, align: center, fill: fillSection });
+  sc(dc.getCell('C6'), { border: medNoLeft });
 
-  dc.getCell('B7').value = 'Document Name';
-  dc.getCell('B7').font = cambria(10);
-  dc.getCell('C7').value = `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim();
-  dc.getCell('C7').font = cambria(10);
+  sc(dc.getCell('B7'), { val: 'Document Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
+  sc(dc.getCell('C7'), { val: `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim(), font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
 
-  dc.getCell('B8').value = 'Document Date';
-  dc.getCell('B8').font = cambria(10);
-  dc.getCell('C8').value = dateStr;
-  dc.getCell('C8').font = cambria(10);
+  sc(dc.getCell('B8'), { val: 'Document Date', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
+  sc(dc.getCell('C8'), { val: dateStr, font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
 
   // --- Sheet 2: Offense List ---
   const ol = wb.addWorksheet('Offense List');
@@ -367,7 +369,7 @@ function addMmsSheets(wb, mmsData, fields) {
 
   ol.getRow(1).eachCell((cell) => {
     cell.font = cambria(10, true);
-    cell.border = thin;
+    cell.border = { style: 'thin' };
     cell.fill = fillSection;
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
   });
@@ -377,61 +379,36 @@ function addMmsSheets(wb, mmsData, fields) {
   for (let i = 2; i <= ol.rowCount; i++) {
     ol.getRow(i).eachCell((cell) => {
       cell.font = cambria(11);
-      cell.border = thin;
+      cell.border = { style: 'thin' };
     });
     ol.getRow(i).getCell(3).alignment = { horizontal: 'center' };
   }
 
   // --- Sheet 3: Summary ---
   const sm = wb.addWorksheet('Summary');
-  sm.columns = [
-    { width: 5 }, { width: 25 }, { width: 18 },
-  ];
+  sm.columns = [{ width: 5 }, { width: 25 }, { width: 18 }];
 
-  sm.getCell('B2').value = 'Total Offense';
-  sm.getCell('B2').font = cambria(12, true);
-  sm.getCell('B2').fill = fillLabel;
-  sm.getCell('C2').value = mmsData.length;
-  sm.getCell('C2').font = cambria(12, true);
+  // B2 — Total Offense (medium blue label)
+  sc(sm.getCell('B2'), { val: 'Total Offense', font: cambria(12, true), border: medAll, align: centerH, fill: fillLabel });
+  sc(sm.getCell('C2'), { val: mmsData.length, font: cambria(12, true), border: medCData, align: centerH });
 
-  // B5:C5 merged — section header
+  // B5:C5 merged — SIEM Performance (light blue section)
   sm.mergeCells('B5:C5');
-  sm.getCell('B5').value = 'SIEM Performance';
-  sm.getCell('B5').font = cambria(12, true);
-  sm.getCell('B5').fill = fillSection;
+  sc(sm.getCell('B5'), { val: 'SIEM Performance', font: cambria(12, true), border: medThinR, align: centerH, fill: fillSection });
+  sc(sm.getCell('C5'), { border: medThinRc });
 
-  sm.getCell('B6').value = 'Category';
-  sm.getCell('B6').font = cambria(12, true);
-  sm.getCell('B6').fill = fillLabel;
-  sm.getCell('C6').value = 'Percentage';
-  sm.getCell('C6').font = cambria(12, true);
-  sm.getCell('C6').fill = fillLabel;
+  // B6:C6 — Category / Percentage (medium blue labels)
+  sc(sm.getCell('B6'), { val: 'Category', font: cambria(12, true), border: medAll, align: centerH, fill: fillLabel });
+  sc(sm.getCell('C6'), { val: 'Percentage', font: cambria(12, true), border: medCData, align: centerH, fill: fillLabel });
 
-  sm.getCell('B7').value = 'Memory Utilization';
-  sm.getCell('B7').font = cambria(12);
-  sm.getCell('C7').value = fields.siem_memory || 'N/A';
-  sm.getCell('C7').font = cambria(12, true);
+  sc(sm.getCell('B7'), { val: 'Memory Utilization', font: cambria(12), border: medAll, align: centerV });
+  sc(sm.getCell('C7'), { val: fields.siem_memory || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
 
-  sm.getCell('B8').value = 'CPU Utilization';
-  sm.getCell('B8').font = cambria(12);
-  sm.getCell('C8').value = fields.siem_cpu || 'N/A';
-  sm.getCell('C8').font = cambria(12, true);
+  sc(sm.getCell('B8'), { val: 'CPU Utilization', font: cambria(12), border: medAll, align: centerV });
+  sc(sm.getCell('C8'), { val: fields.siem_cpu || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
 
-  sm.getCell('B9').value = 'Disk Usage';
-  sm.getCell('B9').font = cambria(12);
-  sm.getCell('C9').value = fields.siem_disk || 'N/A';
-  sm.getCell('C9').font = cambria(12, true);
-
-  // Center-align summary data
-  sm.getCell('C2').alignment = { horizontal: 'center' };
-  sm.getCell('C7').alignment = { horizontal: 'center' };
-  sm.getCell('C8').alignment = { horizontal: 'center' };
-  sm.getCell('C9').alignment = { horizontal: 'center' };
-
-  // Borders on summary table
-  ['B6', 'C6', 'B7', 'C7', 'B8', 'C8', 'B9', 'C9'].forEach((ref) => {
-    sm.getCell(ref).border = thin;
-  });
+  sc(sm.getCell('B9'), { val: 'Disk Usage', font: cambria(12), border: medAll, align: centerV });
+  sc(sm.getCell('C9'), { val: fields.siem_disk || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
 }
 
 function applySheetStyling(sheet, centerCols = new Set()) {
