@@ -64,6 +64,7 @@ function verdictBadge(v: string | null): string {
 export function DashboardTab({ onScanIp }: Props) {
   /* ── IP cache state ─────────────────────────────────────── */
   const [items, setItems] = useState<RecentIp[]>([]);
+  const [totalIps, setTotalIps] = useState(0);
   const [ipLoading, setIpLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [quickInput, setQuickInput] = useState('');
@@ -73,6 +74,7 @@ export function DashboardTab({ onScanIp }: Props) {
     try {
       const res = await api.ipCache.recent(50);
       setItems(res.items ?? []);
+      setTotalIps(res.total ?? (res.items ?? []).length);
       setLastRefreshed(new Date());
     } catch { /* ignore */ }
     finally { setIpLoading(false); }
@@ -171,7 +173,7 @@ export function DashboardTab({ onScanIp }: Props) {
       {/* ── Unified stat cards ─────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {[
-          { label: 'IPs Scanned', value: items.length, color: 'var(--color-foreground)' },
+          { label: 'IPs Scanned', value: totalIps, color: 'var(--color-foreground)' },
           { label: 'Malicious',   value: malCount,     color: 'var(--color-danger)' },
           { label: 'Suspicious',  value: susCount,     color: 'var(--color-warning)' },
           { label: 'Clean',       value: cleanCount,   color: 'var(--color-success)' },

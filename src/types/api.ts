@@ -38,6 +38,7 @@ export interface RecentIp {
 export interface RecentResponse {
   ok: boolean;
   ttlDays?: number;
+  total?: number;
   items: RecentIp[];
 }
 
