@@ -305,12 +305,21 @@ function addMmsSheets(wb, mmsData, fields) {
 
   const M = { style: 'medium' };
   const T = { style: 'thin' };
-  const medAll  = { top: M, left: M, bottom: M, right: M };
-  const medRight = { top: M, left: M, bottom: M, right: M }; // B-col data rows
-  const medNoLeft = { top: M, bottom: M, right: M };          // C-col after merge (no left)
-  const medCData  = { top: M, bottom: M, right: M };          // C-col data rows
-  const medThinR  = { top: M, left: M, bottom: M, right: T }; // Summary B5 merged (right=thin)
-  const medThinRc = { top: M, bottom: M, right: T };          // Summary C5
+  // Header: B-col (left of merge) = all 4 medium
+  // Header: C-col (right of merge) = top/bottom/right medium, NO left
+  const hdrB = { top: M, left: M, bottom: M, right: M };
+  const hdrC = { top: M, bottom: M, right: M };
+  // Data: B-col = bottom/left/right medium, NO top (merge bottom = row top)
+  // Data: C-col = bottom/right medium, NO top, NO left
+  const datB = { bottom: M, left: M, right: M };
+  const datC = { bottom: M, right: M };
+  // Summary B5 merged special: right=thin
+  const hdrBthinR  = { top: M, left: M, bottom: M, right: T };
+  const hdrCthinR  = { top: M, bottom: M, right: T };
+  // Summary data rows: all 4 medium on B, all 4 on C7, others no-left
+  const smDatB = { top: M, bottom: M, left: M, right: M };
+  const smDatC = { top: M, bottom: M, right: M };
+  const smDatC7 = { top: M, bottom: M, left: M, right: M };
 
   const cambria = (size, bold = false) => ({ name: 'Cambria', size, bold });
   const fillSection = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
@@ -334,25 +343,25 @@ function addMmsSheets(wb, mmsData, fields) {
 
   // B2:C2 merged — PROJECT INFORMATION
   dc.mergeCells('B2:C2');
-  sc(dc.getCell('B2'), { val: 'PROJECT INFORMATION', font: cambria(10, true), border: medAll, align: center, fill: fillSection });
-  sc(dc.getCell('C2'), { border: medNoLeft });
+  sc(dc.getCell('B2'), { val: 'PROJECT INFORMATION', font: cambria(10, true), border: hdrB, align: center, fill: fillSection });
+  sc(dc.getCell('C2'), { border: hdrC });
 
-  sc(dc.getCell('B3'), { val: 'Project Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
-  sc(dc.getCell('C3'), { val: fields.project_name || 'MMS', font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
+  sc(dc.getCell('B3'), { val: 'Project Name', font: cambria(10), border: datB, align: centerV });
+  sc(dc.getCell('C3'), { val: fields.project_name || 'MMS', font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
 
-  sc(dc.getCell('B4'), { val: 'Customer Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
-  sc(dc.getCell('C4'), { val: fields.customer_name || 'MMS Resources', font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
+  sc(dc.getCell('B4'), { val: 'Customer Name', font: cambria(10), border: datB, align: centerV });
+  sc(dc.getCell('C4'), { val: fields.customer_name || 'MMS Resources', font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
 
   // B6:C6 merged — DOCUMENT INFORMATION
   dc.mergeCells('B6:C6');
-  sc(dc.getCell('B6'), { val: 'DOCUMENT INFORMATION', font: cambria(10, true), border: medAll, align: center, fill: fillSection });
-  sc(dc.getCell('C6'), { border: medNoLeft });
+  sc(dc.getCell('B6'), { val: 'DOCUMENT INFORMATION', font: cambria(10, true), border: hdrB, align: center, fill: fillSection });
+  sc(dc.getCell('C6'), { border: hdrC });
 
-  sc(dc.getCell('B7'), { val: 'Document Name', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
-  sc(dc.getCell('C7'), { val: `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim(), font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
+  sc(dc.getCell('B7'), { val: 'Document Name', font: cambria(10), border: datB, align: centerV });
+  sc(dc.getCell('C7'), { val: `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim(), font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
 
-  sc(dc.getCell('B8'), { val: 'Document Date', font: cambria(10), border: { top: M, left: M, bottom: M, right: M }, align: centerV });
-  sc(dc.getCell('C8'), { val: dateStr, font: cambria(10), border: medCData, align: { ...centerV, horizontal: 'left' } });
+  sc(dc.getCell('B8'), { val: 'Document Date', font: cambria(10), border: datB, align: centerV });
+  sc(dc.getCell('C8'), { val: dateStr, font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
 
   // --- Sheet 2: Offense List ---
   const ol = wb.addWorksheet('Offense List');
@@ -389,26 +398,26 @@ function addMmsSheets(wb, mmsData, fields) {
   sm.columns = [{ width: 5 }, { width: 25 }, { width: 18 }];
 
   // B2 — Total Offense (medium blue label)
-  sc(sm.getCell('B2'), { val: 'Total Offense', font: cambria(12, true), border: medAll, align: centerH, fill: fillLabel });
-  sc(sm.getCell('C2'), { val: mmsData.length, font: cambria(12, true), border: medCData, align: centerH });
+  sc(sm.getCell('B2'), { val: 'Total Offense', font: cambria(12, true), border: hdrB, align: centerH, fill: fillLabel });
+  sc(sm.getCell('C2'), { val: mmsData.length, font: cambria(12, true), border: hdrC, align: centerH });
 
   // B5:C5 merged — SIEM Performance (light blue section)
   sm.mergeCells('B5:C5');
-  sc(sm.getCell('B5'), { val: 'SIEM Performance', font: cambria(12, true), border: medThinR, align: centerH, fill: fillSection });
-  sc(sm.getCell('C5'), { border: medThinRc });
+  sc(sm.getCell('B5'), { val: 'SIEM Performance', font: cambria(12, true), border: hdrBthinR, align: centerH, fill: fillSection });
+  sc(sm.getCell('C5'), { border: hdrCthinR });
 
   // B6:C6 — Category / Percentage (medium blue labels)
-  sc(sm.getCell('B6'), { val: 'Category', font: cambria(12, true), border: medAll, align: centerH, fill: fillLabel });
-  sc(sm.getCell('C6'), { val: 'Percentage', font: cambria(12, true), border: medCData, align: centerH, fill: fillLabel });
+  sc(sm.getCell('B6'), { val: 'Category', font: cambria(12, true), border: hdrB, align: centerH, fill: fillLabel });
+  sc(sm.getCell('C6'), { val: 'Percentage', font: cambria(12, true), border: hdrC, align: centerH, fill: fillLabel });
 
-  sc(sm.getCell('B7'), { val: 'Memory Utilization', font: cambria(12), border: medAll, align: centerV });
-  sc(sm.getCell('C7'), { val: fields.siem_memory || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
+  sc(sm.getCell('B7'), { val: 'Memory Utilization', font: cambria(12), border: smDatB, align: centerV });
+  sc(sm.getCell('C7'), { val: fields.siem_memory || 'N/A', font: cambria(12, true), border: smDatC7, align: centerH });
 
-  sc(sm.getCell('B8'), { val: 'CPU Utilization', font: cambria(12), border: medAll, align: centerV });
-  sc(sm.getCell('C8'), { val: fields.siem_cpu || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
+  sc(sm.getCell('B8'), { val: 'CPU Utilization', font: cambria(12), border: smDatB, align: centerV });
+  sc(sm.getCell('C8'), { val: fields.siem_cpu || 'N/A', font: cambria(12, true), border: smDatC, align: centerH });
 
-  sc(sm.getCell('B9'), { val: 'Disk Usage', font: cambria(12), border: medAll, align: centerV });
-  sc(sm.getCell('C9'), { val: fields.siem_disk || 'N/A', font: cambria(12, true), border: medCData, align: centerH });
+  sc(sm.getCell('B9'), { val: 'Disk Usage', font: cambria(12), border: smDatB, align: centerV });
+  sc(sm.getCell('C9'), { val: fields.siem_disk || 'N/A', font: cambria(12, true), border: smDatC, align: centerH });
 }
 
 function applySheetStyling(sheet, centerCols = new Set()) {
