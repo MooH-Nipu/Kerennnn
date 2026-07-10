@@ -268,6 +268,154 @@ function processSmiFromDaily(rows) {
   });
 }
 
+/* MMS Daily Report: SMI CSV → 3-sheet Excel (Document Control, Offense List, Summary) */
+function processMmsFromSmi(rows) {
+  const sorted = sortDailyById(rows);
+  return sorted.map((row) => {
+    const rawSev = String(row.severity ?? '').trim();
+    const sevUpper = processSeverityLogic(rawSev);
+    const numSev = parseFloat(rawSev);
+    let magnitude = 2;
+    if (!Number.isNaN(numSev)) magnitude = Math.min(10, Math.max(1, Math.round(numSev)));
+    else if (sevUpper === 'HIGH') magnitude = 5;
+    else if (sevUpper === 'MEDIUM') magnitude = 4;
+    else magnitude = 2;
+
+    const tStart = extractTimeDaily(row.startTime ?? '00:00:00');
+    const tEnd = extractTimeDaily(row.endTime ?? '00:00:00');
+
+    return {
+      id: String(row.id ?? ''),
+      offenseName: String(row.fullDescription ?? '').trim(),
+      magnitude,
+      sourceIp: String(row.attacker ?? '').trim(),
+      destIp: String(row.target ?? '').trim(),
+      hostnameUser: processUsernameOrderBy(row.usernameOrderBy),
+      timestamp: `${tStart} - ${tEnd}`,
+      note: 'Autoblock no further escalation',
+    };
+  });
+}
+
+function addMmsSheets(wb, mmsData, fields) {
+  const reportDate = fields.report_date || new Date().toISOString().slice(0, 10);
+  const d = new Date(reportDate + 'T00:00:00');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+
+  const thin = {
+    top: { style: 'thin' },
+    left: { style: 'thin' },
+    bottom: { style: 'thin' },
+    right: { style: 'thin' },
+  };
+  const tnr11 = { name: 'Times New Roman', size: 11 };
+
+  // --- Sheet 1: Document Control ---
+  const dc = wb.addWorksheet('Document Control');
+  dc.columns = [
+    { width: 5 }, { width: 30 }, { width: 30 }, { width: 20 }, { width: 20 }, { width: 20 },
+  ];
+
+  dc.getCell('B2').value = 'PROJECT INFORMATION';
+  dc.getCell('B2').font = { name: 'Times New Roman', size: 12, bold: true };
+  dc.getCell('B3').value = 'Project Name';
+  dc.getCell('B3').font = tnr11;
+  dc.getCell('C3').value = fields.project_name || 'MMS';
+  dc.getCell('C3').font = tnr11;
+  dc.getCell('B4').value = 'Customer Name';
+  dc.getCell('B4').font = tnr11;
+  dc.getCell('C4').value = fields.customer_name || 'MMS Resources';
+  dc.getCell('C4').font = tnr11;
+  dc.getCell('B6').value = 'DOCUMENT INFORMATION';
+  dc.getCell('B6').font = { name: 'Times New Roman', size: 12, bold: true };
+  dc.getCell('B7').value = 'Document Name';
+  dc.getCell('B7').font = tnr11;
+  dc.getCell('C7').value = `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim();
+  dc.getCell('C7').font = tnr11;
+  dc.getCell('B8').value = 'Document Date';
+  dc.getCell('B8').font = tnr11;
+  dc.getCell('C8').value = dateStr;
+  dc.getCell('C8').font = tnr11;
+
+  // --- Sheet 2: Offense List ---
+  const ol = wb.addWorksheet('Offense List');
+  ol.columns = [
+    { header: 'ID',               key: 'id',           width: 10 },
+    { header: 'Offense Name',     key: 'offenseName',  width: 45 },
+    { header: 'Magnitude',        key: 'magnitude',    width: 12 },
+    { header: 'Source IP',        key: 'sourceIp',     width: 20 },
+    { header: 'Destination IP',   key: 'destIp',       width: 20 },
+    { header: 'Hostname/Username', key: 'hostnameUser', width: 22 },
+    { header: 'Timestamp',        key: 'timestamp',    width: 24 },
+    { header: 'Note',             key: 'note',         width: 40 },
+  ];
+
+  // Header row styling
+  ol.getRow(1).eachCell((cell) => {
+    cell.font = { name: 'Times New Roman', size: 11, bold: true };
+    cell.border = thin;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+
+  mmsData.forEach((row) => ol.addRow(row));
+
+  // Data row styling
+  for (let i = 2; i <= ol.rowCount; i++) {
+    ol.getRow(i).eachCell((cell) => {
+      cell.font = tnr11;
+      cell.border = thin;
+    });
+    // Center-align magnitude column (col 3)
+    ol.getRow(i).getCell(3).alignment = { horizontal: 'center' };
+  }
+
+  // --- Sheet 3: Summary ---
+  const sm = wb.addWorksheet('Summary');
+  sm.columns = [
+    { width: 5 }, { width: 25 }, { width: 18 },
+  ];
+
+  sm.getCell('B2').value = 'Total Offense';
+  sm.getCell('B2').font = tnr11;
+  sm.getCell('C2').value = mmsData.length;
+  sm.getCell('C2').font = tnr11;
+
+  sm.getCell('B5').value = 'SIEM Performance';
+  sm.getCell('B5').font = { name: 'Times New Roman', size: 12, bold: true };
+  sm.getCell('B6').value = 'Category';
+  sm.getCell('B6').font = { name: 'Times New Roman', size: 11, bold: true };
+  sm.getCell('C6').value = 'Percentage';
+  sm.getCell('C6').font = { name: 'Times New Roman', size: 11, bold: true };
+
+  sm.getCell('B7').value = 'Memory Utilization';
+  sm.getCell('B7').font = tnr11;
+  sm.getCell('C7').value = fields.siem_memory || 'N/A';
+  sm.getCell('C7').font = tnr11;
+
+  sm.getCell('B8').value = 'CPU Utilization';
+  sm.getCell('B8').font = tnr11;
+  sm.getCell('C8').value = fields.siem_cpu || 'N/A';
+  sm.getCell('C8').font = tnr11;
+
+  sm.getCell('B9').value = 'Disk Usage';
+  sm.getCell('B9').font = tnr11;
+  sm.getCell('C9').value = fields.siem_disk || 'N/A';
+  sm.getCell('C9').font = tnr11;
+
+  // Center-align summary data
+  sm.getCell('C2').alignment = { horizontal: 'center' };
+  sm.getCell('C7').alignment = { horizontal: 'center' };
+  sm.getCell('C8').alignment = { horizontal: 'center' };
+  sm.getCell('C9').alignment = { horizontal: 'center' };
+
+  // Add borders to summary table cells
+  ['B6', 'C6', 'B7', 'C7', 'B8', 'C8', 'B9', 'C9'].forEach((ref) => {
+    sm.getCell(ref).border = thin;
+  });
+}
+
 function applySheetStyling(sheet, centerCols = new Set()) {
   const thin = {
     top: { style: 'thin' },
@@ -345,6 +493,7 @@ module.exports = async function handler(req, res) {
     bprks: files.bprks,
     pac: files.pac,
     smi: files.smi,
+    mms: files.mms,
   };
 
   const anyFile = Object.values(buffers).some((b) => b && b.length);
@@ -381,7 +530,19 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: e.message || 'CSV processing failed.' });
   }
 
-  if (!sheets.length) {
+  // Process MMS separately (uses its own sheet builder)
+  let mmsData = null;
+  try {
+    if (buffers.mms && buffers.mms.length) {
+      const rows = parseCsvBuffer(buffers.mms);
+      mmsData = processMmsFromSmi(rows);
+    }
+  } catch (e) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(400).json({ error: e.message || 'MMS CSV processing failed.' });
+  }
+
+  if (!sheets.length && !mmsData) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(400).json({ error: 'Tidak ada baris data yang valid dari file yang diunggah.' });
   }
@@ -392,6 +553,10 @@ module.exports = async function handler(req, res) {
     sheet.columns = columns ?? OUTPUT_KEYS.map((k) => ({ header: k, key: k, width: 22 }));
     data.forEach((row) => sheet.addRow(row));
     applySheetStyling(sheet, centerCols);
+  }
+
+  if (mmsData && mmsData.length) {
+    addMmsSheets(wb, mmsData, fields);
   }
 
   const buf = await wb.xlsx.writeBuffer();
