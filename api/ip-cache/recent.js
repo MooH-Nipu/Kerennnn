@@ -43,11 +43,21 @@ module.exports = async function handler(req, res) {
 
   if (error) return serverError(res, error, 'ip-cache recent');
 
-  // Get total count of all IPs in cache (not limited)
-  const { count: total } = await supabase
-    .from('vt_ip_cache')
-    .select('id', { count: 'exact', head: true });
+  // Get total count + verdict breakdown (not limited by fetch)
+  const [totalRes, malRes, susRes, cleanRes] = await Promise.all([
+    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }),
+    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'malicious'),
+    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'suspicious'),
+    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'clean'),
+  ]);
 
-  return res.status(200).json({ ok: true, ttlDays, total: total ?? (data || []).length, items: data || [] });
+  return res.status(200).json({
+    ok: true, ttlDays,
+    total: totalRes.count ?? (data || []).length,
+    malicious: malRes.count ?? 0,
+    suspicious: susRes.count ?? 0,
+    clean: cleanRes.count ?? 0,
+    items: data || [],
+  });
 };
 
