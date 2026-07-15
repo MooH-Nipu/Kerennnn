@@ -39,6 +39,9 @@ export interface RecentResponse {
   ok: boolean;
   ttlDays?: number;
   total?: number;
+  malicious?: number;
+  suspicious?: number;
+  clean?: number;
   items: RecentIp[];
 }
 

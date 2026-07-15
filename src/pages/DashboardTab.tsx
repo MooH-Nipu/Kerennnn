@@ -65,6 +65,7 @@ export function DashboardTab({ onScanIp }: Props) {
   /* ── IP cache state ─────────────────────────────────────── */
   const [items, setItems] = useState<RecentIp[]>([]);
   const [totalIps, setTotalIps] = useState(0);
+  const [verdictCounts, setVerdictCounts] = useState({ malicious: 0, suspicious: 0, clean: 0 });
   const [ipLoading, setIpLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [quickInput, setQuickInput] = useState('');
@@ -75,6 +76,11 @@ export function DashboardTab({ onScanIp }: Props) {
       const res = await api.ipCache.recent(50);
       setItems(res.items ?? []);
       setTotalIps(res.total ?? (res.items ?? []).length);
+      setVerdictCounts({
+        malicious: res.malicious ?? 0,
+        suspicious: res.suspicious ?? 0,
+        clean: res.clean ?? 0,
+      });
       setLastRefreshed(new Date());
     } catch { /* ignore */ }
     finally { setIpLoading(false); }
@@ -124,9 +130,6 @@ export function DashboardTab({ onScanIp }: Props) {
   }
 
   /* ── Derived ────────────────────────────────────────────── */
-  const malCount   = items.filter(i => i.vt_verdict === 'malicious').length;
-  const susCount   = items.filter(i => i.vt_verdict === 'suspicious').length;
-  const cleanCount = items.filter(i => i.vt_verdict === 'clean').length;
 
   const usageTotals = usageData
     ? usageData.byOutcome.reduce((acc, o) => { acc[o.outcome] = o.total; return acc; }, {} as Record<string, number>)
@@ -174,9 +177,9 @@ export function DashboardTab({ onScanIp }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {[
           { label: 'IPs Scanned', value: totalIps, color: 'var(--color-foreground)' },
-          { label: 'Malicious',   value: malCount,     color: 'var(--color-danger)' },
-          { label: 'Suspicious',  value: susCount,     color: 'var(--color-warning)' },
-          { label: 'Clean',       value: cleanCount,   color: 'var(--color-success)' },
+          { label: 'Malicious',   value: verdictCounts.malicious,     color: 'var(--color-danger)' },
+          { label: 'Suspicious',  value: verdictCounts.suspicious,    color: 'var(--color-warning)' },
+          { label: 'Clean',       value: verdictCounts.clean,         color: 'var(--color-success)' },
           { label: 'API Calls',   value: usageData ? usageData.total.toLocaleString() : '—', color: 'var(--color-primary)' },
           { label: 'Errors',      value: usageTotals.error || 0, color: 'var(--color-muted-foreground)' },
         ].map(stat => (
