@@ -9,7 +9,20 @@ export interface ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { credentials: 'include', ...init });
+  const method = (init?.method || 'GET').toUpperCase();
+  const isRead = method === 'GET' || method === 'HEAD';
+  const requestPath = isRead
+    ? `${path}${path.includes('?') ? '&' : '?'}_ts=${Date.now()}`
+    : path;
+  const res = await fetch(requestPath, {
+    credentials: 'include',
+    cache: isRead ? 'no-store' : undefined,
+    ...init,
+    headers: {
+      ...(isRead ? { 'Cache-Control': 'no-cache' } : {}),
+      ...init?.headers,
+    },
+  });
   const json = await res.json().catch(() => ({}));
   const e = (json as { error?: string | { message?: string } }).error;
   if (!res.ok) {

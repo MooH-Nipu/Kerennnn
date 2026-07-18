@@ -145,7 +145,7 @@ function AppInner() {
         sidebar={sidebar}
         onToggleCompact={toggleCompact}
         onToggleSidebar={toggleSidebar}
-        onQuickScan={handleQuickScan}
+
         pacFilterCount={pacFilterCount}
         tabOrder={tabOrder}
         onReorderTabs={(o) => saveTabPrefs(o, [])}

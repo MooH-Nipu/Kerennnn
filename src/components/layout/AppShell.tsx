@@ -13,7 +13,7 @@ interface Props {
   sidebar: boolean;
   onToggleCompact: () => void;
   onToggleSidebar: () => void;
-  onQuickScan: (ioc: string) => void;
+
   pacFilterCount?: number;
   tabOrder: TabId[];
   onReorderTabs: (order: TabId[]) => void;
@@ -22,7 +22,7 @@ interface Props {
 
 export function AppShell({
   role, username, activeTab, setActiveTab,
-  compact, sidebar, onToggleCompact, onToggleSidebar, onQuickScan,
+  compact, sidebar, onToggleCompact, onToggleSidebar,
   pacFilterCount, tabOrder, onReorderTabs, children,
 }: Props) {
   // Toggle the background grid via a CSS custom property on :root.
@@ -39,7 +39,7 @@ export function AppShell({
         sidebar={sidebar}
         onToggleCompact={onToggleCompact}
         onToggleSidebar={onToggleSidebar}
-        onQuickScan={onQuickScan}
+
       />
 
       {sidebar ? (

@@ -1,4 +1,3 @@
-import { useState, FormEvent } from 'react';
 import type { Role } from '../../types/api';
 import { useAuthActions } from '../../context/AuthContext';
 import { RoleBadge } from '../shared/RoleBadge';
@@ -10,21 +9,10 @@ interface Props {
   sidebar: boolean;
   onToggleCompact: () => void;
   onToggleSidebar: () => void;
-  onQuickScan: (ioc: string) => void;
 }
 
-export function AppHeader({ username, role, compact, sidebar, onToggleCompact, onToggleSidebar, onQuickScan }: Props) {
+export function AppHeader({ username, role, compact, sidebar, onToggleCompact, onToggleSidebar }: Props) {
   const { logout } = useAuthActions();
-  const [scanInput, setScanInput] = useState('');
-
-  function handleQuickScan(e: FormEvent) {
-    e.preventDefault();
-    const val = scanInput.trim();
-    if (val) {
-      onQuickScan(val);
-      setScanInput('');
-    }
-  }
 
   return (
     <header className={`app-header ${compact ? 'app-header--compact' : ''}`}>
@@ -33,19 +21,6 @@ export function AppHeader({ username, role, compact, sidebar, onToggleCompact, o
         <span className="app-header__title">Charlie <em>kerennnn</em></span>
       </div>
 
-      <form className="quick-scan-form" onSubmit={handleQuickScan} aria-label="Quick scan">
-        <input
-          type="text"
-          className="quick-scan-input"
-          placeholder="IP / domain / hash…"
-          value={scanInput}
-          onChange={e => setScanInput(e.target.value)}
-          aria-label="IOC for quick scan"
-        />
-        <button type="submit" className="quick-scan-btn" disabled={!scanInput.trim()} aria-label="Scan">
-          ◎
-        </button>
-      </form>
 
       <div className="app-header__actions">
         <button

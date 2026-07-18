@@ -35,6 +35,14 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 };
 const AXIS_STYLE = { fill: 'var(--color-muted-foreground)', fontSize: 11 };
+const RANGE_HOURS: Record<string, number> = {
+  '15m': 0.25,
+  '1h': 1,
+  '6h': 6,
+  '24h': 24,
+  '7d': 168,
+  '30d': 720,
+};
 
 function outcomeLabel(o: string) {
   if (o === 'rate_limited') return 'Rate-limited';
@@ -101,19 +109,29 @@ export function DashboardTab({ onScanIp }: Props) {
     setUsageError(null);
     const fromISO = new Date(f).toISOString();
     const toISO   = new Date(t).toISOString();
-    Promise.all([
+    Promise.allSettled([
       api.admin.usage({ from: fromISO, to: toISO }),
       api.admin.ipScans(fromISO, toISO),
       api.admin.vtQuota(),
     ])
-      .then(([usage, ipScans, quota]) => {
-        // Older deployments and partially applied migrations can omit aggregates.
-        setUsageData({ ...usage, byUser: usage.byUser ?? [], byOutcome: usage.byOutcome ?? [], byDay: usage.byDay ?? [], recent: usage.recent ?? [] });
-        const safeIpScans = { ...ipScans, byUser: ipScans.byUser ?? [], timeline: ipScans.timeline ?? [] };
-        setIpScanData(safeIpScans);
-        setScanTimeline(safeIpScans.timeline);
-        setScanTimelineBucket(safeIpScans.bucket ?? null);
-        setVtQuota({ ...quota, keys: quota.keys ?? [] });
+      .then(([usageResult, ipScansResult, quotaResult]) => {
+        const errors: string[] = [];
+        if (usageResult.status === 'fulfilled') {
+          const usage = usageResult.value;
+          setUsageData({ ...usage, byUser: usage.byUser ?? [], byOutcome: usage.byOutcome ?? [], byDay: usage.byDay ?? [], recent: usage.recent ?? [] });
+        } else errors.push(`Usage: ${usageResult.reason instanceof Error ? usageResult.reason.message : String(usageResult.reason)}`);
+        if (ipScansResult.status === 'fulfilled') {
+          const ipScans = ipScansResult.value;
+          const safeIpScans = { ...ipScans, byUser: ipScans.byUser ?? [], timeline: ipScans.timeline ?? [] };
+          setIpScanData(safeIpScans);
+          setScanTimeline(safeIpScans.timeline);
+          setScanTimelineBucket(safeIpScans.bucket ?? null);
+        } else errors.push(`IP scans: ${ipScansResult.reason instanceof Error ? ipScansResult.reason.message : String(ipScansResult.reason)}`);
+        if (quotaResult.status === 'fulfilled') {
+          const quota = quotaResult.value;
+          setVtQuota({ ...quota, keys: quota.keys ?? [] });
+        } else errors.push(`Quota: ${quotaResult.reason instanceof Error ? quotaResult.reason.message : String(quotaResult.reason)}`);
+        setUsageError(errors.length ? errors.join(' | ') : null);
       })
       .catch(err => setUsageError(err instanceof Error ? err.message : String(err)))
       .finally(() => { setUsageLoading(false); setRefreshing(false); });
@@ -133,6 +151,16 @@ export function DashboardTab({ onScanIp }: Props) {
     setFrom(fStr); setTo(tStr);
     fetchRecent(fStr, tStr);
     fetchUsage(fStr, tStr, true);
+  }
+
+  function refreshDashboard() {
+    const hoursBack = RANGE_HOURS[activePreset];
+    if (hoursBack) {
+      applyQuickRange(activePreset, hoursBack);
+      return;
+    }
+    fetchRecent(from, to);
+    fetchUsage(from, to, true);
   }
 
   /* ── Derived ────────────────────────────────────────────── */
@@ -155,7 +183,7 @@ export function DashboardTab({ onScanIp }: Props) {
         )}
         <button
           className="button button--ghost button--sm"
-          onClick={() => { fetchRecent(from, to); fetchUsage(from, to, true); }}
+          onClick={refreshDashboard}
           disabled={loading}
           style={{ marginLeft: 'auto' }}
         >
