@@ -4,6 +4,7 @@ const { getVtKeys, getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 const { logApiUsage } = require('./_usage');
+const { logIpScan } = require('./_ipscans');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -84,6 +85,9 @@ module.exports = async function handler(req, res) {
       },
     });
   }
+
+  // Count every user IP lookup, whether it hits the cache or VirusTotal.
+  if (type === 'ip') logIpScan(req, ioc).catch(() => {});
 
   // For IPs: short-circuit from DB cache — skip VT API call entirely
   if (type === 'ip') {

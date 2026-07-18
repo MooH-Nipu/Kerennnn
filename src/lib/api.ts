@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse } from '../types/api';
+import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -60,6 +60,9 @@ export const api = {
         body: JSON.stringify({ id }),
       }),
     logs: () => apiFetch<LogsResponse>('/api/admin/logs'),
+    ipScans: (from: string, to: string) =>
+      apiFetch<IpScanAnalyticsResponse>(`/api/admin/ip-scans?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+    vtQuota: () => apiFetch<VtQuotaResponse>('/api/admin/vt-quota'),
     usage: (opts: { days?: number; from?: string; to?: string } = { days: 7 }) => {
       const p = new URLSearchParams();
       if (opts.from && opts.to) { p.set('from', opts.from); p.set('to', opts.to); }
@@ -135,7 +138,11 @@ export const api = {
   },
 
   ipCache: {
-    recent: (limit = 50) => apiFetch<RecentResponse>(`/api/ip-cache/recent?limit=${limit}`),
+    recent: (limit = 50, from?: string, to?: string) => {
+      const p = new URLSearchParams({ limit: String(limit) });
+      if (from && to) { p.set('from', from); p.set('to', to); }
+      return apiFetch<RecentResponse>(`/api/ip-cache/recent?${p}`);
+    },
     byId: (id: string) => apiFetch<Record<string, unknown>>(`/api/ip-cache/by-id?id=${encodeURIComponent(id)}`),
     saveCorrelation: (ioc: string, correlation: unknown) =>
       apiFetch<{ ok: boolean }>('/api/ip-cache/correlation', {
