@@ -129,7 +129,7 @@ export function DashboardTab({ onScanIp }: Props) {
         } else errors.push(`IP scans: ${ipScansResult.reason instanceof Error ? ipScansResult.reason.message : String(ipScansResult.reason)}`);
         if (quotaResult.status === 'fulfilled') {
           const quota = quotaResult.value;
-          setVtQuota({ ...quota, keys: quota.keys ?? [] });
+          setVtQuota({ ...quota, keys: quota.keys ?? [], services: (quota.services ?? []).map(service => ({ ...service, keys: service.keys ?? [] })) });
         } else errors.push(`Quota: ${quotaResult.reason instanceof Error ? quotaResult.reason.message : String(quotaResult.reason)}`);
         setUsageError(errors.length ? errors.join(' | ') : null);
       })
