@@ -18,7 +18,7 @@ function normalizeKey(key) {
 
 /**
  * Collects unique VirusTotal API keys from the environment.
- * VT_API_KEY plus optional VT_API_KEY_2 … VT_API_KEY_10 (trimmed, deduped).
+ * VT_API_KEY plus any numbered VT_API_KEY_N entries (trimmed, deduped).
  */
 function getVtKeys() {
   const seen = new Set();
@@ -31,7 +31,11 @@ function getVtKeys() {
     }
   };
   add(process.env.VT_API_KEY);
-  for (let i = 2; i <= 10; i++) add(process.env[`VT_API_KEY_${i}`]);
+  Object.keys(process.env)
+    .map((name) => ({ name, match: /^VT_API_KEY_(\d+)$/.exec(name) }))
+    .filter(({ match }) => match && Number(match[1]) >= 2)
+    .sort((a, b) => Number(a.match[1]) - Number(b.match[1]))
+    .forEach(({ name }) => add(process.env[name]));
   return keys;
 }
 

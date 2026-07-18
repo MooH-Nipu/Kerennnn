@@ -43,6 +43,10 @@ export interface RecentResponse {
   suspicious?: number;
   clean?: number;
   items: RecentIp[];
+  scanTimeline?: {
+    bucket: '30m' | '1d' | '1w' | null;
+    points: Array<{ time: string; scans: number }>;
+  };
 }
 
 export interface IrCase {
@@ -215,6 +219,39 @@ export interface UsageRecentRow {
   outcome: string;
   api_key: string | null;
   created_at: string;
+}
+
+export interface VtQuotaResponse {
+  ok: boolean;
+  periodStart: string;
+  resetAt: string;
+  dailyLimit: number;
+  keys: QuotaKey[];
+  services?: Array<{
+    id: string;
+    name: string;
+    dailyLimit: number;
+    keys: QuotaKey[];
+  }>;
+}
+
+export interface QuotaKey {
+  key: string;
+  prefix: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  percent: number;
+  coolingDown: boolean;
+}
+
+export interface IpScanAnalyticsResponse {
+  ok: boolean;
+  total: number;
+  byUser: Array<{ username: string; scans: number; uniqueIps: number | null }>;
+  bucket?: '30m' | '1d' | '1w';
+  timeline?: Array<{ time: string; scans: number; source: string }>;
+  timelineNote?: string;
 }
 
 export interface ApiUsageResponse {

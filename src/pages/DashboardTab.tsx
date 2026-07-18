@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ResponsiveContainer,
   BarChart, Bar,
@@ -8,18 +8,13 @@ import {
 import { api } from '../lib/api';
 import { fmtWhen } from '../lib/utils';
 import { Spinner } from '../components/shared/Spinner';
-import type { RecentIp, ApiUsageResponse } from '../types/api';
+import type { RecentIp, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 
 interface Props {
   onScanIp?: (ip: string) => void;
 }
 
 /* ── Usage helpers ─────────────────────────────────────────── */
-const OUTCOME_COLORS: Record<string, string> = {
-  ok: 'var(--color-success)',
-  rate_limited: 'var(--color-warning)',
-  error: 'var(--color-danger)',
-};
 const SERVICE_COLORS: Record<string, string> = {
   'VirusTotal':     'var(--color-primary)',
   'AbuseIPDB':      'var(--color-danger)',
@@ -64,16 +59,19 @@ function verdictBadge(v: string | null): string {
 export function DashboardTab({ onScanIp }: Props) {
   /* ── IP cache state ─────────────────────────────────────── */
   const [items, setItems] = useState<RecentIp[]>([]);
+  const [scanTimeline, setScanTimeline] = useState<Array<{ time: string; scans: number; source?: string }>>([]);
+  const [scanTimelineBucket, setScanTimelineBucket] = useState<string | null>(null);
   const [totalIps, setTotalIps] = useState(0);
   const [verdictCounts, setVerdictCounts] = useState({ malicious: 0, suspicious: 0, clean: 0 });
   const [ipLoading, setIpLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [quickInput, setQuickInput] = useState('');
 
-  const fetchRecent = useCallback(async () => {
+  const fetchRecent = useCallback(async (f?: string, t?: string) => {
     setIpLoading(true);
     try {
-      const res = await api.ipCache.recent(50);
+      const fromISO = f ? new Date(f).toISOString() : undefined;
+      const toISO = t ? new Date(t).toISOString() : undefined;
+      const res = await api.ipCache.recent(50, fromISO, toISO);
       setItems(res.items ?? []);
       setTotalIps(res.total ?? (res.items ?? []).length);
       setVerdictCounts({
@@ -94,6 +92,8 @@ export function DashboardTab({ onScanIp }: Props) {
   const [usageLoading, setUsageLoading] = useState(true);
   const [, setRefreshing] = useState(false);
   const [usageData, setUsageData] = useState<ApiUsageResponse | null>(null);
+  const [ipScanData, setIpScanData] = useState<IpScanAnalyticsResponse | null>(null);
+  const [vtQuota, setVtQuota] = useState<VtQuotaResponse | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
 
   const fetchUsage = useCallback((f: string, t: string, isRefresh: boolean) => {
@@ -101,14 +101,26 @@ export function DashboardTab({ onScanIp }: Props) {
     setUsageError(null);
     const fromISO = new Date(f).toISOString();
     const toISO   = new Date(t).toISOString();
-    api.admin.usage({ from: fromISO, to: toISO })
-      .then(r => setUsageData(r))
+    Promise.all([
+      api.admin.usage({ from: fromISO, to: toISO }),
+      api.admin.ipScans(fromISO, toISO),
+      api.admin.vtQuota(),
+    ])
+      .then(([usage, ipScans, quota]) => {
+        // Older deployments and partially applied migrations can omit aggregates.
+        setUsageData({ ...usage, byUser: usage.byUser ?? [], byOutcome: usage.byOutcome ?? [], byDay: usage.byDay ?? [], recent: usage.recent ?? [] });
+        const safeIpScans = { ...ipScans, byUser: ipScans.byUser ?? [], timeline: ipScans.timeline ?? [] };
+        setIpScanData(safeIpScans);
+        setScanTimeline(safeIpScans.timeline);
+        setScanTimelineBucket(safeIpScans.bucket ?? null);
+        setVtQuota({ ...quota, keys: quota.keys ?? [] });
+      })
       .catch(err => setUsageError(err instanceof Error ? err.message : String(err)))
       .finally(() => { setUsageLoading(false); setRefreshing(false); });
   }, []);
 
   useEffect(() => {
-    fetchRecent();
+    fetchRecent(from, to);
     fetchUsage(from, to, false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -119,14 +131,8 @@ export function DashboardTab({ onScanIp }: Props) {
     const fStr = toLocalDatetime(f);
     const tStr = toLocalDatetime(t);
     setFrom(fStr); setTo(tStr);
+    fetchRecent(fStr, tStr);
     fetchUsage(fStr, tStr, true);
-  }
-
-  function handleQuickScan(e: FormEvent) {
-    e.preventDefault();
-    if (quickInput.trim()) onScanIp?.(quickInput.trim());
-    else onScanIp?.('');
-    setQuickInput('');
   }
 
   /* ── Derived ────────────────────────────────────────────── */
@@ -134,7 +140,6 @@ export function DashboardTab({ onScanIp }: Props) {
   const usageTotals = usageData
     ? usageData.byOutcome.reduce((acc, o) => { acc[o.outcome] = o.total; return acc; }, {} as Record<string, number>)
     : {};
-  const perUserHeight = usageData ? Math.max(200, usageData.byUser.length * 34 + 48) : 200;
 
   const loading = ipLoading || usageLoading;
 
@@ -150,7 +155,7 @@ export function DashboardTab({ onScanIp }: Props) {
         )}
         <button
           className="button button--ghost button--sm"
-          onClick={() => { fetchRecent(); fetchUsage(from, to, true); }}
+          onClick={() => { fetchRecent(from, to); fetchUsage(from, to, true); }}
           disabled={loading}
           style={{ marginLeft: 'auto' }}
         >
@@ -158,25 +163,11 @@ export function DashboardTab({ onScanIp }: Props) {
         </button>
       </div>
 
-      {/* ── Quick Scan ─────────────────────────────────────── */}
-      <form onSubmit={handleQuickScan} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <input
-          type="text"
-          className="input"
-          placeholder="Quick scan an IP, domain, or hash…"
-          value={quickInput}
-          onChange={e => setQuickInput(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button type="submit" className="button button--primary button--sm" disabled={!quickInput.trim()}>
-          Scan
-        </button>
-      </form>
 
       {/* ── Unified stat cards ─────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {[
-          { label: 'IPs Scanned', value: totalIps, color: 'var(--color-foreground)' },
+          { label: 'Unique IPs Cached', value: totalIps, color: 'var(--color-foreground)' },
           { label: 'Malicious',   value: verdictCounts.malicious,     color: 'var(--color-danger)' },
           { label: 'Suspicious',  value: verdictCounts.suspicious,    color: 'var(--color-warning)' },
           { label: 'Clean',       value: verdictCounts.clean,         color: 'var(--color-success)' },
@@ -240,52 +231,87 @@ export function DashboardTab({ onScanIp }: Props) {
         </div>
       )}
 
-      {/* ── Charts: per-user bar charts ────────────────────── */}
-      {!loading && usageData && usageData.total > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          {/* Calls per user */}
+      {/* ── Scan activity + outcome quality ────────────────── */}
+      {!loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           <div className="card">
-            <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Calls per user</h3></div>
+            <div className="card__header">
+              <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans over time</h3>
+              <span className="badge badge--soft" style={{ marginLeft: 'auto' }}>{scanTimelineBucket ?? '—'} buckets</span>
+            </div>
             <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-                <ResponsiveContainer width="100%" height={perUserHeight}>
-                <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                  <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
-                  <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--color-border)" width={96} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'color-mix(in oklch, var(--color-primary) 8%, transparent)' }} />
-                  <Bar dataKey="total" name="Total calls" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              </div>
+              {scanTimeline.length > 0 ? (
+                <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={scanTimeline} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
+                      <defs><linearGradient id="scan-timeline-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.45} /><stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} /></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="time" tick={AXIS_STYLE} stroke="var(--color-border)" minTickGap={28} />
+                      <YAxis tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'var(--color-primary)' }} formatter={(value, _name, item) => [value as number, item.payload.source ?? 'tracked scans']} />
+                      <Area type="monotone" dataKey="scans" name="IP scans" stroke="var(--color-primary)" strokeWidth={2} fill="url(#scan-timeline-gradient)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <div className="empty-state"><p className="empty-state__text">No IP scans in this window.</p></div>}
             </div>
           </div>
 
-          {/* Outcomes per user */}
           <div className="card">
-            <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Outcomes per user</h3></div>
+            <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans per user</h3></div>
             <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-                <ResponsiveContainer width="100%" height={perUserHeight}>
-                <BarChart data={usageData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                  <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
-                  <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--color-border)" width={96} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'color-mix(in oklch, var(--color-primary) 8%, transparent)' }} formatter={(v, n) => [v as number, outcomeLabel(String(n))]} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--color-muted-foreground)' }} formatter={(v) => outcomeLabel(String(v))} />
-                  <Bar dataKey="ok" stackId="o" fill={OUTCOME_COLORS.ok} />
-                  <Bar dataKey="rate_limited" stackId="o" fill={OUTCOME_COLORS.rate_limited} />
-                  <Bar dataKey="error" stackId="o" fill={OUTCOME_COLORS.error} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {ipScanData && ipScanData.byUser.length > 0 ? (
+                <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
+                  <ResponsiveContainer width="100%" height={Math.max(200, ipScanData.byUser.length * 34 + 48)}>
+                    <BarChart data={ipScanData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                      <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
+                      <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--color-border)" width={96} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'color-mix(in oklch, var(--color-primary) 8%, transparent)' }} />
+                      <Bar dataKey="scans" name="IP scans" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <div className="empty-state"><p className="empty-state__text">No user IP scans in this window.</p></div>}
             </div>
           </div>
         </div>
+      )}
+
+      {vtQuota && (vtQuota.services ?? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }]).some(service => service.keys.length > 0) && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <div className="card__header">
+            <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>API quota tracker</h3>
+            <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-muted-foreground)' }}>
+              Resets {new Date(vtQuota.resetAt).toLocaleString()}
+            </span>
+          </div>
+          <div className="card__body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {(vtQuota.services ?? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }]).map(service => (
+              <section key={service.id} style={{ display: 'grid', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.8rem' }}>{service.name}</strong>
+                  <span className="badge badge--soft">{service.keys.length} key{service.keys.length === 1 ? '' : 's'}</span>
+                </div>
+                {service.keys.map(key => (
+                  <div key={key.prefix}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                      <span>{key.key} <span style={{ color: 'var(--color-muted-foreground)', fontFamily: 'var(--font-mono)' }}>{key.prefix}</span></span>
+                      <span>{key.used.toLocaleString()} / {key.limit.toLocaleString()}</span>
+                    </div>
+                    <div style={{ height: 7, borderRadius: 99, background: 'var(--color-border)', overflow: 'hidden' }}>
+                      <div style={{ width: `${key.percent}%`, height: '100%', background: key.percent >= 90 ? 'var(--color-danger)' : key.percent >= 70 ? 'var(--color-warning)' : 'var(--color-primary)', transition: 'width 0.2s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </div>
         </div>
       )}
 
       {/* ── TI usage over time (full width) ─────────────────── */}
-      {!loading && usageData && usageData.total > 0 && (
+      {!loading && usageData && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
           <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
