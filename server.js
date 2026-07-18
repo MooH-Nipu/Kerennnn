@@ -41,6 +41,10 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 100;
 app.use('/api/', (req, res, next) => {
+  // Dashboard and admin reads must never be served from browser/CDN cache.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
