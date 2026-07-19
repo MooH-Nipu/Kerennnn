@@ -324,7 +324,10 @@ export function DashboardTab({ onScanIp }: Props) {
                 {service.keys.map(key => (
                   <div key={key.prefix}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                      <span>{key.key} <span style={{ color: 'var(--color-muted-foreground)', fontFamily: 'var(--font-mono)' }}>{key.prefix}</span></span>
+                      <span>
+                        {key.key} <span style={{ color: 'var(--color-muted-foreground)', fontFamily: 'var(--font-mono)' }}>{key.prefix}</span>
+                        {key.quotaExhausted ? <span className="badge badge--soft" style={{ marginLeft: '0.4rem' }}>quota exhausted</span> : key.coolingDown ? <span className="badge badge--soft" style={{ marginLeft: '0.4rem' }}>minute cooldown</span> : null}
+                      </span>
                       <span>{key.used.toLocaleString()} / {key.limit.toLocaleString()}</span>
                     </div>
                     <div style={{ height: 7, borderRadius: 99, background: 'var(--color-border)', overflow: 'hidden' }}>
@@ -347,7 +350,7 @@ export function DashboardTab({ onScanIp }: Props) {
               {(() => {
                 const svcSet = new Set<string>();
                 for (const d of usageData.byDay) {
-                  for (const k of Object.keys(d)) { if (k !== 'day') svcSet.add(k); }
+                  for (const k of Object.keys(d)) { if (k !== 'day' && k !== 'Unknown') svcSet.add(k); }
                 }
                 const services = [...svcSet].sort();
                 if (services.length === 0) return <div className="empty-state"><p className="empty-state__text">No threat-intel calls in this window.</p></div>;

@@ -1,7 +1,7 @@
 'use strict';
 const { requireRole } = require('../_auth');
 const { getSupabase } = require('../_supabase');
-const { getVtKeys, isVtKeyCoolingDown } = require('../_vtkeys');
+const { getVtKeys, isVtKeyCoolingDown, isVtKeyQuotaExceeded, getVtKeyQuotaResetAt } = require('../_vtkeys');
 const { getAbuseIPDBKeys } = require('../_abuseipdbkeys');
 const { serverError } = require('../_errors');
 
@@ -40,6 +40,7 @@ module.exports = async function handler(req, res) {
         .lt('created_at', resetAt.toISOString());
       if (error) throw error;
       const used = count || 0;
+      const quotaResetAt = service.id === 'virustotal' ? getVtKeyQuotaResetAt(key) : null;
       return {
         key: `${service.name} key ${index + 1}`,
         prefix: `${prefix}...`,
@@ -48,6 +49,8 @@ module.exports = async function handler(req, res) {
         remaining: Math.max(0, service.limit - used),
         percent: Math.min(100, Math.round((used / service.limit) * 100)),
         coolingDown: service.id === 'virustotal' && isVtKeyCoolingDown(key),
+        quotaExhausted: service.id === 'virustotal' && isVtKeyQuotaExceeded(key),
+        quotaResetAt: quotaResetAt ? new Date(quotaResetAt).toISOString() : null,
       };
       }));
       return { id: service.id, name: service.name, dailyLimit: service.limit, keys: rows };

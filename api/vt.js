@@ -1,6 +1,6 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { getSupabase } = require('./_supabase');
-const { getVtKeys, getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
+const { getVtKeys, getVtKeysForRequest, getVtAvailableKeyCount, getNextVtQuotaResetAt, getNextVtCooldownAt, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtKeyQuotaExceeded, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 const { logApiUsage } = require('./_usage');
@@ -55,6 +55,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       totalKeys: allKeys.length,
+      availableKeys: getVtAvailableKeyCount(),
       keys: allKeys.map((k, i) => ({ index: i + 1, prefix: k.slice(0, 6) + '...' })),
       node: process.version,
     });
@@ -62,11 +63,33 @@ module.exports = async function handler(req, res) {
 
   // ── Validation ────────────────────────────────
   if (apiKeys.length === 0) {
-    return res
-      .status(500)
-      .json({
-        error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' },
+    const configuredKeys = getVtKeys();
+    const cooldownAt = getNextVtCooldownAt();
+    if (configuredKeys.length && cooldownAt) {
+      const retryAfter = Math.max(1, Math.ceil((cooldownAt - Date.now()) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: {
+          code: 'VT_TEMPORARY_RATE_LIMIT',
+          message: 'All available VirusTotal API keys are temporarily rate-limited.',
+          retryable: true,
+        },
       });
+    }
+    const resetAt = getNextVtQuotaResetAt();
+    if (configuredKeys.length && configuredKeys.every(isVtKeyQuotaExceeded)) {
+      return res.status(429).json({
+        error: {
+          code: 'VT_QUOTA_EXHAUSTED',
+          message: `All ${configuredKeys.length} VirusTotal API key(s) exhausted their quota. Automatic retry disabled.`,
+          retryable: false,
+          ...(resetAt ? { resetAt: new Date(resetAt).toISOString() } : {}),
+        },
+      });
+    }
+    return res.status(500).json({
+      error: { message: 'No API keys configured. Set VT_API_KEY in environment variables.' },
+    });
   }
 
   const { ioc: rawIoc } = req.query;
@@ -141,6 +164,7 @@ module.exports = async function handler(req, res) {
   // ── Try each key; on quota/rate-limit or bad key, auto-switch to next for this IOC ──
   let lastError = null;
   let rateLimitedCount = 0;
+  let quotaExceededCount = 0;
   let badKeyCount = 0;
   const keyAttempts = []; // debug: track what each key returned
 
@@ -158,7 +182,11 @@ module.exports = async function handler(req, res) {
       );
 
       if (shouldTryNextVtKey(status, data)) {
-        if (isVtRateLimited(status, data)) {
+        if (isVtQuotaExceeded(status, data)) {
+          quotaExceededCount++;
+          markVtKeyQuotaExceeded(apiKeys[i]);
+          keyAttempts.push({ key: keyPrefix, status, result: 'quota_exhausted' });
+        } else if (isVtTemporaryRateLimit(status, data)) {
           rateLimitedCount++;
           markVtKeyRateLimited(apiKeys[i]);
           keyAttempts.push({ key: keyPrefix, status, result: 'rate_limited' });
@@ -367,12 +395,28 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  if (rateLimitedCount === apiKeys.length) {
+  if (quotaExceededCount > 0 && quotaExceededCount + badKeyCount === apiKeys.length) {
+    const resetAt = getNextVtQuotaResetAt();
+    logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: 'quota_exhausted' }).catch(() => {});
+    return res.status(429).json({
+      error: {
+        code: 'VT_QUOTA_EXHAUSTED',
+        message: `No usable VirusTotal API keys remain; ${quotaExceededCount} exhausted quota and ${badKeyCount} are invalid or inactive. Automatic retry disabled.`,
+        retryable: false,
+        ...(resetAt ? { resetAt: new Date(resetAt).toISOString() } : {}),
+      },
+      _debug: { keyAttempts },
+    });
+  }
+
+  if (rateLimitedCount > 0 && rateLimitedCount + quotaExceededCount + badKeyCount === apiKeys.length) {
     logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: 'rate_limited' }).catch(() => {});
     res.setHeader('Retry-After', '60');
     return res.status(429).json({
       error: {
-        message: `All ${apiKeys.length} unique API key(s) hit VirusTotal rate limits (per-minute: 4 req/min per key).`,
+        code: 'VT_TEMPORARY_RATE_LIMIT',
+        message: 'All available VirusTotal API keys are temporarily rate-limited.',
+        retryable: true,
       },
       _debug: { keyAttempts },
     });

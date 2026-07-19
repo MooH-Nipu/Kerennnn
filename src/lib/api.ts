@@ -6,6 +6,9 @@ import type { TabId } from './permissions';
 export interface ApiError extends Error {
   status?: number;
   retryAfter?: number; // seconds (from Retry-After header)
+  code?: string;
+  retryable?: boolean;
+  resetAt?: string;
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -24,10 +27,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const json = await res.json().catch(() => ({}));
-  const e = (json as { error?: string | { message?: string } }).error;
+  const e = (json as { error?: string | { message?: string; code?: string; retryable?: boolean; resetAt?: string } }).error;
   if (!res.ok) {
     const err: ApiError = new Error(typeof e === 'string' ? e : e?.message || `HTTP ${res.status}`);
     err.status = res.status;
+    if (typeof e === 'object' && e) {
+      err.code = e.code;
+      err.retryable = e.retryable;
+      err.resetAt = e.resetAt;
+    }
     const ra = Number(res.headers.get('Retry-After'));
     if (Number.isFinite(ra) && ra > 0) err.retryAfter = ra;
     throw err;
@@ -132,11 +140,11 @@ export const api = {
 
   userPrefs: {
     get: () => apiFetch<UserPrefsResponse>('/api/user-prefs'),
-    save: (tab_order: TabId[], hidden_tabs: TabId[]) =>
+    save: (hidden_tabs: TabId[], tab_labels: Partial<Record<TabId, string>>, group_labels: Partial<Record<string, string>>, nav_layout: Array<{ id: string; label: string; tabs: TabId[] }>, nav_tutorial_dismissed: boolean) =>
       apiFetch<UserPrefsResponse>('/api/user-prefs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tab_order, hidden_tabs }),
+        body: JSON.stringify({ hidden_tabs, tab_labels, group_labels, nav_layout, nav_tutorial_dismissed }),
       }),
   },
 

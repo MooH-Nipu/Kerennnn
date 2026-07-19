@@ -5,51 +5,46 @@ import { RoleBadge } from '../shared/RoleBadge';
 interface Props {
   username: string;
   role: Role;
-  compact: boolean;
-  sidebar: boolean;
-  onToggleCompact: () => void;
-  onToggleSidebar: () => void;
+  settingsActive: boolean;
+  showSettingsFeature: boolean;
+  onOpenSettings: () => void;
 }
 
-export function AppHeader({ username, role, compact, sidebar, onToggleCompact, onToggleSidebar }: Props) {
+export function AppHeader({ username, role, settingsActive, showSettingsFeature, onOpenSettings }: Props) {
   const { logout } = useAuthActions();
-
   return (
-    <header className={`app-header ${compact ? 'app-header--compact' : ''}`}>
+    <header className="app-header">
       <div className="app-header__brand">
-        <span className="app-header__logo" aria-hidden="true">◈</span>
         <span className="app-header__title">Charlie <em>kerennnn</em></span>
+        <span className="app-header__subtitle">SOC Toolbox</span>
       </div>
-
-
       <div className="app-header__actions">
-        <button
-          className={`icon-btn ${sidebar ? 'icon-btn--active' : ''}`}
-          onClick={onToggleSidebar}
-          title={sidebar ? 'Layout top-nav' : 'Layout sidebar'}
-          aria-label="Toggle sidebar"
-        >
-          {sidebar ? '⊟' : '⊞'}
-        </button>
-        <button
-          className={`icon-btn ${compact ? 'icon-btn--active' : ''}`}
-          onClick={onToggleCompact}
-          title={compact ? 'Mode spacious' : 'Mode compact'}
-          aria-label="Toggle compact"
-        >
-          {compact ? '⊕' : '⊖'}
-        </button>
-
+        <div className="settings-feature-anchor">
+          {showSettingsFeature && !settingsActive && (
+            <button type="button" className="settings-feature-bubble" onClick={onOpenSettings}>
+              <span className="settings-feature-bubble__badge">New</span>
+              <strong>Customize your navigation</strong>
+              <span>Move, rename, and group sidebar tabs.</span>
+            </button>
+          )}
+          <button
+            className={`settings-btn ${settingsActive ? 'settings-btn--active' : ''}`}
+            onClick={onOpenSettings}
+            title="Settings"
+            aria-label="Settings"
+            aria-current={settingsActive ? 'page' : undefined}
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
+        </div>
         <div className="header-user">
-          <span className="header-user__monogram" aria-hidden="true">
-            {username.slice(0, 2).toUpperCase()}
-          </span>
+          <span className="header-user__monogram" aria-hidden="true">{username.slice(0, 2).toUpperCase()}</span>
           <span className="header-user__name">{username}</span>
           <RoleBadge role={role} size="xs" />
         </div>
-
-        <button className="icon-btn" onClick={() => logout()} title="Logout" aria-label="Logout">
-          ⏏
+        <button className="logout-btn" onClick={() => logout()} title="Sign out">
+          <span aria-hidden="true">↪</span>
+          Logout
         </button>
       </div>
     </header>

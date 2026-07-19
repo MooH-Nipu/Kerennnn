@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import type { Role } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
+import type { NavGroup, TabSectionId } from '../../hooks/useTabPrefs';
 import { AppHeader } from './AppHeader';
 import { TabNav } from './TabNav';
 
@@ -9,69 +9,41 @@ interface Props {
   username: string;
   activeTab: TabId;
   setActiveTab: (tab: TabId) => void;
-  compact: boolean;
-  sidebar: boolean;
-  onToggleCompact: () => void;
-  onToggleSidebar: () => void;
-
   pacFilterCount?: number;
-  tabOrder: TabId[];
-  onReorderTabs: (order: TabId[]) => void;
+  hiddenTabs: TabId[];
+  tabLabels: Partial<Record<TabId, string>>;
+  groupLabels: Partial<Record<TabSectionId, string>>;
+  layout: NavGroup[];
+  showSettingsFeature: boolean;
   children: React.ReactNode;
 }
 
 export function AppShell({
-  role, username, activeTab, setActiveTab,
-  compact, sidebar, onToggleCompact, onToggleSidebar,
-  pacFilterCount, tabOrder, onReorderTabs, children,
+  role, username, activeTab, setActiveTab, pacFilterCount,
+  hiddenTabs, tabLabels, groupLabels, layout, showSettingsFeature, children,
 }: Props) {
-  // Toggle the background grid via a CSS custom property on :root.
-  useEffect(() => {
-    document.documentElement.setAttribute('data-compact', compact ? 'true' : 'false');
-  }, [compact]);
-
   return (
-    <div className={`app-shell ${sidebar ? 'app-shell--sidebar' : 'app-shell--topnav'} ${compact ? 'app-shell--compact' : ''}`}>
+    <div className="app-shell app-shell--sidebar">
       <AppHeader
         username={username}
         role={role}
-        compact={compact}
-        sidebar={sidebar}
-        onToggleCompact={onToggleCompact}
-        onToggleSidebar={onToggleSidebar}
-
+        settingsActive={activeTab === 'settings'}
+        showSettingsFeature={showSettingsFeature}
+        onOpenSettings={() => setActiveTab('settings')}
       />
-
-      {sidebar ? (
-        <div className="app-shell__body">
-          <TabNav
-            role={role}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            order={tabOrder}
-            onReorder={onReorderTabs}
-            sidebar
-            pacFilterCount={pacFilterCount}
-          />
-          <main className="app-shell__content" id="main-content">
-            {children}
-          </main>
-        </div>
-      ) : (
-        <>
-          <TabNav
-            role={role}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            order={tabOrder}
-            onReorder={onReorderTabs}
-            pacFilterCount={pacFilterCount}
-          />
-          <main className="app-shell__content" id="main-content">
-            {children}
-          </main>
-        </>
-      )}
+      <div className="app-shell__body">
+        <TabNav
+          role={role}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          hidden={hiddenTabs}
+          tabLabels={tabLabels}
+          groupLabels={groupLabels}
+          layout={layout}
+          pacFilterCount={pacFilterCount}
+        />
+        <main className="app-shell__content" id="main-content">{children}</main>
+      </div>
     </div>
   );
 }
