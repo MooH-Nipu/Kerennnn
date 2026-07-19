@@ -1,7 +1,7 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
 const { httpGet, httpPost, withTimeout } = require('./_http');
-const { getVtKeysForRequest, markVtKeyRateLimited, shouldTryNextVtKey, isVtRateLimited, isVtBadKey } = require('./_vtkeys');
+const { getVtKeysForRequest, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
 const { getSupabase } = require('./_supabase');
@@ -142,6 +142,7 @@ async function checkVT(ioc, type) {
 
   let lastError = null;
   let rateLimitedCount = 0;
+  let quotaExceededCount = 0;
   let badKeyCount = 0;
   for (const key of keys) {
     try {
@@ -151,7 +152,8 @@ async function checkVT(ioc, type) {
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
       if (shouldTryNextVtKey(status, data)) {
-        if (isVtRateLimited(status, data)) { rateLimitedCount++; markVtKeyRateLimited(key); }
+        if (isVtQuotaExceeded(status, data)) { quotaExceededCount++; markVtKeyQuotaExceeded(key); }
+        else if (isVtTemporaryRateLimit(status, data)) { rateLimitedCount++; markVtKeyRateLimited(key); }
         else if (isVtBadKey(status, data)) badKeyCount++;
         continue;
       }
@@ -165,8 +167,10 @@ async function checkVT(ioc, type) {
   }
   if (badKeyCount === keys.length)
     return { source: 'VirusTotal', error: 'All configured API keys are invalid or inactive.' };
-  if (rateLimitedCount === keys.length)
-    return { source: 'VirusTotal', error: 'All keys hit VirusTotal rate limits (per-minute or daily quota).' };
+  if (quotaExceededCount > 0 && quotaExceededCount + badKeyCount === keys.length)
+    return { source: 'VirusTotal', error: 'No usable VirusTotal keys remain; quota exhausted and automatic short retry disabled.' };
+  if (rateLimitedCount > 0 && rateLimitedCount + quotaExceededCount + badKeyCount === keys.length)
+    return { source: 'VirusTotal', error: 'All available VirusTotal keys are temporarily rate-limited.' };
   return { source: 'VirusTotal', error: `Cannot access VirusTotal: ${lastError?.message || 'Unknown error'}` };
 }
 

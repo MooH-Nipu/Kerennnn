@@ -17,7 +17,8 @@ async function fetchVtKeyCount(): Promise<number> {
   try {
     const r = await fetch(VT_KEYS_URL, { credentials: 'include' });
     const j = await r.json().catch(() => ({}));
-    const n = Number((j as { totalKeys?: number }).totalKeys);
+    const health = j as { totalKeys?: number; availableKeys?: number };
+    const n = Number(health.availableKeys ?? health.totalKeys);
     return Number.isFinite(n) && n > 0 ? n : 1;
   } catch {
     return 1;
@@ -219,7 +220,8 @@ export function useVtScan() {
           return res;
         } catch (err) {
           const status = (err as { status?: number })?.status;
-          if (status === 429 && attempt < VT_MAX_RETRIES) {
+          const retryable = (err as { retryable?: boolean })?.retryable;
+          if (status === 429 && retryable !== false && attempt < VT_MAX_RETRIES) {
             const ra = (err as { retryAfter?: number })?.retryAfter;
             const backoffMs = ra && ra > 0 ? ra * 1000 : VT_RATE_LIMIT_BACKOFF_MS;
             pauseUntilRef.current = Math.max(pauseUntilRef.current, Date.now() + backoffMs);

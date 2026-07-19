@@ -22,9 +22,7 @@ export function ShortcutHelp({ onClose }: Props) {
             <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
           </tbody>
         </table>
-        <div className="shortcut-modal__hint">
-          Drag tabs to reorder them. Shortcuts follow the visible order.
-        </div>
+        <div className="shortcut-modal__hint">Shortcuts follow visible navigation order.</div>
       </div>
     </div>
   );

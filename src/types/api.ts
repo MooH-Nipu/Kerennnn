@@ -118,8 +118,12 @@ export interface HistoryMutateResponse {
 
 export interface UserPrefsResponse {
   ok: boolean;
-  tab_order: string[];
+  tab_order?: string[];
   hidden_tabs: string[];
+  tab_labels: Record<string, string>;
+  group_labels: Record<string, string>;
+  nav_layout: Array<{ id: string; label: string; tabs: string[] }>;
+  nav_tutorial_dismissed: boolean;
 }
 
 // ── Analyst tools (Initiative 3) ──
@@ -243,6 +247,8 @@ export interface QuotaKey {
   remaining: number;
   percent: number;
   coolingDown: boolean;
+  quotaExhausted?: boolean;
+  quotaResetAt?: string | null;
 }
 
 export interface IpScanAnalyticsResponse {

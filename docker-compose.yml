@@ -8,7 +8,10 @@ services:
       - .env.local
     environment:
       - NODE_ENV=production
+      - VT_KEY_STATE_FILE=/app/data/vt-key-state.json
       # Set COOKIE_SECURE=false if you're not terminating TLS at this container
       # (e.g. your reverse proxy handles HTTPS upstream)
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped

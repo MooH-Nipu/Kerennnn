@@ -13,6 +13,8 @@ CLAUDE.md
 .cursor/
 .codegraph/
 .reasonix/
+.hermes/
 
 # Internal design roadmap — local only, not for the repo
 ROADMAP.md
+data/

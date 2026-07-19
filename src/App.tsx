@@ -4,9 +4,8 @@ import { AuthProvider, useAuthState } from './context/AuthContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './components/layout/LoginPage';
 import { Spinner } from './components/shared/Spinner';
-import { useUiPrefs } from './hooks/useUiPrefs';
 import { useTabPrefs } from './hooks/useTabPrefs';
-import { getRestoredTab, orderedAllowedTabs } from './components/layout/TabNav';
+import { allowedTabs, getRestoredTab } from './components/layout/TabNav';
 import { UpdateToast } from './components/shared/UpdateToast';
 import { ShortcutHelp } from './components/shared/ShortcutHelp';
 import type { TabId } from './lib/permissions';
@@ -29,8 +28,8 @@ import { ResultPage } from './pages/ResultPage';
 
 function AppInner() {
   const { ready, authed, role, username } = useAuthState();
-  const { compact, sidebar, toggleCompact, toggleSidebar } = useUiPrefs();
-  const { order: tabOrder, save: saveTabPrefs } = useTabPrefs();
+  const tabPrefs = useTabPrefs();
+  const { hidden: hiddenTabs, tabLabels, groupLabels, layout } = tabPrefs;
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [pendingIoc, setPendingIoc] = useState('');
   const [pacFilterCount, setPacFilterCount] = useState<number | undefined>(undefined);
@@ -56,11 +55,14 @@ function AppInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showShortcuts]);
 
-  // Restore last tab for the user's role after login
+  // Restore once when auth identity changes. Preference saves must not navigate.
   useEffect(() => {
     if (authed && role) {
-      setActiveTab(getRestoredTab(role));
+      setActiveTab(getRestoredTab(role, hiddenTabs));
     }
+    // hiddenTabs is intentionally excluded: later preference changes are handled
+    // by the permission fallback below without resetting the current tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, role]);
 
   // Add the active tab to the mounted set on first visit (keep-alive pattern).
@@ -77,11 +79,11 @@ function AppInner() {
   // available tab so the user is never staring at an empty selection.
   useEffect(() => {
     if (!authed || !role) return;
-    const tabs = orderedAllowedTabs(role, tabOrder);
+    const tabs = allowedTabs(role, hiddenTabs);
     if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
       setActiveTab(tabs[0].id);
     }
-  }, [authed, role, tabOrder, activeTab]);
+  }, [authed, role, hiddenTabs, activeTab]);
 
   function handleQuickScan(ioc: string) {
     setPendingIoc(ioc);
@@ -120,7 +122,7 @@ function AppInner() {
       case 'ir-manager':  return <IrManagerTab />;
       case 'cve':         return <CveTab />;
       case 'attack':      return <AttackTab />;
-      case 'settings':    return <SettingsTab compact={compact} sidebar={sidebar} onToggleCompact={toggleCompact} onToggleSidebar={toggleSidebar} />;
+      case 'settings':    return <SettingsTab role={role as NonNullable<typeof role>} prefs={tabPrefs} />;
       case 'admin-usage': return <AdminUsageTab />;
       default:            return <FormatterTab />;
     }
@@ -141,14 +143,12 @@ function AppInner() {
         username={username}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        compact={compact}
-        sidebar={sidebar}
-        onToggleCompact={toggleCompact}
-        onToggleSidebar={toggleSidebar}
-
         pacFilterCount={pacFilterCount}
-        tabOrder={tabOrder}
-        onReorderTabs={(o) => saveTabPrefs(o, [])}
+        hiddenTabs={hiddenTabs}
+        tabLabels={tabLabels}
+        groupLabels={groupLabels}
+        layout={layout}
+        showSettingsFeature={!tabPrefs.tutorialDismissed}
       >
         {renderAllTabs()}
       </AppShell>
