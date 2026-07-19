@@ -1,12 +1,14 @@
 import { useState, FormEvent } from 'react';
 import { useAuthState, useAuthActions } from '../../context/AuthContext';
 import { Spinner } from '../shared/Spinner';
+import { SessionExpiredToast } from '../shared/SessionExpiredToast';
 
 export function LoginPage() {
-  const { pending, loginError } = useAuthState();
+  const { pending, loginError, sessionExpired } = useAuthState();
   const { login, clearError } = useAuthActions();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showExpiredToast, setShowExpiredToast] = useState(sessionExpired);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,6 +70,13 @@ export function LoginPage() {
           </button>
         </form>
       </div>
+
+      {showExpiredToast && (
+        <SessionExpiredToast
+          message="Your session ended automatically. Please sign in again."
+          onClose={() => setShowExpiredToast(false)}
+        />
+      )}
     </div>
   );
 }

@@ -52,10 +52,26 @@ function envBool(key, defaultValue) {
   return String(v).toLowerCase() === '1' || String(v).toLowerCase() === 'true' || String(v) === 'yes';
 }
 
+function positiveIntEnv(key, fallback) {
+  const raw = process.env[key];
+  if (raw == null || raw === '') return fallback;
+  const n = Number.parseInt(String(raw), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function getSessionTtlSeconds() {
+  return Math.max(60, positiveIntEnv('SESSION_TTL_MINUTES', 120)) * 60;
+}
+
+function getSessionRefreshWindowSeconds() {
+  const ttl = getSessionTtlSeconds();
+  return Math.min(ttl, Math.max(30, positiveIntEnv('SESSION_REFRESH_MINUTES', 30) * 60));
+}
+
 function buildSetCookie(value, opts = {}) {
   const secure =
     opts.secure !== undefined ? !!opts.secure : envBool('COOKIE_SECURE', process.env.NODE_ENV === 'production');
-  const maxAge = typeof opts.maxAge === 'number' ? Math.max(0, Math.floor(opts.maxAge)) : 60 * 60 * 24 * 7; // 7d
+  const maxAge = typeof opts.maxAge === 'number' ? Math.max(0, Math.floor(opts.maxAge)) : getSessionTtlSeconds();
   const sameSite = opts.sameSite || 'Lax';
 
   let s = `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=${sameSite}`;
@@ -69,11 +85,14 @@ function buildClearCookie() {
   return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
-function makeSessionToken(payload, secret) {
+function makeSessionToken(payload, secret, ttlSeconds) {
   const now = Math.floor(Date.now() / 1000);
+  const ttl = typeof ttlSeconds === 'number' && ttlSeconds > 0 ? ttlSeconds : getSessionTtlSeconds();
+  const inputExp = payload && typeof payload.exp === 'number' ? payload.exp : null;
   const body = {
     ...payload,
     iat: now,
+    exp: inputExp != null ? inputExp : now + ttl,
   };
   const json = JSON.stringify(body);
   const msg = b64urlEncode(json);
@@ -126,10 +145,24 @@ function requireAuth(req, res) {
   if (!v.ok) {
     res.statusCode = 401;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: 'Unauthorized' }));
+    res.setHeader('Set-Cookie', buildClearCookie());
+    res.end(JSON.stringify({ error: 'Session expired. Please sign in again.', reason: v.error }));
     return false;
   }
   req.auth = v.payload;
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = v.payload.exp || 0;
+  const ttl = getSessionTtlSeconds();
+  if (ttl > 0 && exp - now <= getSessionRefreshWindowSeconds()) {
+    const refreshed = makeSessionToken(
+      { userId: v.payload.userId, role: v.payload.role, username: v.payload.username },
+      secret,
+      ttl
+    );
+    res.setHeader('Set-Cookie', buildSetCookie(refreshed, { maxAge: ttl }));
+  }
+
   return true;
 }
 

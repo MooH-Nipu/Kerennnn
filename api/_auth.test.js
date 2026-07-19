@@ -11,10 +11,10 @@ const SECRET = 'test-secret-123';
 
 describe('session token', () => {
   test('sign → verify round-trip preserves payload', () => {
-    const now = Math.floor(Date.now() / 1000);
     const token = makeSessionToken(
-      { userId: 'u1', role: 'admin', username: 'alice', exp: now + 3600 },
-      SECRET
+      { userId: 'u1', role: 'admin', username: 'alice' },
+      SECRET,
+      3600
     );
     const v = verifySessionToken(token, SECRET);
     assert.equal(v.ok, true);
@@ -24,24 +24,21 @@ describe('session token', () => {
   });
 
   test('expired token is rejected', () => {
-    const past = Math.floor(Date.now() / 1000) - 10;
-    const token = makeSessionToken({ userId: 'u1', exp: past }, SECRET);
+    const token = makeSessionToken({ userId: 'u1', iat: Math.floor(Date.now() / 1000) - 7200, exp: Math.floor(Date.now() / 1000) - 10 }, SECRET, 3600);
     const v = verifySessionToken(token, SECRET);
     assert.equal(v.ok, false);
     assert.equal(v.error, 'expired');
   });
 
   test('tampered signature is rejected', () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = makeSessionToken({ userId: 'u1', exp: now + 3600 }, SECRET);
+    const token = makeSessionToken({ userId: 'u1' }, SECRET, 3600);
     const last = token.slice(-1);
     const tampered = token.slice(0, -1) + (last === 'A' ? 'B' : 'A');
     assert.equal(verifySessionToken(tampered, SECRET).ok, false);
   });
 
   test('wrong secret is rejected', () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = makeSessionToken({ userId: 'u1', exp: now + 3600 }, SECRET);
+    const token = makeSessionToken({ userId: 'u1' }, SECRET, 3600);
     const v = verifySessionToken(token, 'other-secret');
     assert.equal(v.ok, false);
     assert.equal(v.error, 'bad_sig');
