@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import type { Role } from '../types/api';
-import { api } from '../lib/api';
+import { api, type ApiError } from '../lib/api';
 import { formatApiError } from '../lib/utils';
 
 export interface AuthState {
@@ -10,6 +10,7 @@ export interface AuthState {
   username: string | null;
   pending: boolean;
   loginError: string | null;
+  sessionExpired: boolean;
 }
 
 interface AuthActions {
@@ -22,7 +23,7 @@ interface AuthActions {
 type Action =
   | { type: 'CHECK_START' }
   | { type: 'CHECK_OK'; role: Role; username: string }
-  | { type: 'CHECK_FAIL' }
+  | { type: 'CHECK_FAIL'; expired?: boolean }
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_OK'; role: Role; username: string }
   | { type: 'LOGIN_FAIL'; error: string }
@@ -36,6 +37,7 @@ const initialState: AuthState = {
   username: null,
   pending: false,
   loginError: null,
+  sessionExpired: false,
 };
 
 function reducer(state: AuthState, action: Action): AuthState {
@@ -43,9 +45,9 @@ function reducer(state: AuthState, action: Action): AuthState {
     case 'CHECK_START':
       return { ...state, pending: true };
     case 'CHECK_OK':
-      return { ...state, ready: true, authed: true, role: action.role, username: action.username, pending: false };
+      return { ...state, ready: true, authed: true, role: action.role, username: action.username, pending: false, sessionExpired: false };
     case 'CHECK_FAIL':
-      return { ...state, ready: true, authed: false, role: null, username: null, pending: false };
+      return { ...state, ready: true, authed: false, role: null, username: null, pending: false, sessionExpired: action.expired === true };
     case 'LOGIN_START':
       return { ...state, pending: true, loginError: null };
     case 'LOGIN_OK':
@@ -77,8 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.auth.me();
       dispatch({ type: 'CHECK_OK', role: res.role, username: res.username });
-    } catch {
-      dispatch({ type: 'CHECK_FAIL' });
+    } catch (err) {
+      const expired = err instanceof Error && (err as ApiError).status === 401;
+      dispatch({ type: 'CHECK_FAIL', expired });
     }
   }, []);
 

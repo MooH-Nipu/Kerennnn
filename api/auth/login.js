@@ -64,13 +64,13 @@ module.exports = async function handler(req, res) {
 
   await recordLoginAttempt(supabase, username, ip, true);
 
-  const now = Math.floor(Date.now() / 1000);
   const ttlSec = 60 * 60 * 8; // 8 hours
   const token = makeSessionToken(
-    { userId: user.id, role: user.role, username: user.username, exp: now + ttlSec },
-    secret
+    { userId: user.id, role: user.role, username: user.username },
+    secret,
+    ttlSec
   );
 
   res.setHeader('Set-Cookie', buildSetCookie(token, { maxAge: ttlSec }));
-  return res.status(200).json({ ok: true, role: user.role, username: user.username });
+  return res.status(200).json({ ok: true, role: user.role, username: user.username, ttlMinutes: Math.round(ttlSec / 60) });
 };
