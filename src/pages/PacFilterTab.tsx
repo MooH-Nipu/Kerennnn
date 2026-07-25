@@ -121,7 +121,7 @@ export function PacFilterTab({ onCountChange }: Props) {
               <div className="pac-ip-preview-summary">
                 {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} new to save</span>}
                 {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} already in DB</span>}
-                {ipv6Ips.length > 0 && <span className="pac-ip-badge pac-ip-badge--skip">{ipv6Ips.length} IPv6 skipped</span>}
+                {ipv6Ips.length > 0 && <span className="pac-ip-badge pac-ip-badge--skip">IPv6 detected — will not be saved to DB</span>}
               </div>
               <div className="pac-ip-chips">
                 {newIps.map(ip => (
