@@ -933,6 +933,24 @@ module.exports = async function handler(req, res) {
     if (cachedCorr) return res.status(200).json(cachedCorr);
   }
 
+  // Fetch scan metadata (last_seen, scan_count) for time decay + sighting boost.
+  // Runs in parallel with TI source checks — single PK lookup, negligible latency.
+  const supabase = getSupabase();
+  let scanMeta = { lastSeen: null, scanCount: 0 };
+  if (supabase) {
+    try {
+      const table = type === 'ip' ? 'vt_ip_cache' : 'vt_ioc_cache';
+      const query = supabase.from(table).select('last_scanned_at,scan_count');
+      const { data } = type === 'ip'
+        ? await query.eq('ip', ioc).maybeSingle()
+        : await query.eq('ioc_type', type).eq('ioc', ioc).maybeSingle();
+      if (data) {
+        scanMeta.lastSeen = data.last_scanned_at || null;
+        scanMeta.scanCount = Number(data.scan_count) || 0;
+      }
+    } catch { /* best-effort, don't block correlation */ }
+  }
+
   // Build check list based on IOC type.
   // MalwareBazaar is keyless — always runs for hash types.
   const checks = [
@@ -976,11 +994,14 @@ module.exports = async function handler(req, res) {
   const warningListResult = checkWarningList(ioc, enrichmentResult?.meta);
 
   // Optimized confidence pipeline (v2)
+  const hoursSinceLastSeen = scanMeta.lastSeen
+    ? (Date.now() - new Date(scanMeta.lastSeen).getTime()) / 3_600_000
+    : null;
   const optimized = calculateOptimizedConfidence(results, riskFactors, {
     iocType: type,
     enrichmentMeta: enrichmentResult?.meta,
-    hoursSinceLastSeen: null, // TODO: pull from DB when sighting tracking is implemented
-    scanCount: 0,             // TODO: pull from DB when sighting tracking is implemented
+    hoursSinceLastSeen,
+    scanCount: scanMeta.scanCount,
   });
 
   // Legacy confidence (for backward compat in response)
