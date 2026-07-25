@@ -5,6 +5,8 @@ import { Spinner } from '../components/shared/Spinner';
 import { OutputBox } from '../components/shared/OutputBox';
 import { extractIOC, detectType } from '../lib/ioc';
 
+const isIPv6 = (ip: string) => ip.includes(':');
+
 const PRESET_FIELDS = [
   { label: 'data.real_ip', value: 'data.real_ip' },
   { label: 'data.srcip',   value: 'data.srcip' },
@@ -60,8 +62,10 @@ export function PacFilterTab({ onCountChange }: Props) {
         .filter((s): s is string => !!s && detectType(s) === 'ip')
     )];
   }, [input]);
-  const newIps = useMemo(() => parsedInputIps.filter(ip => !existingSet.has(ip)), [parsedInputIps, existingSet]);
-  const dupIps = useMemo(() => parsedInputIps.filter(ip => existingSet.has(ip)), [parsedInputIps, existingSet]);
+  const ipv6Ips = useMemo(() => parsedInputIps.filter(isIPv6), [parsedInputIps]);
+  const ipv4Only = useMemo(() => parsedInputIps.filter(ip => !isIPv6(ip)), [parsedInputIps]);
+  const newIps = useMemo(() => ipv4Only.filter(ip => !existingSet.has(ip)), [ipv4Only, existingSet]);
+  const dupIps = useMemo(() => ipv4Only.filter(ip => existingSet.has(ip)), [ipv4Only, existingSet]);
 
   // Delete preview: classify delete-input IPs as found-in-DB vs not-found
   const parsedDeleteIps = useMemo(() => {
@@ -117,6 +121,7 @@ export function PacFilterTab({ onCountChange }: Props) {
               <div className="pac-ip-preview-summary">
                 {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} new to save</span>}
                 {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} already in DB</span>}
+                {ipv6Ips.length > 0 && <span className="pac-ip-badge pac-ip-badge--skip">{ipv6Ips.length} IPv6 skipped</span>}
               </div>
               <div className="pac-ip-chips">
                 {newIps.map(ip => (
@@ -124,6 +129,9 @@ export function PacFilterTab({ onCountChange }: Props) {
                 ))}
                 {dupIps.map(ip => (
                   <span key={ip} className="pac-ip-chip pac-ip-chip--dup" title="Already in DB">{ip}</span>
+                ))}
+                {ipv6Ips.map(ip => (
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--skip" title="IPv6 not supported">{ip}</span>
                 ))}
               </div>
             </div>

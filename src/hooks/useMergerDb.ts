@@ -53,7 +53,7 @@ export function useMergerDb() {
   }, [refresh]);
 
   const submitIps = useCallback(async (rawInput: string) => {
-    const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip');
+    const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
     const unique = [...new Set(lines)];
     const existing = new Set(items.map(i => i.ip));
     const toPost = unique.filter(ip => !existing.has(ip));
