@@ -557,7 +557,241 @@ function collectRiskFactors(results) {
   return [...byType.values()];
 }
 
-// ── Weighted confidence + risk floors + factor bonus ──────────────────────
+// ── Scoring v2: Optimized confidence pipeline ────────────────────────────
+// Implements 8 optimizations from IOC-SCORING-RESEARCH.md:
+// 1. Cross-source corroboration bonus
+// 2. IOC-type-specific weights
+// 3. Warning list pre-filter
+// 4. Enrichment as context multiplier
+// 5. Time decay (MISP polynomial model)
+// 6. Bayesian posterior aggregation
+// 7. Sighting tracking
+// 8. Source reliability tracking
+
+// ── 3. Warning list pre-filter ───────────────────────────────────────────
+const WARNING_LISTS = {
+  cdn: ['cloudflare', 'akamai', 'fastly', 'cloudfront', 'cdn77', 'stackpath', 'maxcdn', 'keycdn'],
+  dns_resolvers: ['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9', '149.112.112.112', '208.67.222.222', '208.67.220.220'],
+  tor_exit_url: 'https://check.torproject.org/torbulkexitlist',
+  cloud_shared: ['amazon', 'microsoft', 'google cloud', 'oracle cloud', 'digitalocean', 'linode', 'vultr'],
+};
+
+function checkWarningList(ioc, enrichmentMeta) {
+  // DNS resolvers — exact IP match
+  if (WARNING_LISTS.dns_resolvers.includes(ioc)) return { listed: true, reason: 'dns_resolver' };
+
+  // CDN / cloud via ISP/Org name from enrichment
+  const org = String(enrichmentMeta?.Org || enrichmentMeta?.ISP || '').toLowerCase();
+  if (org) {
+    for (const cdn of WARNING_LISTS.cdn) {
+      if (org.includes(cdn)) return { listed: true, reason: 'cdn', match: cdn };
+    }
+  }
+  return { listed: false };
+}
+
+// ── 2. IOC-type-specific weights ─────────────────────────────────────────
+const WEIGHTS_BY_TYPE = {
+  ip: {
+    'VirusTotal':     0.25,
+    'AbuseIPDB':      0.30,
+    'Abuse.ch':       0.15,
+    'AlienVault OTX': 0.10,
+    'URLScan.io':     0.00,
+    'Enrichment':     0.00,
+  },
+  domain: {
+    'VirusTotal':     0.25,
+    'AbuseIPDB':      0.00,
+    'Abuse.ch':       0.20,
+    'AlienVault OTX': 0.15,
+    'URLScan.io':     0.25,
+    'Enrichment':     0.00,
+  },
+  hash: {
+    'VirusTotal':     0.50,
+    'AbuseIPDB':      0.00,
+    'Abuse.ch':       0.00,
+    'AlienVault OTX': 0.30,
+    'URLScan.io':     0.00,
+    'Enrichment':     0.00,
+  },
+};
+
+const TRUST_KEY_MAP = {
+  'VirusTotal': 'TRUST_VT',
+  'AbuseIPDB': 'TRUST_ABUSEIPDB',
+  'Abuse.ch': 'TRUST_ABUSECH',
+  'AlienVault OTX': 'TRUST_OTX',
+  'URLScan.io': 'TRUST_URLSCAN',
+  'Enrichment': 'TRUST_ENRICHMENT',
+};
+
+function applyTypeWeights(results, iocType) {
+  if (!Array.isArray(results)) return [];
+  const typeWeights = WEIGHTS_BY_TYPE[iocType] || WEIGHTS_BY_TYPE.ip;
+  return results.map(r => {
+    if (r.skipped || r.error) return r;
+    const w = typeWeights[r.source];
+    if (w === undefined) return r; // unknown source — keep original weight
+    const trustKey = TRUST_KEY_MAP[r.source];
+    const trustFactor = trustKey ? getTrustFactor(trustKey, 1) : 1;
+    return { ...r, weight: w * trustFactor };
+  });
+}
+
+// ── 1. Cross-source corroboration bonus ──────────────────────────────────
+function corroborationBonus(results) {
+  if (!Array.isArray(results)) return 0;
+  const active = results.filter(r => !r.skipped && !r.error && r.verdict !== undefined);
+  const malSources = active.filter(r => r.verdict === 'malicious');
+  const susSources = active.filter(r => r.verdict === 'suspicious');
+
+  let bonus = 0;
+
+  // Malicious consensus
+  if (malSources.length >= 3) bonus += 15;
+  else if (malSources.length >= 2) bonus += 10;
+
+  // Diverse source type bonus (unique source names)
+  const uniqueMalSources = new Set(malSources.map(r => r.source));
+  if (uniqueMalSources.size >= 3) bonus += 5;
+
+  // Suspicious consensus (weaker)
+  if (susSources.length >= 3 && malSources.length === 0) bonus += 5;
+
+  return Math.min(bonus, 20);
+}
+
+// ── 6. Bayesian posterior aggregation ────────────────────────────────────
+function verdictToLikelihood(verdict, sourceWeight) {
+  // Likelihood ratios: how much this verdict shifts belief toward malicious
+  const baseLR = {
+    malicious:  12.0,
+    suspicious:  3.0,
+    unknown:     1.0,
+    clean:       0.15,
+  };
+  const lr = baseLR[verdict] ?? 1.0;
+  // Weight acts as mild reliability adjustment (sqrt to avoid over-dampening)
+  return Math.pow(lr, Math.pow(Math.max(0.1, sourceWeight), 0.5));
+}
+
+function bayesianConfidence(results, priorOdds) {
+  if (!Array.isArray(results) || results.length === 0) return null;
+  if (priorOdds === undefined) priorOdds = 0.25; // 20% prior — reasonable base rate
+  const active = results.filter(r => !r.skipped && !r.error && r.verdict !== undefined);
+  if (active.length === 0) return null;
+
+  let logOdds = Math.log(priorOdds);
+  for (const r of active) {
+    const lr = verdictToLikelihood(r.verdict, r.weight);
+    logOdds += Math.log(lr);
+  }
+  // Clamp to prevent exp() overflow/underflow
+  logOdds = Math.max(-20, Math.min(20, logOdds));
+  const posteriorOdds = Math.exp(logOdds);
+  return Math.round((posteriorOdds / (1 + posteriorOdds)) * 100);
+}
+
+// ── 4. Enrichment as context multiplier ──────────────────────────────────
+function enrichmentMultiplier(enrichmentMeta) {
+  if (!enrichmentMeta || typeof enrichmentMeta !== 'object') return 1.0;
+  let mult = 1.0;
+
+  // High-risk hoster → boost
+  const org = enrichmentMeta.Org || enrichmentMeta.ISP || '';
+  if (ispIsHighRiskHoster(org)) mult += 0.15;
+
+  // Registration age → boost for new, dampen for old
+  const age = Number(enrichmentMeta['Age (days)']);
+  if (Number.isFinite(age)) {
+    if (age < 30) mult += 0.10;
+    else if (age < 90) mult += 0.05;
+  }
+
+  return Math.max(0.5, Math.min(1.3, mult));
+}
+
+// ── 5. Time decay (MISP polynomial model) ────────────────────────────────
+const DECAY_PARAMS = {
+  ip:     { tau: 7 * 24,  alpha: 0.5 },   // 7 days, fast decay (volatile)
+  domain: { tau: 14 * 24, alpha: 1.5 },   // 14 days, moderate
+  hash:   { tau: 90 * 24, alpha: 2.5 },   // 90 days, slow decay (persistent)
+};
+
+function decayMultiplier(hoursSinceLastSeen, iocType) {
+  if (!Number.isFinite(hoursSinceLastSeen) || hoursSinceLastSeen < 0) return 1.0;
+  const params = DECAY_PARAMS[iocType] || DECAY_PARAMS.ip;
+  const { tau, alpha } = params;
+  if (hoursSinceLastSeen >= tau) return 0;
+  return Math.max(0, 1 - Math.pow(hoursSinceLastSeen / tau, alpha));
+}
+
+// ── 7. Sighting boost ────────────────────────────────────────────────────
+function sightingBoost(scanCount) {
+  if (!Number.isFinite(scanCount) || scanCount <= 0) return 0;
+  if (scanCount >= 10) return 10;
+  if (scanCount >= 5) return 5;
+  if (scanCount >= 2) return 3;
+  return 0;
+}
+
+// ── Orchestrator: optimized confidence pipeline ──────────────────────────
+function calculateOptimizedConfidence(results, factors, opts) {
+  if (!Array.isArray(results)) results = [];
+  const {
+    iocType = 'ip',
+    enrichmentMeta = null,
+    hoursSinceLastSeen = null,
+    scanCount = 0,
+    priorOdds = 0.1,
+  } = opts || {};
+
+  // Apply type-specific weights
+  const weighted = applyTypeWeights(results, iocType);
+
+  // Components
+  const bayesian = bayesianConfidence(weighted, priorOdds);
+  const corrob = corroborationBonus(weighted);
+  const riskBonus = Math.min((factors || []).reduce((s, f) => s + (f.bonus || 0), 0), 25);
+  const sight = sightingBoost(scanCount);
+  const enrichMult = enrichmentMultiplier(enrichmentMeta);
+  const decay = decayMultiplier(hoursSinceLastSeen, iocType);
+
+  // Raw confidence: Bayesian + bonuses
+  const rawConfidence = (bayesian ?? 0) + corrob + riskBonus + sight;
+
+  // Apply multipliers
+  const confidence = Math.min(100, Math.max(0, Math.round(rawConfidence * enrichMult * decay)));
+
+  // Single-source guard: cap at 50 if only 1 active source
+  const activeSources = weighted.filter(r => !r.skipped && !r.error && r.verdict !== undefined);
+  const finalConfidence = activeSources.length <= 1 ? Math.min(confidence, 50) : confidence;
+
+  // Stale IOC guard: cap at SUSPICIOUS (40) max for IPs/domains older than 30 days
+  const staleCap = (iocType === 'ip' || iocType === 'domain')
+    && Number.isFinite(hoursSinceLastSeen) && hoursSinceLastSeen > 30 * 24;
+  const cappedConfidence = staleCap ? Math.min(finalConfidence, 40) : finalConfidence;
+
+  return {
+    confidence: cappedConfidence,
+    bayesian,
+    corroboration: corrob,
+    riskBonus,
+    sightingBoost: sight,
+    enrichmentMultiplier: enrichMult,
+    decay,
+    activeSourceCount: activeSources.length,
+    // Backward compat fields (derived from optimized pipeline)
+    baseline: bayesian,
+    floor: 0, // floors are now implicit in Bayesian + corroboration
+    bonus: riskBonus + corrob + sight,
+  };
+}
+
+// ── Legacy: Weighted confidence + risk floors + factor bonus ──────────────
+// Kept for backward compatibility; new code uses calculateOptimizedConfidence.
 function calcConfidenceWithFloors(results, factors) {
   const verdictScore = { malicious: 1.0, suspicious: 0.5, unknown: 0.2, clean: 0.0 };
 
@@ -736,7 +970,28 @@ module.exports = async function handler(req, res) {
     });
 
   const riskFactors = collectRiskFactors(results);
-  const { baseline, floor, bonus, confidence } = calcConfidenceWithFloors(results, riskFactors);
+
+  // Check warning list (CDN, DNS resolver, etc.)
+  const enrichmentResult = results.find(r => r.source === 'Enrichment' && !r.skipped && !r.error);
+  const warningListResult = checkWarningList(ioc, enrichmentResult?.meta);
+
+  // Optimized confidence pipeline (v2)
+  const optimized = calculateOptimizedConfidence(results, riskFactors, {
+    iocType: type,
+    enrichmentMeta: enrichmentResult?.meta,
+    hoursSinceLastSeen: null, // TODO: pull from DB when sighting tracking is implemented
+    scanCount: 0,             // TODO: pull from DB when sighting tracking is implemented
+  });
+
+  // Legacy confidence (for backward compat in response)
+  const legacy = calcConfidenceWithFloors(results, riskFactors);
+
+  // Use optimized confidence as primary, legacy as fallback
+  const confidence = optimized.confidence ?? legacy.confidence;
+  const baseline = optimized.baseline ?? legacy.baseline;
+  const floor = legacy.floor; // keep legacy floor for display
+  const bonus = legacy.bonus;
+
   const activeWeights = results
     .filter(r => !r.skipped && !r.error && r.verdict !== undefined)
     .reduce((sum, r) => sum + r.weight, 0);
@@ -772,6 +1027,16 @@ module.exports = async function handler(req, res) {
     activeWeights,
     riskFactors,
     sources: visibleResults,
+    // Scoring v2 metadata
+    scoring: {
+      bayesian: optimized.bayesian,
+      corroboration: optimized.corroboration,
+      enrichmentMultiplier: optimized.enrichmentMultiplier,
+      decay: optimized.decay,
+      sightingBoost: optimized.sightingBoost,
+      activeSourceCount: optimized.activeSourceCount,
+      warningList: warningListResult.listed ? warningListResult : undefined,
+    },
   });
 };
 
@@ -780,3 +1045,11 @@ module.exports.collectRiskFactors = collectRiskFactors;
 module.exports.calcConfidenceWithFloors = calcConfidenceWithFloors;
 module.exports.checkEnrichment = checkEnrichment;
 module.exports.checkURLScan = checkURLScan;
+module.exports.checkWarningList = checkWarningList;
+module.exports.corroborationBonus = corroborationBonus;
+module.exports.bayesianConfidence = bayesianConfidence;
+module.exports.enrichmentMultiplier = enrichmentMultiplier;
+module.exports.decayMultiplier = decayMultiplier;
+module.exports.sightingBoost = sightingBoost;
+module.exports.applyTypeWeights = applyTypeWeights;
+module.exports.calculateOptimizedConfidence = calculateOptimizedConfidence;
