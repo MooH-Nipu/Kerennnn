@@ -348,9 +348,57 @@ function sourceReliability(source, iocType) {
 
 **Rationale**: Ermerins (2020) — source confidence should be learned, not assumed. MISP uses per-organization trust levels.
 
-### Priority 6: Sighting-Based Confidence Boost (Low Impact, Low Effort)
+### Priority 6: Warning List Pre-Filter (Medium Impact, Low Effort)
 
-**Approach**: Track scan frequency as a positive signal.
+**Approach**: MISP-inspired pre-scoring FP filter. Exclude known-good infrastructure before scoring.
+
+```javascript
+// Known false-positive sources — skip scoring entirely
+const WARNING_LISTS = {
+  cdn: ['cloudflare', 'akamai', 'fastly', 'cloudfront', 'cdn77'],
+  dns: ['1.1.1.1', '8.8.8.8', '9.9.9.9', '208.67.222.222'],
+  tor_exits: 'https://check.torproject.org/torbulkexitlist',
+  cloud_providers: ['aws', 'azure', 'gcp'], // shared IPs
+};
+
+function isWarningListed(ioc, meta) {
+  const org = (meta.Org || meta.ISP || '').toLowerCase();
+  // CDN/DNS/cloud check
+  if (WARNING_LISTS.cdn.some(w => org.includes(w))) return 'cdn';
+  if (WARNING_LISTS.dns.includes(ioc)) return 'dns_resolver';
+  return null;
+}
+```
+
+**Rationale**: Reddit practitioners — "feeds causing false positives" is the #1 complaint. CDNs and DNS resolvers are the most common FP source. MISP warninglists solve this at the platform level.
+
+### Priority 7: Enrichment as Context Multiplier (Medium Impact, Low Effort)
+
+**Approach**: Treat RDAP/GeoIP enrichment not as a score source but as a multiplier on the final confidence.
+
+```javascript
+function enrichmentMultiplier(enrichmentMeta) {
+  let mult = 1.0;
+  // High-risk hoster → boost
+  if (ispIsHighRiskHoster(enrichmentMeta.Org)) mult += 0.15;
+  // New registration → boost
+  const age = Number(enrichmentMeta['Age (days)']);
+  if (age < 30) mult += 0.10;
+  else if (age < 90) mult += 0.05;
+  // Known-good org → dampen
+  if (isKnownGoodOrg(enrichmentMeta.Org)) mult -= 0.20;
+  return Math.max(0.5, Math.min(1.3, mult));
+}
+
+// Apply after confidence calculation:
+// finalConfidence = rawConfidence * enrichmentMultiplier(enrichmentMeta)
+```
+
+**Rationale**: Community recommendation — enrichment data (ASN, country, registration age) is contextual, not verdictal. It should amplify or dampen existing signals, not contribute its own score.
+
+### Priority 8: Sightings + Analyst Feedback Loop (Low Impact, Medium Effort)
+
+**Approach**: Track scan frequency as a positive signal + analyst FP/TP disposition.
 
 ```javascript
 function sightingBoost(scanCount) {
@@ -361,7 +409,9 @@ function sightingBoost(scanCount) {
 }
 ```
 
-**Rationale**: Cyware engine — sightings indicate analyst interest and cross-platform observation. An IOC that 10 analysts have independently investigated is more likely to be a true positive.
+**Feedback loop**: When an analyst marks an IOC as false positive in the UI, record which sources flagged it → update source reliability scores over time.
+
+**Rationale**: Cyware engine — sightings indicate analyst interest. Ermerins (2020) — source confidence should be learned from historical TP/FP rates, not assumed.
 
 ---
 
@@ -370,14 +420,23 @@ function sightingBoost(scanCount) {
 Combining all optimizations:
 
 ```
+// Pre-filter
+if (isWarningListed(ioc, meta)) → skip or flag as "known infrastructure"
+
+// Core scoring
 sourceConfidence = bayesianConfidence(results)        // Priority 4
 corroboration    = corroborationBonus(results)         // Priority 2
 riskBonus        = min(sum(risk_factors.bonus), 25)    // existing
-sightingBonus    = sightingBoost(scanCount)            // Priority 6
+sightingBonus    = sightingBoost(scanCount)            // Priority 8
 rawConfidence    = min(100, sourceConfidence + corroboration + riskBonus + sightingBonus)
-decay            = decayMultiplier(hoursSinceLastSeen)  // Priority 1
-finalConfidence  = round(rawConfidence * decay)
+
+// Context multipliers
+enrichment       = enrichmentMultiplier(enrichmentMeta) // Priority 7 (0.5–1.3×)
+decay            = decayMultiplier(hoursSinceLastSeen)   // Priority 1 (0–1.0×)
+finalConfidence  = round(rawConfidence * enrichment * decay)
 ```
+
+Alternative conservative mode (XSOAR-style): use `max(verdict_per_source)` instead of Bayesian average when automated blocking is enabled.
 
 ### Verdict Thresholds
 
@@ -401,14 +460,16 @@ finalConfidence  = round(rawConfidence * decay)
 
 | Phase | Optimization | Effort | Impact | Files Changed |
 |-------|-------------|--------|--------|---------------|
-| 1     | Time decay  | Medium | High   | `correlate.js`, DB schema, `vt.js` |
-| 2     | Cross-source bonus | Low | High | `correlate.js` |
-| 3     | IOC-type weights | Low | Medium | `correlate.js` |
-| 4     | Bayesian aggregation | High | High | `correlate.js`, new module |
-| 5     | Source reliability tracking | Medium | Medium | DB schema, `correlate.js`, UI |
-| 6     | Sighting boost | Low | Low | DB schema, `correlate.js` |
+| 1     | Cross-source bonus | Low | High | `correlate.js` |
+| 2     | IOC-type weights | Low | Medium | `correlate.js` |
+| 3     | Warning list pre-filter | Medium | Medium | `correlate.js`, new module |
+| 4     | Enrichment as multiplier | Low | Medium | `correlate.js` |
+| 5     | Time decay | Medium | High | `correlate.js`, DB schema, `vt.js` |
+| 6     | Bayesian aggregation | High | High | `correlate.js`, new module |
+| 7     | Sightings + analyst feedback | Low+Medium | Low+Medium | DB schema, `correlate.js`, UI |
+| 8     | Source reliability tracking | Medium | Medium | DB schema, `correlate.js`, UI |
 
-**Recommended order**: 2 → 3 → 1 → 4 → 6 → 5
+**Recommended order**: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 Phases 2 and 3 are quick wins with immediate accuracy improvement. Phase 1 requires DB migration. Phase 4 is the biggest payoff but needs careful testing. Phase 5 requires analyst feedback UI.
 
