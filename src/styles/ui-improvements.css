@@ -2906,6 +2906,20 @@ body { padding: 0; }
   gap: 0.5rem;
 }
 
+.bulk-ioc-actions { display: flex; align-items: center; gap: 0.65rem; margin: 0.5rem 0; }
+.bulk-ioc-preview { margin: 0.75rem 0; border: 1px solid var(--border, #1a2a45); border-radius: 8px; overflow: hidden; }
+.bulk-ioc-limit { margin: 0; padding: 0.45rem 0.65rem; color: #fbbf24; background: rgba(251, 191, 36, 0.08); font-size: 0.7rem; }
+.bulk-ioc-table-wrap { max-height: 250px; overflow: auto; }
+.bulk-ioc-table { width: 100%; border-collapse: collapse; font-size: 0.68rem; }
+.bulk-ioc-table th, .bulk-ioc-table td { padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border, #1a2a45); text-align: left; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.bulk-ioc-table th { position: sticky; top: 0; color: var(--text-muted); background: var(--bg-card, #111c30); font-family: 'JetBrains Mono', monospace; }
+.bulk-ioc-row--muted { color: var(--text-muted); opacity: 0.75; }
+.bulk-ioc-summary { display: flex; flex-wrap: wrap; gap: 0.45rem; padding: 0.6rem; background: rgba(8, 13, 23, 0.55); font: 600 0.68rem/1 'JetBrains Mono', monospace; }
+.bulk-ioc-summary span { border: 1px solid currentColor; border-radius: 999px; padding: 0.25rem 0.5rem; }
+.bulk-ioc-summary--selected { color: #4ade80; background: rgba(74, 222, 128, 0.08); }
+.bulk-ioc-summary--duplicate { color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+.bulk-ioc-summary--invalid { color: #f87171; background: rgba(248, 113, 113, 0.08); }
+
 /* ── Case list ── */
 .ir-cases-list {
   display: flex;

@@ -1,4 +1,5 @@
 // Shared IOC normalization — keep in sync with VirusTotal / correlate behavior.
+const { isIP } = require('node:net');
 
 function extractIOC(raw) {
   let s = String(raw ?? '').trim();
@@ -24,8 +25,8 @@ function extractIOC(raw) {
 }
 
 function detectType(s) {
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
-  if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
+  if (isIP(s)) return 'ip';
+  if (/^(?:\d+\.){3}\d+$/.test(s)) return null;
   if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
   if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(s))
     return 'domain';

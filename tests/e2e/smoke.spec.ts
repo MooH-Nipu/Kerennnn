@@ -61,12 +61,23 @@ test.describe('authenticated admin smoke', () => {
     await expect(page.getByRole('button', { name: 'Submit 1 IPs to DB' })).toBeEnabled();
   });
 
+  test('bulk IOC preview normalizes, dedupes, and selects before scanning', async ({ page }) => {
+    await page.getByRole('button', { name: /^(IoC Scan|IOC Review)$/ }).click();
+    await page.getByLabel(/IOC — one per line/i).fill('hxxps://evil[.]example/path\nevil.example\nnot an indicator');
+    const preview = page.getByLabel('Bulk IOC preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.getByText('hxxps://evil[.]example/path')).toBeVisible();
+    await expect(preview.getByRole('cell', { name: 'Duplicate', exact: true })).toBeVisible();
+    await expect(preview.getByText('Unsupported or invalid IOC')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Scan 1' })).toBeEnabled();
+  });
+
   test('IOC scan submits without provider quota', async ({ page }) => {
     await page.route('**/api/vt?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { id: 'mock' }, _meta: { cache: { fromCache: true } } }) }));
     await page.route('**/api/correlate?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ confidence: 10, scoring: { confidence: 10 } }) }));
     await page.getByRole('button', { name: /^(IoC Scan|IOC Review)$/ }).click();
     await page.getByLabel(/IOC — one per line/i).fill('192.0.2.10');
-    await page.getByRole('button', { name: 'Scan', exact: true }).click();
+    await page.getByRole('button', { name: 'Scan 1', exact: true }).click();
     await expect(page.getByText(/Scan complete/)).toBeVisible();
     await expect(page.locator('.vt-ioc-val', { hasText: '192.0.2.10' })).toBeVisible();
   });
