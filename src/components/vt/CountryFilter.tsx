@@ -13,6 +13,7 @@ interface Props {
 // an OR allowlist; exclude filters are a denylist (applied in useVtScan).
 export function CountryFilter({ countries, filters, onChange }: Props) {
   const [pick, setPick] = useState('');
+  const [mode, setMode] = useState<CountryFilterEntry['mode']>('include');
 
   // Nothing to filter (e.g. only domains/hashes scanned) — hide the control.
   if (countries.length === 0) return null;
@@ -23,13 +24,7 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
   function addCountry(code: string) {
     setPick('');
     if (!code || active.has(code)) return;
-    onChange([...filters, { code, mode: 'include' }]);
-  }
-
-  function toggleMode(code: string) {
-    onChange(filters.map(f =>
-      f.code === code ? { ...f, mode: f.mode === 'include' ? 'exclude' : 'include' } : f
-    ));
+    onChange([...filters, { code, mode }]);
   }
 
   function remove(code: string) {
@@ -40,6 +35,15 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
     <div className="vt-country-filter-wrap">
       <div className="vt-country-filter">
         <span className="vt-country-filter__icon" aria-hidden="true">🌐</span>
+        <select
+          className="vt-country-filter__select vt-country-filter__mode"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as CountryFilterEntry['mode'])}
+          aria-label="Country filter mode"
+        >
+          <option value="include">Include</option>
+          <option value="exclude">Exclude</option>
+        </select>
         <select
           className="vt-country-filter__select"
           value={pick}
@@ -60,15 +64,9 @@ export function CountryFilter({ countries, filters, onChange }: Props) {
 
       {filters.map(f => (
         <span key={f.code} className={`vt-country-pill vt-country-pill--${f.mode}`}>
-          <button
-            type="button"
-            className="vt-country-pill__mode"
-            onClick={() => toggleMode(f.code)}
-            title={f.mode === 'include' ? 'Include — click to Exclude' : 'Exclude — click to Include'}
-            aria-label={f.mode === 'include' ? 'Include' : 'Exclude'}
-          >
-            {f.mode === 'include' ? '✓' : '⊘'}
-          </button>
+          <span className="vt-country-pill__mode" aria-label={f.mode}>
+            {f.mode === 'include' ? '✓' : '−'}
+          </span>
           <span className="vt-country-pill__label">
             {countryFlag(f.code)} {f.code}{countMap.has(f.code) ? ` (${countMap.get(f.code)})` : ''}
           </span>

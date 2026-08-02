@@ -1,5 +1,6 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
+const { isCompleteCorrelationPayload } = require('./_correlation-cache');
 const { httpGet, httpPost, withTimeout } = require('./_http');
 const { getVtKeysForRequest, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
@@ -115,7 +116,7 @@ async function corrFromCache(ip) {
       .gt('first_scanned_at', cutoffIso)
       .maybeSingle();
     const p = row?.corr_payload;
-    if (p && Array.isArray(p.sources) && p.sources.length > 0) return p;
+    if (isCompleteCorrelationPayload(p)) return p;
   } catch {
     // fall through to live correlation
   }

@@ -1,4 +1,5 @@
 const { extractIOC, detectType } = require('./_ioc');
+const { isCompleteCorrelationPayload } = require('./_correlation-cache');
 const { getSupabase } = require('./_supabase');
 const { getVtKeys, getVtKeysForRequest, getVtAvailableKeyCount, getNextVtQuotaResetAt, getNextVtCooldownAt, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtKeyQuotaExceeded, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
@@ -139,10 +140,7 @@ module.exports = async function handler(req, res) {
                 scanCount: cached.scan_count || 0,
                 lastSeen: cached.last_scanned_at,
                 fromCache: true,
-                corrPayload: cached.corr_payload && Array.isArray(cached.corr_payload.sources) && cached.corr_payload.sources.length > 0
-                  && cached.corr_payload.sources.some(s => s.source === 'Enrichment')
-                  ? cached.corr_payload
-                  : null,
+                corrPayload: isCompleteCorrelationPayload(cached.corr_payload) ? cached.corr_payload : null,
               },
             },
           });
