@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, FormEvent, useCallback } from 'react';
+import { useState, useEffect, useRef, FormEvent, useCallback, useMemo } from 'react';
 import { useVtScan } from '../hooks/useVtScan';
 import { useScanHistory } from '../hooks/useScanHistory';
 import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { CountryFilter } from '../components/vt/CountryFilter';
-import { parseIocList } from '../lib/ioc';
 import { CopyButton } from '../components/shared/CopyButton';
+import { MAX_BULK_INPUT_CHARS, MAX_BULK_IOCS, parseBulkIocs, type BulkIocRow } from '../lib/bulk-ioc.mjs';
 
 interface Props {
   pendingIoc?: string;
@@ -14,9 +14,13 @@ interface Props {
 
 export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const [input, setInput] = useState('');
-  const { visibleItems, items, filters, countryFilters, availableCountries, scanning, progress, statusMsg, statusType, runScan, clear, setFilter, setCountryFilters } = useVtScan();
+  const [inputFormat, setInputFormat] = useState<'text' | 'csv' | 'json'>('text');
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [fileTruncated, setFileTruncated] = useState(false);
+  const { visibleItems, items, filters, countryFilters, availableCountries, scanning, progress, statusMsg, statusType, runScan, setFilter, setCountryFilters } = useVtScan();
   const { addEntry } = useScanHistory();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Selection state for multi-copy
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -49,22 +53,24 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     }
   }, [scanning, statusType, items, addEntry]);
 
-  // Auto-defang on paste
-  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text');
-    const cleaned = pasted
-      .replace(/hxxps?/gi, 'https')
-      .replace(/\[\.\]/g, '.')
-      .replace(/\(dot\)/gi, '.');
-    const target = e.currentTarget;
-    const start = target.selectionStart;
-    const end = target.selectionEnd;
-    setInput(input.slice(0, start) + cleaned + input.slice(end));
+  const previewRows = useMemo(() => parseBulkIocs(input, inputFormat), [input, inputFormat]);
+  const isSelected = useCallback((row: BulkIocRow) => rowSelection[row.id] ?? row.selected, [rowSelection]);
+  const selectedPreviewRows = previewRows.filter(row => isSelected(row) && row.valid && !row.duplicate);
+  const selectedDomainCount = selectedPreviewRows.filter(row => row.type === 'domain' || row.type === 'url').length;
+  const selectionFull = selectedPreviewRows.length >= 100;
+  const domainSelectionFull = selectedDomainCount >= 25;
+
+  async function handleFile(file?: File) {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    setInputFormat(name.endsWith('.json') ? 'json' : name.endsWith('.csv') ? 'csv' : 'text');
+    setFileTruncated(file.size > MAX_BULK_INPUT_CHARS);
+    setInput(await file.slice(0, MAX_BULK_INPUT_CHARS).text());
+    setRowSelection({});
   }
 
   function handleScan(rawInput?: string) {
-    const val = rawInput ?? input;
+    const val = rawInput ?? selectedPreviewRows.map(row => row.normalized).join('\n');
     if (!val.trim()) return;
     lastScanInputRef.current = val;
     persistedScanRef.current = null;
@@ -107,7 +113,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     .map(it => it.ioc)
     .join('\n');
 
-  const lineCount = parseIocList(input).length;
+  const lineCount = selectedPreviewRows.length;
   const hasResults = items.length > 0;
   const selectedCount = selected.size;
 
@@ -142,24 +148,46 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                 className="form-textarea"
                 placeholder={'8.8.8.8\nexample.com\nd41d8cd98f00b204e9800998ecf8427e'}
                 value={input}
-                onChange={e => setInput(e.target.value)}
-                onPaste={handlePaste}
+                onChange={e => { setInput(e.target.value); setInputFormat('text'); setRowSelection({}); setFileTruncated(false); }}
                 onKeyDown={handleKeyDown}
                 rows={10}
                 disabled={scanning}
               />
             </div>
 
-            <div className="tab-actions">
-              <button type="submit" className="btn btn-primary" disabled={!input.trim() || scanning}>
-                {scanning ? `Scanning… (${progress.done}/${progress.total})` : 'Scan'}
+            <input ref={fileRef} type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" hidden onChange={e => { void handleFile(e.target.files?.[0]); e.target.value = ''; }} />
+            <div className="bulk-ioc-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => fileRef.current?.click()} disabled={scanning}>Upload TXT/CSV/JSON</button>
+              <button type="submit" className="btn btn-primary" disabled={!selectedPreviewRows.length || scanning}>
+                {scanning ? `Scanning… (${progress.done}/${progress.total})` : `Scan ${selectedPreviewRows.length || ''}`.trim()}
               </button>
-              {hasResults && (
-                <button type="button" className="btn btn-ghost" onClick={() => { clear(); setSelected(new Set()); }} disabled={scanning}>
-                  Reset
-                </button>
-              )}
             </div>
+
+            {previewRows.length > 0 && (
+              <div className="bulk-ioc-preview" aria-label="Bulk IOC preview">
+                {(fileTruncated || input.length > MAX_BULK_INPUT_CHARS) && <p className="bulk-ioc-limit">Input capped at {MAX_BULK_INPUT_CHARS.toLocaleString()} characters.</p>}
+                {previewRows.length === MAX_BULK_IOCS && <p className="bulk-ioc-limit">Preview limit reached. Selectable rows are capped.</p>}
+                <div className="bulk-ioc-table-wrap">
+                  <table className="bulk-ioc-table">
+                    <thead><tr><th><span className="sr-only">Select</span></th><th>Original</th><th>Normalized</th><th>Type</th><th>State</th></tr></thead>
+                    <tbody>{previewRows.map(row => (
+                      <tr key={row.id} className={!row.valid || row.duplicate ? 'bulk-ioc-row--muted' : ''}>
+                        <td><input type="checkbox" aria-label={`Select ${row.original}`} checked={isSelected(row)} disabled={!row.valid || row.duplicate || scanning || (!isSelected(row) && (selectionFull || ((row.type === 'domain' || row.type === 'url') && domainSelectionFull)))} onChange={e => setRowSelection(prev => ({ ...prev, [row.id]: e.target.checked }))} /></td>
+                        <td title={row.original}>{row.original}</td><td title={row.normalized}>{row.normalized || '—'}</td><td>{row.type === 'url' ? 'DOMAIN FROM URL' : row.type?.toUpperCase() || '—'}</td>
+                        <td>{row.duplicate ? 'Duplicate' : row.valid ? 'Ready' : row.invalidReason}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+                <div className="bulk-ioc-summary" aria-label="IOC preview summary">
+                  <span className="bulk-ioc-summary--selected">{selectedPreviewRows.length} selected</span>
+                  <span className="bulk-ioc-summary--duplicate">{previewRows.filter(row => row.duplicate).length} duplicate</span>
+                  <span className="bulk-ioc-summary--invalid">{previewRows.filter(row => !row.valid).length} invalid</span>
+                </div>
+              </div>
+            )}
+
+
           </form>
 
           {/* Status lives in the left panel — never pushes the results column */}

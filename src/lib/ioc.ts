@@ -22,8 +22,11 @@ export function extractIOC(raw: string): string {
 }
 
 export function detectType(s: string): IocType {
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s)) return 'ip';
-  if (/^[0-9a-f:]{3,39}$/.test(s) && s.includes(':') && s.split(':').length >= 3) return 'ip';
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split('.').every(part => Number(part) <= 255)) return 'ip';
+  if (/^(?:\d+\.){3}\d+$/.test(s)) return null;
+  if (s.includes(':')) {
+    try { if (new URL(`http://[${s}]/`).hostname) return 'ip'; } catch { /* invalid IPv6 */ }
+  }
   if (/^[0-9a-f]+$/.test(s) && [32, 40, 56, 64, 96, 128].includes(s.length)) return 'hash';
   if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(s)) return 'domain';
   return null;
