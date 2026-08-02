@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuthState } from './context/AuthContext';
 import { AppShell } from './components/layout/AppShell';
@@ -9,22 +9,23 @@ import { allowedTabs, getRestoredTab } from './components/layout/TabNav';
 import { UpdateToast } from './components/shared/UpdateToast';
 import { ShortcutHelp } from './components/shared/ShortcutHelp';
 import type { TabId } from './lib/permissions';
-import { DashboardTab } from './pages/DashboardTab';
-import { FormatterTab } from './pages/FormatterTab';
-import { JsonTab } from './pages/JsonTab';
-import { MergerTab } from './pages/MergerTab';
-import { IocScanTab } from './pages/IocScanTab';
-import { HistoryTab } from './pages/HistoryTab';
-import { PacFilterTab } from './pages/PacFilterTab';
-import { DailyEodTab } from './pages/DailyEodTab';
-import { AdminUsersTab } from './pages/AdminUsersTab';
-import { AdminLogsTab } from './pages/AdminLogsTab';
-import { IrManagerTab } from './pages/IrManagerTab';
-import { CveTab } from './pages/CveTab';
-import { AttackTab } from './pages/AttackTab';
-import { SettingsTab } from './pages/SettingsTab';
-import { AdminUsageTab } from './pages/AdminUsageTab';
-import { ResultPage } from './pages/ResultPage';
+
+const DashboardTab = lazy(() => import('./pages/DashboardTab').then(m => ({ default: m.DashboardTab })));
+const FormatterTab = lazy(() => import('./pages/FormatterTab').then(m => ({ default: m.FormatterTab })));
+const JsonTab = lazy(() => import('./pages/JsonTab').then(m => ({ default: m.JsonTab })));
+const MergerTab = lazy(() => import('./pages/MergerTab').then(m => ({ default: m.MergerTab })));
+const IocScanTab = lazy(() => import('./pages/IocScanTab').then(m => ({ default: m.IocScanTab })));
+const HistoryTab = lazy(() => import('./pages/HistoryTab').then(m => ({ default: m.HistoryTab })));
+const PacFilterTab = lazy(() => import('./pages/PacFilterTab').then(m => ({ default: m.PacFilterTab })));
+const DailyEodTab = lazy(() => import('./pages/DailyEodTab').then(m => ({ default: m.DailyEodTab })));
+const AdminUsersTab = lazy(() => import('./pages/AdminUsersTab').then(m => ({ default: m.AdminUsersTab })));
+const AdminLogsTab = lazy(() => import('./pages/AdminLogsTab').then(m => ({ default: m.AdminLogsTab })));
+const IrManagerTab = lazy(() => import('./pages/IrManagerTab').then(m => ({ default: m.IrManagerTab })));
+const CveTab = lazy(() => import('./pages/CveTab').then(m => ({ default: m.CveTab })));
+const AttackTab = lazy(() => import('./pages/AttackTab').then(m => ({ default: m.AttackTab })));
+const SettingsTab = lazy(() => import('./pages/SettingsTab').then(m => ({ default: m.SettingsTab })));
+const AdminUsageTab = lazy(() => import('./pages/AdminUsageTab').then(m => ({ default: m.AdminUsageTab })));
+const ResultPage = lazy(() => import('./pages/ResultPage').then(m => ({ default: m.ResultPage })));
 
 function AppInner() {
   const { ready, authed, role, username } = useAuthState();
@@ -150,7 +151,7 @@ function AppInner() {
         layout={layout}
         showSettingsFeature={!tabPrefs.tutorialDismissed}
       >
-        {renderAllTabs()}
+        <Suspense fallback={<Spinner size={32} />}>{renderAllTabs()}</Suspense>
       </AppShell>
 
       <UpdateToast />
@@ -164,7 +165,7 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/result/:id" element={<ResultPage />} />
+          <Route path="/result/:id" element={<Suspense fallback={<Spinner size={32} />}><ResultPage /></Suspense>} />
           <Route path="/*" element={<AppInner />} />
         </Routes>
       </AuthProvider>

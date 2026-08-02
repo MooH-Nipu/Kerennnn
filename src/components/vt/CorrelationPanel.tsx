@@ -123,7 +123,16 @@ export function CorrelationPanel({ loading, data }: Props) {
           <div className="source-row" key={i}>
             <div
               className={`source-row-main${isExpandable ? ' source-row-main--clickable' : ''}`}
+              role={isExpandable ? 'button' : undefined}
+              tabIndex={isExpandable ? 0 : undefined}
+              aria-expanded={isExpandable ? expanded : undefined}
               onClick={isExpandable ? () => toggleSource(src.source) : undefined}
+              onKeyDown={isExpandable ? event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  toggleSource(src.source);
+                }
+              } : undefined}
             >
               {isExpandable
                 ? <span className={`source-chevron${expanded ? ' open' : ''}`}>›</span>

@@ -102,10 +102,25 @@ for (const [route, file] of routes) {
 
 // Static frontend
 const dist = path.join(__dirname, 'dist');
-app.use(express.static(dist));
+app.use(express.static(dist, {
+  setHeaders(res, filePath) {
+    if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (filePath.includes(`${path.sep}fonts${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    } else if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  },
+}));
 
 // SPA fallback — let React Router handle all non-API paths
-app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(dist, 'index.html'));
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] listening on :${PORT}`);
