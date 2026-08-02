@@ -163,6 +163,12 @@ export function DashboardTab({ onScanIp }: Props) {
     fetchUsage(from, to, true);
   }
 
+  function applyCustomRange() {
+    if (!from || !to || new Date(from) >= new Date(to)) return;
+    fetchRecent(from, to);
+    fetchUsage(from, to, true);
+  }
+
   /* ── Derived ────────────────────────────────────────────── */
 
   const usageTotals = usageData
@@ -240,6 +246,7 @@ export function DashboardTab({ onScanIp }: Props) {
         <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>→</span>
         <input type="datetime-local" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading}
           style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
+        <button type="button" className="button button--primary button--sm" onClick={applyCustomRange} disabled={loading || !from || !to || new Date(from) >= new Date(to)}>Apply</button>
       </div>
 
       {/* ── Error ──────────────────────────────────────────── */}
