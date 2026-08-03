@@ -4,8 +4,38 @@ const {
   collectRiskFactors, calcConfidenceWithFloors,
   checkWarningList, corroborationBonus, bayesianConfidence,
   enrichmentMultiplier, decayMultiplier, sightingBoost,
-  applyTypeWeights, calculateOptimizedConfidence,
+  applyTypeWeights, calculateOptimizedConfidence, parseMalwareBazaar,
 } = require('./correlate');
+
+
+describe('MalwareBazaar hash lookup', () => {
+  test('known hash becomes malicious with useful metadata', () => {
+    const result = parseMalwareBazaar({
+      query_status: 'ok',
+      data: [{
+        sha256_hash: 'abc123',
+        file_name: 'payload.exe',
+        file_type: 'exe',
+        signature: 'CobaltStrike',
+        first_seen: '2026-07-01 00:00:00',
+        tags: ['c2', 'loader'],
+      }],
+    }, 'abc123');
+
+    assert.equal(result.source, 'MalwareBazaar');
+    assert.equal(result.verdict, 'malicious');
+    assert.equal(result.score, 100);
+    assert.equal(result.meta.Signature, 'CobaltStrike');
+    assert.match(result.link, /abc123/);
+  });
+
+  test('unknown hash becomes clean', () => {
+    const result = parseMalwareBazaar({ query_status: 'hash_not_found' }, 'deadbeef');
+    assert.equal(result.verdict, 'clean');
+    assert.equal(result.score, 0);
+  });
+});
+
 const { isCompleteCorrelationPayload } = require('./_correlation-cache');
 
 // ── Legacy tests (unchanged) ─────────────────────────────────────────────
@@ -420,14 +450,16 @@ describe('applyTypeWeights', () => {
     assert.equal(weighted[1].weight, 0.00);
   });
 
-  test('hash type: VT gets 0.50, OTX gets 0.30', () => {
+  test('hash type: VT gets 0.50, MalwareBazaar 0.20, OTX 0.30', () => {
     const results = [
       { source: 'VirusTotal', verdict: 'malicious', weight: 0.30, skipped: false, error: null },
+      { source: 'MalwareBazaar', verdict: 'malicious', weight: 0.20, skipped: false, error: null },
       { source: 'AlienVault OTX', verdict: 'malicious', weight: 0.15, skipped: false, error: null },
     ];
     const weighted = applyTypeWeights(results, 'hash');
     assert.equal(weighted[0].weight, 0.50);
-    assert.equal(weighted[1].weight, 0.30);
+    assert.equal(weighted[1].weight, 0.20);
+    assert.equal(weighted[2].weight, 0.30);
   });
 
   test('skipped sources keep original weight', () => {
