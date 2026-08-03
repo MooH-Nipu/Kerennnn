@@ -18,14 +18,16 @@ test('cache and health short-circuits happen before provider budget consumption'
   assert.ok(correlate.indexOf('if (cachedCorr) return') < correlate.indexOf("consumeScanBudget(req, res, 'correlate')"));
 });
 
-test('URLScan active browsing requires explicit opt-in', () => {
+test('URLScan always runs for domain IOCs (no opt-in required)', () => {
   const source = fs.readFileSync(path.join(__dirname, 'correlate.js'), 'utf8');
-  assert.match(source, /req\.query\.active === '1'/);
+  // Should NOT check for active query param — URLScan is now automatic for domains
+  assert.doesNotMatch(source, /req\.query\.active/);
+  // Should still gate on type === 'domain'
+  assert.match(source, /type === 'domain'/);
 });
 
-test('frontend exposes deliberate URLScan opt-in and forwards it only for domains', () => {
+test('frontend no longer requires URLScan opt-in checkbox', () => {
   const page = fs.readFileSync(path.join(__dirname, '../src/pages/IocScanTab.tsx'), 'utf8');
-  const hook = fs.readFileSync(path.join(__dirname, '../src/hooks/useVtScan.ts'), 'utf8');
-  assert.match(page, /Active domain scan via URLScan/);
-  assert.match(hook, /type === 'domain' && opts\.activeDomainScan === true/);
+  // Checkbox should be removed
+  assert.doesNotMatch(page, /Active domain scan via URLScan/);
 });

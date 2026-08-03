@@ -162,7 +162,7 @@ export function useVtScan() {
   // until this timestamp before its next call (VT free tier = 4 req/min per key).
   const pauseUntilRef = useRef(0);
 
-  const runScan = useCallback(async (rawInput: string, opts: { activeDomainScan?: boolean } = {}) => {
+  const runScan = useCallback(async (rawInput: string) => {
     const parsed = parseIocList(rawInput);
     if (!parsed.length) {
       dispatch({ type: 'SET_STATUS', msg: 'No valid IOCs found.', statusType: 'error' });
@@ -260,12 +260,12 @@ export function useVtScan() {
           ? cacheMeta.corrPayload as ScanItem['correlation']
           : null;
 
-        const activeDomainRequested = type === 'domain' && opts.activeDomainScan === true;
-        if (cachedCorr && !activeDomainRequested) {
+        // Always bypass cache for domain IOCs so URLScan active scan runs
+        if (cachedCorr && type !== 'domain') {
           dispatch({ type: 'UPDATE_CORR', id, correlation: cachedCorr });
         } else {
           try {
-            const corr = await api.scan.correlate(ioc, activeDomainRequested);
+            const corr = await api.scan.correlate(ioc);
             dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
             api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
           } catch {

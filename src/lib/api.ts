@@ -94,8 +94,8 @@ export const api = {
 
   scan: {
     vt: (ioc: string) => apiFetch<Record<string, unknown>>(`/api/vt?ioc=${encodeURIComponent(ioc)}`),
-    correlate: (ioc: string, active = false) =>
-      apiFetch<Record<string, unknown>>(`/api/correlate?ioc=${encodeURIComponent(ioc)}${active ? '&active=1' : ''}`),
+    correlate: (ioc: string) =>
+      apiFetch<Record<string, unknown>>(`/api/correlate?ioc=${encodeURIComponent(ioc)}`),
     passiveDns: (ioc: string) =>
       apiFetch<PassiveDnsResponse>(`/api/passive-dns?ioc=${encodeURIComponent(ioc)}`),
     crtsh: (domain: string) =>
