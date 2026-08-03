@@ -21,6 +21,15 @@ describe('detectType', () => {
     assert.equal(detectType('8.8.8.8'), 'ip');
   });
 
+  test('rejects IPv4 octets above 255', () => {
+    assert.equal(detectType('999.999.999.999'), null);
+  });
+
+  test('rejects malformed IPv6', () => {
+    assert.equal(detectType('1:2:3'), null);
+    assert.equal(detectType('::::'), null);
+  });
+
   test('domain', () => {
     assert.equal(detectType('example.com'), 'domain');
   });

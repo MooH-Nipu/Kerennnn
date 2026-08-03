@@ -42,7 +42,7 @@ export function AppHeader({ username, role, settingsActive, showSettingsFeature,
           <span className="header-user__name">{username}</span>
           <RoleBadge role={role} size="xs" />
         </div>
-        <button className="logout-btn" onClick={() => logout()} title="Sign out">
+        <button type="button" className="logout-btn" onClick={() => logout()} title="Sign out" aria-label="Sign out">
           <span aria-hidden="true">↪</span>
           Logout
         </button>

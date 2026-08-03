@@ -6,7 +6,7 @@ interface Props {
 export function SessionExpiredToast({ message, onClose }: Props) {
   return (
     <div className="update-toast" role="status" aria-live="polite">
-      <button className="update-toast__close" onClick={onClose} aria-label="Dismiss">×</button>
+      <button type="button" className="update-toast__close" onClick={onClose} aria-label="Dismiss">×</button>
       <div className="update-toast__head">
         <span className="update-toast__badge">Session</span>
         <strong className="update-toast__title">Signed out</strong>
@@ -14,7 +14,7 @@ export function SessionExpiredToast({ message, onClose }: Props) {
       <ul className="update-toast__list">
         <li>{message}</li>
       </ul>
-      <button className="btn btn-primary update-toast__ok" onClick={onClose}>OK</button>
+      <button type="button" className="btn btn-primary update-toast__ok" onClick={onClose}>Dismiss</button>
     </div>
   );
 }

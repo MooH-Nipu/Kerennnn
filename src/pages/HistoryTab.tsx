@@ -54,6 +54,8 @@ export function HistoryTab({ onReScan, onGoToScan }: Props) {
       <div className="history-layout">
         <div className="history-sidebar">
           <input
+            id="history-search"
+            aria-label="Search scan history"
             type="text"
             className="form-input"
             placeholder="Search IOC…"
@@ -83,20 +85,28 @@ export function HistoryTab({ onReScan, onGoToScan }: Props) {
             <div
               key={entry.id}
               className={`history-item ${entry.id === selected ? 'history-item--active' : ''}`}
-              onClick={() => setSelected(entry.id)}
             >
-              <div className="history-item__meta">
-                <span className="history-item__count">{entry.count} IOC</span>
-                <span className="history-item__time">{fmtWhen(entry.ts)}</span>
-              </div>
-              <div className="history-item__preview">
-                {entry.input.split('\n').slice(0, 2).join(', ')}
-                {entry.input.split('\n').length > 2 && '…'}
-              </div>
               <button
+                type="button"
+                className="history-item__select"
+                aria-current={entry.id === selected ? 'true' : undefined}
+                onClick={() => setSelected(entry.id)}
+              >
+                <span className="history-item__meta">
+                  <span className="history-item__count">{entry.count} IOC</span>
+                  <span className="history-item__time">{fmtWhen(entry.ts)}</span>
+                </span>
+                <span className="history-item__preview">
+                  {entry.input.split('\n').slice(0, 2).join(', ')}
+                  {entry.input.split('\n').length > 2 && '…'}
+                </span>
+              </button>
+              <button
+                type="button"
                 className="history-item__del"
-                onClick={e => { e.stopPropagation(); removeEntry(entry.id); if (selected === entry.id) setSelected(null); }}
+                onClick={() => { removeEntry(entry.id); if (selected === entry.id) setSelected(null); }}
                 title="Delete this entry"
+                aria-label={`Delete history entry from ${fmtWhen(entry.ts)}`}
               >
                 ×
               </button>

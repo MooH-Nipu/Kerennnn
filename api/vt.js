@@ -1,10 +1,12 @@
 const { extractIOC, detectType } = require('./_ioc');
+const { isCompleteCorrelationPayload } = require('./_correlation-cache');
 const { getSupabase } = require('./_supabase');
 const { getVtKeys, getVtKeysForRequest, getVtAvailableKeyCount, getNextVtQuotaResetAt, getNextVtCooldownAt, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtKeyQuotaExceeded, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 const { logApiUsage } = require('./_usage');
 const { logIpScan } = require('./_ipscans');
+const { consumeScanBudget } = require('./_scan-budget');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -139,10 +141,7 @@ module.exports = async function handler(req, res) {
                 scanCount: cached.scan_count || 0,
                 lastSeen: cached.last_scanned_at,
                 fromCache: true,
-                corrPayload: cached.corr_payload && Array.isArray(cached.corr_payload.sources) && cached.corr_payload.sources.length > 0
-                  && cached.corr_payload.sources.some(s => s.source === 'Enrichment')
-                  ? cached.corr_payload
-                  : null,
+                corrPayload: isCompleteCorrelationPayload(cached.corr_payload) ? cached.corr_payload : null,
               },
             },
           });
@@ -162,6 +161,7 @@ module.exports = async function handler(req, res) {
   const vtUrl = urlMap[type];
 
   // ── Try each key; on quota/rate-limit or bad key, auto-switch to next for this IOC ──
+  if (!consumeScanBudget(req, res, 'vt')) return;
   let lastError = null;
   let rateLimitedCount = 0;
   let quotaExceededCount = 0;
