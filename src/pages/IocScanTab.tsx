@@ -17,6 +17,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const [inputFormat, setInputFormat] = useState<'text' | 'csv' | 'json'>('text');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [fileTruncated, setFileTruncated] = useState(false);
+  const [activeDomainScan, setActiveDomainScan] = useState(false);
   const { visibleItems, items, filters, countryFilters, availableCountries, scanning, progress, statusMsg, statusType, runScan, setFilter, setCountryFilters } = useVtScan();
   const { addEntry } = useScanHistory();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -75,7 +76,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
     lastScanInputRef.current = val;
     persistedScanRef.current = null;
     setSelected(new Set());
-    runScan(val);
+    runScan(val, { activeDomainScan });
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   }
 
@@ -162,6 +163,10 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                 {scanning ? `Scanning… (${progress.done}/${progress.total})` : `Scan ${selectedPreviewRows.length || ''}`.trim()}
               </button>
             </div>
+            <label className="bulk-ioc-active-scan">
+              <input type="checkbox" checked={activeDomainScan} onChange={e => setActiveDomainScan(e.target.checked)} disabled={scanning} />
+              Active domain scan via URLScan
+            </label>
 
             {previewRows.length > 0 && (
               <div className="bulk-ioc-preview" aria-label="Bulk IOC preview">

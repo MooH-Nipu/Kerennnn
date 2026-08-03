@@ -2907,6 +2907,7 @@ body { padding: 0; }
 }
 
 .bulk-ioc-actions { display: flex; align-items: center; gap: 0.65rem; margin: 0.5rem 0; }
+.bulk-ioc-active-scan { display: flex; align-items: center; gap: 0.45rem; color: #fbbf24; font-size: 0.7rem; cursor: pointer; }
 .bulk-ioc-preview { margin: 0.75rem 0; border: 1px solid var(--border, #1a2a45); border-radius: 8px; overflow: hidden; }
 .bulk-ioc-limit { margin: 0; padding: 0.45rem 0.65rem; color: #fbbf24; background: rgba(251, 191, 36, 0.08); font-size: 0.7rem; }
 .bulk-ioc-table-wrap { max-height: 250px; overflow: auto; }
