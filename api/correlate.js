@@ -972,14 +972,21 @@ module.exports = async function handler(req, res) {
   }
 
   // URLScan submission actively browses a target. Require explicit opt-in;
-  // ordinary IOC correlation remains passive.
-  if (type === 'domain' && req.query.active === '1') checks.push(checkURLScan(ioc));
+  // ordinary IOC correlation remains passive. Runs in parallel but with its
+  // own 45s timeout (submit + wait + poll), separate from the 15s global.
+  const urlscanPromise = type === 'domain' && req.query.active === '1'
+    ? withTimeout(checkURLScan(ioc), 45_000, 'URLScan.io')
+        .catch(e => ({ source: 'URLScan.io', error: e.message || 'timed out' }))
+    : null;
 
-  const results = await Promise.all(checks.map(p =>
-    withTimeout(p, 15_000, 'correlation source').catch(e => ({
-      source: 'Unknown', error: e.message || 'timed out', skipped: false
-    }))
-  ));
+  const results = await Promise.all([
+    ...checks.map(p =>
+      withTimeout(p, 15_000, 'correlation source').catch(e => ({
+        source: 'Unknown', error: e.message || 'timed out', skipped: false
+      }))
+    ),
+    ...(urlscanPromise ? [urlscanPromise] : []),
+  ]);
 
   // Only send sources that actually ran — skip sources with missing API keys
   // or unsupported IOC types so the client never sees "SKIPPED" rows. Strip the
