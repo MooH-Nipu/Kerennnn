@@ -22,6 +22,7 @@ const SERVICE_COLORS: Record<string, string> = {
   'VirusTotal':      '#1d6ae5',
   'AbuseIPDB':       '#e5484d',
   'Abuse.ch':        '#f5a623',
+  'MalwareBazaar':   '#f472b6',
   'AlienVault OTX':  '#a78bfa',
   'URLScan.io':      '#0fba81',
   'Enrichment':      '#38bdf8',

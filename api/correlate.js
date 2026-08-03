@@ -273,6 +273,54 @@ async function checkAbuseCh(ioc) {
   }
 }
 
+// ── Source: MalwareBazaar (hash only) ────────────────────────────────────
+function parseMalwareBazaar(data, hash) {
+  if (data?.query_status === 'hash_not_found' || data?.query_status === 'no_results') {
+    return {
+      source: 'MalwareBazaar', verdict: 'clean', score: 0, weight: 0.20,
+      meta: { 'Known Sample': 'no' },
+      link: `https://bazaar.abuse.ch/browse.php?search=sha256%3A${encodeURIComponent(hash)}`,
+    };
+  }
+
+  const sample = Array.isArray(data?.data) ? data.data[0] : null;
+  if (data?.query_status !== 'ok' || !sample) {
+    return { source: 'MalwareBazaar', error: `MalwareBazaar: ${data?.query_status || 'invalid response'}` };
+  }
+
+  return {
+    source: 'MalwareBazaar', verdict: 'malicious', score: 100, weight: 0.20,
+    meta: {
+      'File Name': sample.file_name || '—',
+      'File Type': sample.file_type || '—',
+      Signature: sample.signature || '—',
+      'First Seen': sample.first_seen || '—',
+      Tags: Array.isArray(sample.tags) ? sample.tags.slice(0, 4).join(', ') || '—' : '—',
+    },
+    link: `https://bazaar.abuse.ch/sample/${encodeURIComponent(sample.sha256_hash || hash)}/`,
+  };
+}
+
+async function checkMalwareBazaar(hash) {
+  try {
+    const postBody = `query=get_info&hash=${encodeURIComponent(hash)}`;
+    const apiKey = process.env.MALWAREBAZAAR_API_KEY || process.env.ABUSECH_API_KEY || process.env.URLHAUS_API_KEY;
+    if (!apiKey) return { source: 'MalwareBazaar', skipped: true, reason: 'No API key' };
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(postBody),
+      'User-Agent': 'Charlie-kerennnn/1.0',
+    };
+    if (apiKey) headers['Auth-Key'] = apiKey;
+    const { status, data } = await httpPost('https://mb-api.abuse.ch/api/v1/', postBody, headers);
+    if (status !== 200) return { source: 'MalwareBazaar', error: `MalwareBazaar: HTTP ${status}` };
+    return { ...parseMalwareBazaar(data, hash), keyPrefix: apiKey ? kp(apiKey) : null };
+  } catch (e) {
+    return { source: 'MalwareBazaar', error: `Cannot access MalwareBazaar: ${e.message}` };
+  }
+}
+
 // ── Source: AlienVault OTX (weight 0.15, all types) ──────────────────────
 async function checkOTX(ioc, type) {
   const apiKey = process.env.OTX_API_KEY;
@@ -615,6 +663,7 @@ const WEIGHTS_BY_TYPE = {
     'VirusTotal':     0.50,
     'AbuseIPDB':      0.00,
     'Abuse.ch':       0.00,
+    'MalwareBazaar':  0.20,
     'AlienVault OTX': 0.30,
     'URLScan.io':     0.00,
     'Enrichment':     0.00,
@@ -625,6 +674,7 @@ const TRUST_KEY_MAP = {
   'VirusTotal': 'TRUST_VT',
   'AbuseIPDB': 'TRUST_ABUSEIPDB',
   'Abuse.ch': 'TRUST_ABUSECH',
+  'MalwareBazaar': 'TRUST_MALWAREBAZAAR',
   'AlienVault OTX': 'TRUST_OTX',
   'URLScan.io': 'TRUST_URLSCAN',
   'Enrichment': 'TRUST_ENRICHMENT',
@@ -957,7 +1007,6 @@ module.exports = async function handler(req, res) {
   }
 
   // Build check list based on IOC type.
-  // MalwareBazaar is keyless — always runs for hash types.
   const checks = [
     checkVT(ioc, type),        // all types
     checkOTX(ioc, type),       // all types
@@ -965,6 +1014,10 @@ module.exports = async function handler(req, res) {
 
   if (type === 'ip') {
     checks.push(checkAbuseIPDB(ioc));
+  }
+
+  if (type === 'hash') {
+    checks.push(checkMalwareBazaar(ioc));
   }
 
   if (type === 'ip' || type === 'domain') {
@@ -1079,6 +1132,7 @@ module.exports.collectRiskFactors = collectRiskFactors;
 module.exports.calcConfidenceWithFloors = calcConfidenceWithFloors;
 module.exports.checkEnrichment = checkEnrichment;
 module.exports.checkURLScan = checkURLScan;
+module.exports.parseMalwareBazaar = parseMalwareBazaar;
 module.exports.checkWarningList = checkWarningList;
 module.exports.corroborationBonus = corroborationBonus;
 module.exports.bayesianConfidence = bayesianConfidence;
