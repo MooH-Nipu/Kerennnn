@@ -7,6 +7,7 @@ const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
 const { requireAuth } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { logApiUsage } = require('./_usage');
+const { consumeScanBudget } = require('./_scan-budget');
 
 function getTrustFactor(envKey, defaultValue = 1) {
   const raw = process.env[envKey];
@@ -934,6 +935,8 @@ module.exports = async function handler(req, res) {
     if (cachedCorr) return res.status(200).json(cachedCorr);
   }
 
+  if (!consumeScanBudget(req, res, 'correlate')) return;
+
   // Fetch scan metadata (last_seen, scan_count) for time decay + sighting boost.
   // Runs in parallel with TI source checks — single PK lookup, negligible latency.
   const supabase = getSupabase();
@@ -968,7 +971,9 @@ module.exports = async function handler(req, res) {
     checks.push(checkEnrichment(ioc, type));
   }
 
-  if (type === 'domain') checks.push(checkURLScan(ioc));
+  // URLScan submission actively browses a target. Require explicit opt-in;
+  // ordinary IOC correlation remains passive.
+  if (type === 'domain' && req.query.active === '1') checks.push(checkURLScan(ioc));
 
   const results = await Promise.all(checks.map(p =>
     withTimeout(p, 15_000, 'correlation source').catch(e => ({

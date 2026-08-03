@@ -6,6 +6,7 @@ const { httpGet } = require('./_http');
 const { requireAuth } = require('./_auth');
 const { logApiUsage } = require('./_usage');
 const { logIpScan } = require('./_ipscans');
+const { consumeScanBudget } = require('./_scan-budget');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -160,6 +161,7 @@ module.exports = async function handler(req, res) {
   const vtUrl = urlMap[type];
 
   // ── Try each key; on quota/rate-limit or bad key, auto-switch to next for this IOC ──
+  if (!consumeScanBudget(req, res, 'vt')) return;
   let lastError = null;
   let rateLimitedCount = 0;
   let quotaExceededCount = 0;
