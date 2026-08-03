@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { confClass, confLabel } from '../../lib/ioc';
 import { Spinner } from '../shared/Spinner';
 import type { RiskFactor, RiskSeverity } from '../../types/vt';
@@ -47,6 +47,14 @@ function sourceVerdict(s: Source): string {
 
 export function CorrelationPanel({ loading, data }: Props) {
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!lightboxSrc) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxSrc(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxSrc]);
 
   const toggleSource = (name: string) => {
     setExpandedSources(prev => {
@@ -149,9 +157,19 @@ export function CorrelationPanel({ loading, data }: Props) {
                   <div key={k} className="source-meta-item">
                     <span className="source-meta-key">{k}</span>
                     {k.toLowerCase() === 'screenshot' && typeof v === 'string' && v.startsWith('http') ? (
-                      <a href={v} target="_blank" rel="noopener noreferrer">
-                        <img src={v} alt="URLScan screenshot" className="source-screenshot" loading="lazy" />
-                      </a>
+                      <>
+                        <img
+                          src={v}
+                          alt="URLScan screenshot — click to enlarge"
+                          className="source-screenshot"
+                          loading="lazy"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setLightboxSrc(v)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxSrc(v); } }}
+                        />
+                        <a href={v} target="_blank" rel="noopener noreferrer" className="source-screenshot-link">Open full size ↗</a>
+                      </>
                     ) : (
                       <span className="source-meta-val">{v}</span>
                     )}
@@ -168,6 +186,18 @@ export function CorrelationPanel({ loading, data }: Props) {
           </div>
         );
       })}
+      {lightboxSrc && (
+        <div
+          className="screenshot-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Screenshot preview"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <img src={lightboxSrc} alt="URLScan screenshot full size" onClick={e => e.stopPropagation()} />
+          <button type="button" className="screenshot-lightbox-close" onClick={() => setLightboxSrc(null)} aria-label="Close">✕</button>
+        </div>
+      )}
     </div>
   );
 }
