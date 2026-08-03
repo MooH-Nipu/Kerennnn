@@ -972,10 +972,9 @@ module.exports = async function handler(req, res) {
     checks.push(checkEnrichment(ioc, type));
   }
 
-  // URLScan submission actively browses a target. Require explicit opt-in;
-  // ordinary IOC correlation remains passive. Runs in parallel but with its
-  // own 45s timeout (submit + wait + poll), separate from the 15s global.
-  const urlscanPromise = type === 'domain' && req.query.active === '1'
+  // URLScan active browser scan — always runs for domain IOCs.
+  // Runs in parallel with its own 45s timeout (submit + wait + poll).
+  const urlscanPromise = type === 'domain'
     ? withTimeout(checkURLScan(ioc), 45_000, 'URLScan.io')
         .catch(e => ({ source: 'URLScan.io', error: e.message || 'timed out' }))
     : null;
