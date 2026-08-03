@@ -344,19 +344,20 @@ async function checkURLScan(domain) {
     const uuid = submitData?.uuid;
     if (!uuid) return { source: 'URLScan.io', error: 'No scan UUID returned' };
 
-    // Scans complete in 5-10s; poll up to 4 times at 3s intervals after initial 5s wait.
-    await sleep(5000);
+    // Scans complete in 5-15s; poll up to 6 times at 5s intervals after initial 8s wait.
+    await sleep(8000);
     let result = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 6; attempt++) {
       try {
         const { status, data } = await httpGet(
           `https://urlscan.io/api/v1/result/${uuid}/`,
           { 'API-Key': apiKey, Accept: 'application/json' },
-          { timeout: 5000 }
+          { timeout: 8000 }
         );
-        if (status === 200) { result = data; break; }
+        // 200 = result ready; also accept if verdicts exist (partial data)
+        if (status === 200 && data?.verdicts?.overall?.hasVerdicts !== false) { result = data; break; }
       } catch { /* not ready yet */ }
-      if (attempt < 3) await sleep(3000);
+      if (attempt < 5) await sleep(5000);
     }
 
     if (!result) return { source: 'URLScan.io', error: 'Scan result not ready (timed out)' };
@@ -378,7 +379,7 @@ async function checkURLScan(domain) {
         Title: (result.page?.title || '—').slice(0, 60),
         'Status Code': result.page?.status || '—',
         Tags: tags.join(', ') || '—',
-        Screenshot: result.screenshot || '—',
+        Screenshot: result.screenshot || result.task?.screenshotURL || `https://urlscan.io/screenshots/${uuid}.png`,
       },
       link: result.result || `https://urlscan.io/result/${uuid}/`,
     };
