@@ -6,8 +6,27 @@ const {
   enrichmentMultiplier, decayMultiplier, sightingBoost,
   applyTypeWeights, calculateOptimizedConfidence,
 } = require('./correlate');
+const { isCompleteCorrelationPayload } = require('./_correlation-cache');
 
 // ── Legacy tests (unchanged) ─────────────────────────────────────────────
+
+describe('cached correlation completeness', () => {
+  test('incomplete source errors force next scan to retry threat intel', () => {
+    const payload = { sources: [
+      { source: 'VirusTotal', verdict: 'clean' },
+      { source: 'AbuseIPDB', error: 'timeout' },
+    ] };
+    assert.equal(isCompleteCorrelationPayload(payload), false);
+  });
+
+  test('correlation with successful sources can be reused', () => {
+    const payload = { sources: [
+      { source: 'VirusTotal', verdict: 'clean' },
+      { source: 'AbuseIPDB', verdict: 'clean' },
+    ] };
+    assert.equal(isCompleteCorrelationPayload(payload), true);
+  });
+});
 
 describe('collectRiskFactors', () => {
   test('VT with 6 malicious yields a high-severity detection factor', () => {

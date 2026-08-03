@@ -79,7 +79,15 @@ function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggle
             title="Select for copy"
           />
         )}
-        <span className={`vt-chevron${collapsed ? '' : ' open'}`}>›</span>
+        <button
+          type="button"
+          className="vt-disclosure"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand scan result' : 'Collapse scan result'}
+          onClick={event => { event.stopPropagation(); onToggle(); }}
+        >
+          <span className={`vt-chevron${collapsed ? '' : ' open'}`}>›</span>
+        </button>
         {header}
       </div>
       {!collapsed && (

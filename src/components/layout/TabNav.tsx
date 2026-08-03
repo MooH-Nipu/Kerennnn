@@ -66,7 +66,9 @@ interface Props {
 
 export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels = {}, groupLabels = {}, layout = DEFAULT_NAV_LAYOUT, pacFilterCount }: Props) {
   const tabs = allowedTabs(role, hidden, activeTab);
-  const navigationTabs = layout.flatMap(section => tabs.filter(tab => section.tabs.includes(tab.id)));
+  const tabsById = new Map(tabs.map(tab => [tab.id, tab]));
+  const tabsInSection = (section: NavGroup) => section.tabs.map(id => tabsById.get(id)).filter((tab): tab is TabDef => Boolean(tab));
+  const navigationTabs = layout.flatMap(tabsInSection);
 
   function activate(id: TabId) {
     setActiveTab(id);
@@ -114,7 +116,7 @@ export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels =
   return (
     <nav className="tab-nav tab-nav--sidebar" aria-label="Primary navigation">
       {layout.map(section => {
-        const sectionTabs = tabs.filter(tab => section.tabs.includes(tab.id));
+        const sectionTabs = tabsInSection(section);
         if (!sectionTabs.length) return null;
         const label = groupLabels[section.id] || section.label;
         return (

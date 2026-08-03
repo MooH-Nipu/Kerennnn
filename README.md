@@ -2,9 +2,12 @@
 
 React + Vite single-page app (entry `index.html` → `src/main.tsx`, base styles in `styles.css`) plus Vercel serverless routes under `api/`. VirusTotal and correlation features call same-origin `/api/*` from the browser.
 
-## Deploy (Vercel)
+## Deploy
 
-Connect the repository, use the default Node runtime, and deploy. Static files at the repo root are served as-is; API handlers live in `api/` (see [Vercel serverless functions](https://vercel.com/docs/functions/serverless-functions)).
+Production builds are generated from source; `dist/` is intentionally not tracked.
+
+- **Docker:** the multi-stage `Dockerfile` runs `npm run build` and copies `dist/` into the runtime image.
+- **Vercel:** `vercel.json` runs `npm run build`, serves `dist/`, and keeps serverless handlers under `api/`.
 
 ## Database (Supabase)
 
@@ -83,7 +86,4 @@ CI runs lint → typecheck → tests → build on every push/PR
 
 ## Local development
 
-There is no bundled dev server in this repo. Options:
-
-- Open `index.html` directly for UI-only checks (API calls will fail unless you point a dev proxy at a deployed backend or run a compatible local server).
-- Or use [Vercel CLI](https://vercel.com/docs/cli) (`vercel dev`) from the project root with env vars in `.env.local`.
+Use `npm run dev` for the Vite frontend. API-backed workflows require the Docker app or [Vercel CLI](https://vercel.com/docs/cli) (`vercel dev`) with env vars in `.env.local`.
