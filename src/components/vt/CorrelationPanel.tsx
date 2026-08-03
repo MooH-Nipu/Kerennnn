@@ -148,7 +148,13 @@ export function CorrelationPanel({ loading, data }: Props) {
                 {Object.entries(src.meta!).map(([k, v]) => (
                   <div key={k} className="source-meta-item">
                     <span className="source-meta-key">{k}</span>
-                    <span className="source-meta-val">{v}</span>
+                    {k.toLowerCase() === 'screenshot' && typeof v === 'string' && v.startsWith('http') ? (
+                      <a href={v} target="_blank" rel="noopener noreferrer">
+                        <img src={v} alt="URLScan screenshot" className="source-screenshot" loading="lazy" />
+                      </a>
+                    ) : (
+                      <span className="source-meta-val">{v}</span>
+                    )}
                   </div>
                 ))}
               </div>
