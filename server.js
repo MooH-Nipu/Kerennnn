@@ -89,7 +89,6 @@ const routes = [
   ['/api/admin/logs',             './api/admin/logs.js'],
   ['/api/ip-cache/by-id',         './api/ip-cache/by-id.js'],
   ['/api/ip-cache/cleanup',       './api/ip-cache/cleanup.js'],
-  ['/api/ip-cache/correlation',   './api/ip-cache/correlation.js'],
   ['/api/ip-cache/recent',        './api/ip-cache/recent.js'],
   ['/api/ir-cases/detail',        './api/ir-cases/detail.js'],
   ['/api/ir-cases',               './api/ir-cases.js'],

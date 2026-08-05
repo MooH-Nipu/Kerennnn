@@ -4,9 +4,44 @@ const {
   collectRiskFactors, calcConfidenceWithFloors,
   checkWarningList, corroborationBonus, bayesianConfidence,
   enrichmentMultiplier, decayMultiplier, sightingBoost,
-  applyTypeWeights, calculateOptimizedConfidence, parseMalwareBazaar,
+  applyTypeWeights, calculateOptimizedConfidence, parseMalwareBazaar, buildVtResult,
 } = require('./correlate');
 
+
+describe('VirusTotal IP verdict evidence', () => {
+  test('two malicious detections plus negative reputation cannot become clean', () => {
+    const vt = buildVtResult(
+      { malicious: 2, suspicious: 0, undetected: 68, harmless: 20 },
+      '203.0.113.7',
+      'ip',
+      -12
+    );
+    const otherSources = [
+      { source: 'AbuseIPDB', verdict: 'clean', weight: 0.20 },
+      { source: 'Abuse.ch', verdict: 'clean', weight: 0.20 },
+      { source: 'AlienVault OTX', verdict: 'clean', weight: 0.15 },
+    ];
+    const results = [vt, ...otherSources];
+    const scoring = calculateOptimizedConfidence(results, collectRiskFactors(results), { iocType: 'ip' });
+
+    assert.equal(vt.verdict, 'suspicious');
+    assert.equal(vt.meta.Reputation, -12);
+    assert.ok(scoring.confidence >= 40, `expected suspicious confidence, got ${scoring.confidence}`);
+  });
+
+  test('IP-only evidence floor does not alter domain or hash scoring', () => {
+    const vt = buildVtResult(
+      { malicious: 2, suspicious: 0, undetected: 68, harmless: 20 },
+      'example.com',
+      'domain',
+      -12
+    );
+    const sources = [vt, { source: 'AlienVault OTX', verdict: 'clean', weight: 0.15 }];
+    const scoring = calculateOptimizedConfidence(sources, collectRiskFactors(sources), { iocType: 'domain' });
+
+    assert.equal(scoring.evidenceFloor, 0);
+  });
+});
 
 describe('MalwareBazaar hash lookup', () => {
   test('known hash becomes malicious with useful metadata', () => {
@@ -49,12 +84,20 @@ describe('cached correlation completeness', () => {
     assert.equal(isCompleteCorrelationPayload(payload), false);
   });
 
-  test('correlation with successful sources can be reused', () => {
-    const payload = { sources: [
+  test('correlation with successful current-version sources can be reused', () => {
+    const payload = { scoring: { version: 3 }, sources: [
       { source: 'VirusTotal', verdict: 'clean' },
       { source: 'AbuseIPDB', verdict: 'clean' },
     ] };
     assert.equal(isCompleteCorrelationPayload(payload), true);
+  });
+
+  test('legacy correlation is refreshed after verdict methodology changes', () => {
+    const payload = { sources: [
+      { source: 'VirusTotal', verdict: 'suspicious' },
+      { source: 'AbuseIPDB', verdict: 'clean' },
+    ] };
+    assert.equal(isCompleteCorrelationPayload(payload), false);
   });
 });
 

@@ -31,3 +31,13 @@ test('frontend no longer requires URLScan opt-in checkbox', () => {
   // Checkbox should be removed
   assert.doesNotMatch(page, /Active domain scan via URLScan/);
 });
+
+test('correlation cache is persisted server-side, never accepted from client', () => {
+  const correlate = fs.readFileSync(path.join(__dirname, 'correlate.js'), 'utf8');
+  const hook = fs.readFileSync(path.join(__dirname, '../src/hooks/useVtScan.ts'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
+
+  assert.match(correlate, /corr_payload: responsePayload/);
+  assert.doesNotMatch(hook, /saveCorrelation/);
+  assert.doesNotMatch(server, /ip-cache\/correlation/);
+});
