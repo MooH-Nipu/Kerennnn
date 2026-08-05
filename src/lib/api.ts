@@ -165,12 +165,6 @@ export const api = {
       return apiFetch<RecentResponse>(`/api/ip-cache/recent?${p}`);
     },
     byId: (id: string) => apiFetch<Record<string, unknown>>(`/api/ip-cache/by-id?id=${encodeURIComponent(id)}`),
-    saveCorrelation: (ioc: string, correlation: unknown) =>
-      apiFetch<{ ok: boolean }>('/api/ip-cache/correlation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ioc, correlation }),
-      }),
   },
 
   irCases: {

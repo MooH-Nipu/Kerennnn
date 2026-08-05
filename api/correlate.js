@@ -48,7 +48,7 @@ function ispIsHighRiskHoster(isp) {
 
 // Builds the VirusTotal source result from last_analysis_stats. Shared by the
 // live-API path and the cache-reuse path so scoring stays identical.
-function buildVtResult(stats, ioc, type) {
+function buildVtResult(stats, ioc, type, reputation) {
   const s = stats || {};
   const mal = s.malicious || 0;
   const sus = s.suspicious || 0;
@@ -75,6 +75,7 @@ function buildVtResult(stats, ioc, type) {
       Undetected: s.undetected || 0,
       'Total Engines': total,
       'Detection %': score + '%',
+      Reputation: Number.isFinite(reputation) ? reputation : '—',
     },
     link: vtUrlMap[type],
   };
@@ -94,7 +95,9 @@ async function vtFromIpCache(ip) {
       .gt('first_scanned_at', cutoffIso)
       .maybeSingle();
     const stats = row?.vt_payload?.last_analysis_stats;
-    if (stats && Object.keys(stats).length > 0) return buildVtResult(stats, ip, 'ip');
+    if (stats && Object.keys(stats).length > 0) {
+      return buildVtResult(stats, ip, 'ip', row.vt_payload?.reputation);
+    }
   } catch {
     // fall through to live API
   }
@@ -162,7 +165,8 @@ async function checkVT(ioc, type) {
       if (status !== 200)
         return { source: 'VirusTotal', error: data?.error?.message || `HTTP ${status}` };
 
-      return { ...buildVtResult(data.data?.attributes?.last_analysis_stats, ioc, type), keyPrefix: kp(key) };
+      const attributes = data.data?.attributes;
+      return { ...buildVtResult(attributes?.last_analysis_stats, ioc, type, attributes?.reputation), keyPrefix: kp(key) };
     } catch (e) {
       lastError = e;
     }
@@ -818,9 +822,17 @@ function calculateOptimizedConfidence(results, factors, opts) {
   // Apply multipliers
   const confidence = Math.min(100, Math.max(0, Math.round(rawConfidence * enrichMult * decay)));
 
+  // Two VT engines plus negative community reputation is conflicting evidence,
+  // never clean evidence. Keep it SUSPICIOUS pending cross-source confirmation.
+  const vt = weighted.find(r => r.source === 'VirusTotal' && !r.skipped && !r.error);
+  const vtEvidenceFloor = iocType === 'ip'
+    && Number(vt?.meta?.Malicious) >= 2
+    && Number(vt?.meta?.Reputation) < 0 ? 40 : 0;
+  const evidenceAdjustedConfidence = Math.max(confidence, vtEvidenceFloor);
+
   // Single-source guard: cap at 50 if only 1 active source
   const activeSources = weighted.filter(r => !r.skipped && !r.error && r.verdict !== undefined);
-  const finalConfidence = activeSources.length <= 1 ? Math.min(confidence, 50) : confidence;
+  const finalConfidence = activeSources.length <= 1 ? Math.min(evidenceAdjustedConfidence, 50) : evidenceAdjustedConfidence;
 
   // Stale IOC guard: cap at SUSPICIOUS (40) max for IPs/domains older than 30 days
   const staleCap = (iocType === 'ip' || iocType === 'domain')
@@ -836,6 +848,7 @@ function calculateOptimizedConfidence(results, factors, opts) {
     enrichmentMultiplier: enrichMult,
     decay,
     activeSourceCount: activeSources.length,
+    evidenceFloor: vtEvidenceFloor,
     // Backward compat fields (derived from optimized pipeline)
     baseline: bayesian,
     floor: 0, // floors are now implicit in Bayesian + corroboration
@@ -1076,7 +1089,7 @@ module.exports = async function handler(req, res) {
   // Use optimized confidence as primary, legacy as fallback
   const confidence = optimized.confidence ?? legacy.confidence;
   const baseline = optimized.baseline ?? legacy.baseline;
-  const floor = legacy.floor; // keep legacy floor for display
+  const floor = Math.max(legacy.floor, optimized.evidenceFloor);
   const bonus = legacy.bonus;
 
   const activeWeights = results
@@ -1104,7 +1117,7 @@ module.exports = async function handler(req, res) {
       }))
   ).catch(() => {});
 
-  return res.status(200).json({
+  const responsePayload = {
     ioc,
     type,
     confidence,
@@ -1114,9 +1127,11 @@ module.exports = async function handler(req, res) {
     activeWeights,
     riskFactors,
     sources: visibleResults,
-    // Scoring v2 metadata
+    // Versioned scoring metadata invalidates stale cached methodology.
     scoring: {
+      version: 3,
       bayesian: optimized.bayesian,
+      evidenceFloor: optimized.evidenceFloor,
       corroboration: optimized.corroboration,
       enrichmentMultiplier: optimized.enrichmentMultiplier,
       decay: optimized.decay,
@@ -1124,7 +1139,21 @@ module.exports = async function handler(req, res) {
       activeSourceCount: optimized.activeSourceCount,
       warningList: warningListResult.listed ? warningListResult : undefined,
     },
-  });
+  };
+
+  // Persist only server-calculated correlation. Never trust client-supplied verdicts.
+  if (supabase) {
+    try {
+      const cacheRow = { corr_confidence: confidence, corr_payload: responsePayload };
+      if (type === 'ip') {
+        await supabase.from('vt_ip_cache').update(cacheRow).eq('ip', ioc);
+      } else {
+        await supabase.from('vt_ioc_cache').update(cacheRow).eq('ioc_type', type).eq('ioc', ioc);
+      }
+    } catch { /* best-effort; scan response remains authoritative */ }
+  }
+
+  return res.status(200).json(responsePayload);
 };
 
 // Exposed for unit tests.
@@ -1141,3 +1170,4 @@ module.exports.decayMultiplier = decayMultiplier;
 module.exports.sightingBoost = sightingBoost;
 module.exports.applyTypeWeights = applyTypeWeights;
 module.exports.calculateOptimizedConfidence = calculateOptimizedConfidence;
+module.exports.buildVtResult = buildVtResult;

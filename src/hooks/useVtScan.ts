@@ -267,7 +267,6 @@ export function useVtScan() {
           try {
             const corr = await api.scan.correlate(ioc);
             dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-            api.ipCache.saveCorrelation(ioc, corr).catch(() => {});
           } catch {
             dispatch({ type: 'UPDATE_CORR', id, correlation: null });
           }

@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "start": "node server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test api",
+    "test": "node --test api/*.test.js",
     "lint": "eslint api src",
     "test:e2e": "playwright test",
     "test:e2e:local": "node scripts/run-e2e-local.js",
