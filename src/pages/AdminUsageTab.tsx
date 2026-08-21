@@ -75,6 +75,12 @@ function toLocalDatetime(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function isValidRange(from: string, to: string) {
+  const fromMs = new Date(from).getTime();
+  const toMs = new Date(to).getTime();
+  return Boolean(from && to && Number.isFinite(fromMs) && Number.isFinite(toMs) && fromMs < toMs);
+}
+
 export function AdminUsageTab() {
   // Time window state: local datetime strings for the inputs.
   const now = new Date();
@@ -87,6 +93,10 @@ export function AdminUsageTab() {
   const [data, setData] = useState<ApiUsageResponse | null>(null);
 
   const fetchData = useCallback((f: string, t: string, isRefresh: boolean) => {
+    if (!isValidRange(f, t)) {
+      setStatus({ type: 'error', text: 'Choose a valid time range. “From” must be before “To”.' });
+      return;
+    }
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setStatus(null);
     // Append seconds + local offset so the backend gets an exact instant.
@@ -168,7 +178,7 @@ export function AdminUsageTab() {
             type="button"
             className="usage-refresh"
             onClick={() => fetchData(from, to, true)}
-            disabled={loading || refreshing}
+            disabled={loading || refreshing || !isValidRange(from, to)}
             title="Refresh"
           >
             <span className={`usage-refresh__icon ${refreshing ? 'is-spinning' : ''}`} aria-hidden="true">↻</span>

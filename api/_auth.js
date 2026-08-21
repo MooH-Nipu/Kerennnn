@@ -127,6 +127,7 @@ function getAuthSecret() {
 }
 
 function requireAuth(req, res) {
+  if (req.authCurrent === true && req.auth) return true;
   const secret = getAuthSecret();
   if (!secret) {
     res.statusCode = 503;
@@ -177,6 +178,75 @@ function requireRole(req, res, allowedRoles) {
   return true;
 }
 
+function validateCurrentIdentity(tokenAuth, dbUser, allowedRoles) {
+  if (!tokenAuth?.userId || !dbUser || dbUser.id !== tokenAuth.userId) return { ok: false, status: 401 };
+  if (!allowedRoles.includes(dbUser.role)) return { ok: false, status: 403 };
+  return {
+    ok: true,
+    auth: { userId: dbUser.id, role: dbUser.role, username: dbUser.username },
+  };
+}
+
+function shouldRevalidateRoute(route) {
+  return !['/api/health', '/api/auth/login', '/api/auth/logout'].includes(route);
+}
+
+async function revalidateRequestIdentity(req, res, supabase) {
+  if (!shouldRevalidateRoute(req.path)) return true;
+  if (!requireAuth(req, res)) return false;
+  const tokenExp = req.auth.exp || 0;
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('id,username,role')
+    .eq('id', req.auth.userId)
+    .maybeSingle();
+  if (error) {
+    res.status(503).json({ error: 'Unable to validate current account.' });
+    return false;
+  }
+  const result = validateCurrentIdentity(req.auth, data, ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2']);
+  if (!result.ok) {
+    res.setHeader('Set-Cookie', buildClearCookie());
+    res.status(401).json({ error: 'Session account no longer exists.' });
+    return false;
+  }
+  req.auth = result.auth;
+  req.authCurrent = true;
+  const ttl = getSessionTtlSeconds();
+  const now = Math.floor(Date.now() / 1000);
+  if (ttl > 0 && tokenExp - now <= getSessionRefreshWindowSeconds()) {
+    const refreshed = makeSessionToken(result.auth, getAuthSecret(), ttl);
+    res.setHeader('Set-Cookie', buildSetCookie(refreshed, { maxAge: ttl }));
+  }
+  return true;
+}
+
+async function requireCurrentRole(req, res, supabase, allowedRoles) {
+  if (!requireAuth(req, res)) return false;
+  if (req.authCurrent === true) {
+    if (allowedRoles.includes(req.auth.role)) return true;
+    res.status(403).json({ error: 'Forbidden' });
+    return false;
+  }
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('id,username,role')
+    .eq('id', req.auth.userId)
+    .maybeSingle();
+  if (error) {
+    res.status(503).json({ error: 'Unable to validate current account.' });
+    return false;
+  }
+  const result = validateCurrentIdentity(req.auth, data, allowedRoles);
+  if (!result.ok) {
+    res.setHeader('Set-Cookie', buildClearCookie());
+    res.status(result.status).json({ error: result.status === 401 ? 'Session account no longer exists.' : 'Forbidden' });
+    return false;
+  }
+  req.auth = result.auth;
+  return true;
+}
+
 async function readJsonBody(req) {
   if (req.body != null && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
     return req.body;
@@ -207,6 +277,10 @@ module.exports = {
   verifySessionToken,
   requireAuth,
   requireRole,
+  requireCurrentRole,
+  validateCurrentIdentity,
+  shouldRevalidateRoute,
+  revalidateRequestIdentity,
   readJsonBody,
 };
 

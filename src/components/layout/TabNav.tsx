@@ -24,7 +24,7 @@ export const ALL_TABS: TabDef[] = [
   { id: 'merger', label: 'Merger', icon: '⇄' },
   { id: 'ioc-scan', label: 'IoC Scan', icon: '◎' },
   { id: 'history', label: 'History', icon: '≡' },
-  { id: 'pac-filter', label: 'PAC Filter', icon: '⬡' },
+  { id: 'pac-filter', label: 'Team Filter', icon: '⬡' },
   { id: 'daily-eod', label: 'Daily EOD', icon: '▨' },
   { id: 'admin-users', label: 'Users', icon: '⊕' },
   { id: 'admin-logs', label: 'Logs', icon: '🗎' },

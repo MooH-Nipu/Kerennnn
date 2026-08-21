@@ -6,6 +6,7 @@ const {
   checkLoginRateLimit,
   recordLoginAttempt,
 } = require('../_ratelimit');
+const { getRoleContext } = require('../_tenancy');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -72,5 +73,11 @@ module.exports = async function handler(req, res) {
   );
 
   res.setHeader('Set-Cookie', buildSetCookie(token, { maxAge: ttlSec }));
-  return res.status(200).json({ ok: true, role: user.role, username: user.username, ttlMinutes: Math.round(ttlSec / 60) });
+  return res.status(200).json({
+    ok: true,
+    role: user.role,
+    username: user.username,
+    ...getRoleContext(user.role),
+    ttlMinutes: Math.round(ttlSec / 60),
+  });
 };

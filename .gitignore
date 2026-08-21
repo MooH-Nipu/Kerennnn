@@ -17,7 +17,9 @@ CLAUDE.md
 .codegraph/
 .reasonix/
 .hermes/
+graphify-out/
 
 # Internal design roadmap — local only, not for the repo
 ROADMAP.md
 data/
+data-dev/

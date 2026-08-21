@@ -32,6 +32,8 @@ export function AdminLogsTab() {
 
   const tabBtn = (id: View, label: string, count: number) => (
     <button
+      type="button"
+      aria-pressed={view === id}
       onClick={() => setView(id)}
       style={{
         padding: '0.45rem 0.9rem',
@@ -49,17 +51,8 @@ export function AdminLogsTab() {
   );
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '0.5rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.75rem',
-          marginBottom: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
+    <div className="tab-content admin-logs-tab">
+      <div className="section-header">
         <div>
           <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Activity Logs</h2>
           <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted, #6b7f9a)' }}>
@@ -67,18 +60,11 @@ export function AdminLogsTab() {
           </p>
         </div>
         <button
+          type="button"
+          className="btn btn-ghost"
           onClick={fetchLogs}
           disabled={loading}
-          style={{
-            padding: '0.45rem 0.9rem',
-            borderRadius: 8,
-            border: '1px solid var(--border, #1e2a3f)',
-            background: 'transparent',
-            color: 'var(--text-secondary, #a3b3cc)',
-            fontWeight: 600,
-            fontSize: '0.8rem',
-            cursor: loading ? 'default' : 'pointer',
-          }}
+          style={{ marginLeft: 'auto' }}
         >
           {loading ? 'Loading…' : '↻ Refresh'}
         </button>
@@ -104,37 +90,19 @@ export function AdminLogsTab() {
   );
 }
 
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: '0.75rem',
-  padding: '0.6rem 0.75rem',
-  borderRadius: 8,
-  border: '1px solid var(--border, #1e2a3f)',
-  background: 'var(--bg-elevated, #0d1525)',
-  marginBottom: '0.5rem',
-};
-
-const whenStyle: React.CSSProperties = {
-  flex: '0 0 140px',
-  fontSize: '0.72rem',
-  color: 'var(--text-muted, #6b7f9a)',
-  fontFamily: 'var(--font-mono, monospace)',
-};
-
 function AuditList({ rows }: { rows: AuditLogEntry[] }) {
   if (!rows.length) return <Empty label="No audit entries yet." />;
   return (
     <div>
       {rows.map((r) => (
-        <div key={r.id} style={rowStyle}>
-          <span style={whenStyle}>{fmtDate(r.created_at)}</span>
+        <div key={r.id} className="admin-log-row">
+          <span className="admin-log-when">{fmtDate(r.created_at)}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
               <span style={{ color: 'var(--accent, #4ade80)' }}>{r.action}</span>
               {r.target && <span style={{ color: 'var(--text-secondary, #a3b3cc)' }}> → {r.target}</span>}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6b7f9a)', marginTop: '0.15rem' }}>
+            <div className="admin-log-detail" style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6b7f9a)', marginTop: '0.15rem' }}>
               by <strong>{r.actor_username ?? 'unknown'}</strong>
               {r.detail && Object.keys(r.detail).length > 0 && (
                 <span style={{ fontFamily: 'var(--font-mono, monospace)' }}> · {JSON.stringify(r.detail)}</span>
@@ -152,8 +120,8 @@ function LoginList({ rows }: { rows: LoginAttemptEntry[] }) {
   return (
     <div>
       {rows.map((r) => (
-        <div key={r.id} style={rowStyle}>
-          <span style={whenStyle}>{fmtDate(r.attempted_at)}</span>
+        <div key={r.id} className="admin-log-row">
+          <span className="admin-log-when">{fmtDate(r.attempted_at)}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
               <span style={{ color: r.success ? 'var(--accent, #4ade80)' : '#f87171' }}>

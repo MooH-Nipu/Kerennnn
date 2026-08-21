@@ -1,5 +1,5 @@
 'use strict';
-const { requireRole } = require('../_auth');
+const { requireCurrentRole } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
 
@@ -20,15 +20,11 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!requireRole(req, res, ['admin', 'l2'])) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
 
   const supabase = getSupabase();
-  if (!supabase) {
-    return res.status(503).json({
-      error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
-    });
-  }
+  if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+  if (!await requireCurrentRole(req, res, supabase, ['admin', 'l2'])) return;
 
   // Parse time window: prefer explicit ?from=&to=ISO, fall back to ?days=N.
   let from, to;

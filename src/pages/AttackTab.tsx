@@ -84,6 +84,7 @@ export function AttackTab() {
 
       <form onSubmit={search} className="cve-search">
         <input
+          aria-label="Search ATT&CK techniques by ID or keyword"
           type="text"
           className="form-input"
           placeholder="T1059  or  keyword (e.g. powershell, phishing, credential dumping)"

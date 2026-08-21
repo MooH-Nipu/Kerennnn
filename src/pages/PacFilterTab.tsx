@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMergerDb } from '../hooks/useMergerDb';
 import { StatusMessage } from '../components/shared/StatusMessage';
-import { Spinner } from '../components/shared/Spinner';
+
 import { OutputBox } from '../components/shared/OutputBox';
 import { extractIOC, detectType } from '../lib/ioc';
+import type { Team } from '../types/api';
 
 const isIPv6 = (ip: string) => ip.includes(':');
+const SIEM_PREVIEW_IPS = 100;
 
 const PRESET_FIELDS = [
   { label: 'data.real_ip', value: 'data.real_ip' },
@@ -17,14 +19,17 @@ const PRESET_FIELDS = [
 
 interface Props {
   onCountChange?: (count: number) => void;
+  team: Team;
+  identity: string;
 }
 
-export function PacFilterTab({ onCountChange }: Props) {
+export function PacFilterTab({ onCountChange, team, identity }: Props) {
   const {
     items, itemCount,
-    loading, posting, progress, error, statusMsg, setStatusMsg,
+    loading, posting, progress, error, statusMsg,
+    clearStatus,
     refresh, submitIps, deleteIps,
-  } = useMergerDb();
+  } = useMergerDb(team, identity);
 
   const [input, setInput] = useState('');
   const [deleteInput, setDeleteInput] = useState('');
@@ -88,18 +93,38 @@ export function PacFilterTab({ onCountChange }: Props) {
     );
   }, [activeField, queryIps]);
 
+  const siemQueryPreview = useMemo(() => {
+    if (queryIps.length <= SIEM_PREVIEW_IPS) return siemQuery;
+    const preview = JSON.stringify(
+      { query: { terms: { [activeField]: queryIps.slice(0, SIEM_PREVIEW_IPS) } } },
+      null,
+      2
+    );
+    return `${preview}\n\n... ${queryIps.length - SIEM_PREVIEW_IPS} more IPs hidden from preview. COPY ALL includes all ${queryIps.length} IPs.`;
+  }, [activeField, queryIps, siemQuery]);
+
   return (
     <div className="tab-content pac-filter-tab">
       <div className="section-header">
-        <h2>PAC Filter</h2>
+        <h2>{team} Filter</h2>
         {itemCount > 0 && <span className="line-count">{itemCount} IPs</span>}
+        <button
+          type="button"
+          className="pac-refresh-btn"
+          onClick={refresh}
+          disabled={loading || posting}
+          title="Refresh Team Filter data"
+          aria-label="Refresh Team Filter data"
+        >
+          <span className={`pac-refresh-icon${loading ? ' is-loading' : ''}`} aria-hidden="true">↻</span>
+        </button>
       </div>
 
       {(error || statusMsg) && (
         <StatusMessage
-          type={error ? 'error' : 'success'}
+          type={error ? 'error' : statusMsg?.startsWith('⚠') ? 'warning' : 'success'}
           message={(error || statusMsg)!}
-          onDismiss={() => { setStatusMsg(null); }}
+          onDismiss={clearStatus}
         />
       )}
 
@@ -108,6 +133,7 @@ export function PacFilterTab({ onCountChange }: Props) {
           <div className="pac-section-title">Add IP</div>
           <div className="form-group" style={{ marginBottom: '0.5rem' }}>
             <textarea
+              aria-label="IP addresses to add"
               className="form-textarea"
               placeholder={'192.168.1.1\n10.0.0.2'}
               value={input}
@@ -141,19 +167,12 @@ export function PacFilterTab({ onCountChange }: Props) {
             <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting || newIps.length === 0}>
               {posting && progress ? `Posting… (${progress.done}/${progress.total})` : `Submit ${newIps.length > 0 ? `${newIps.length} IPs` : ''} to DB`}
             </button>
-            <button
-              className="btn btn-ghost"
-              onClick={refresh}
-              disabled={loading || posting}
-              title="Refresh DB"
-            >
-              {loading ? <Spinner size={14} /> : '↻ Refresh'}
-            </button>
           </div>
           <div className="pac-delete-section">
             <div className="pac-section-title pac-section-title--danger">Delete IP</div>
             <div className="form-group" style={{ marginBottom: '0.5rem' }}>
               <textarea
+                aria-label="IP addresses to delete"
                 className="form-textarea"
                 placeholder={'192.168.1.1\n10.0.0.2\n2001:db8::1'}
                 value={deleteInput}
@@ -221,6 +240,7 @@ export function PacFilterTab({ onCountChange }: Props) {
                 </div>
                 {isCustom && (
                   <input
+                    aria-label="Custom SIEM field"
                     type="text"
                     className="form-input siem-custom-input"
                     placeholder="e.g. destination.ip"
@@ -239,6 +259,8 @@ export function PacFilterTab({ onCountChange }: Props) {
                   </div>
                   <OutputBox
                     value={siemQuery}
+                    displayValue={siemQueryPreview}
+                    copyLabel="COPY ALL"
                     rows={4}
                     className="siem-query-output"
                   />

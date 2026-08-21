@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+
 import { api } from '../lib/api';
 import { calcVerdict, countryFlag, confLabel, confClass, hashLabel } from '../lib/ioc';
 import { DetectionBar } from '../components/vt/DetectionBar';
@@ -111,8 +111,7 @@ function buildMetaRows(
   ];
 }
 
-export function ResultPage() {
-  const { id } = useParams<{ id: string }>();
+export function ResultPage({ id }: { id: string }) {
   const [data, setData] = useState<CacheRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,7 +138,7 @@ export function ResultPage() {
   if (error || !data) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base,#080d17)', color: 'var(--text-muted,#6b7f9a)', gap: '1rem' }}>
       <div style={{ color: '#f87171', fontSize: '1rem' }}>{error ?? 'Data not found.'}</div>
-      <Link to="/" style={{ color: 'var(--accent,#3b82f6)', textDecoration: 'none', fontSize: '0.85rem' }}>← Back to app</Link>
+      <a href="/" style={{ color: 'var(--accent,#3b82f6)', textDecoration: 'none', fontSize: '0.85rem' }}>← Back to app</a>
     </div>
   );
 
@@ -179,9 +178,9 @@ export function ResultPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-base,#080d17)', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
         {/* Back link */}
-        <Link to="/" style={{ color: 'var(--text-muted,#6b7f9a)', textDecoration: 'none', fontSize: '0.8rem', display: 'inline-block', marginBottom: '1.5rem' }}>
+        <a href="/" style={{ color: 'var(--text-muted,#6b7f9a)', textDecoration: 'none', fontSize: '0.8rem', display: 'inline-block', marginBottom: '1.5rem' }}>
           ← Charlie kerennnn
-        </Link>
+        </a>
 
         {/* IOC header */}
         <div className="vt-card" style={{ marginBottom: '0.75rem' }}>

@@ -4,6 +4,9 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Only loopback reverse proxy may supply X-Forwarded-For; direct clients cannot spoof req.ip.
+app.set('trust proxy', 'loopback');
+app.use((req, _res, next) => { req.trustedClientIp = req.ip; next(); });
 
 // Security headers (mirror these in vercel.json for the Vercel deployment).
 // CSP is tuned for this Vite SPA: bundled self-hosted JS, inline style attributes
@@ -45,8 +48,7 @@ app.use('/api/', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.socket?.remoteAddress || 'unknown';
+  const ip = req.trustedClientIp || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
   const entry = rateLimitStore.get(ip) || { count: 0, reset: now + RATE_LIMIT_WINDOW_MS };
   if (now > entry.reset) { entry.count = 0; entry.reset = now + RATE_LIMIT_WINDOW_MS; }
@@ -66,37 +68,21 @@ app.use('/api/', (req, res, next) => {
 });
 
 // API routes
-const routes = [
-  ['/api/health',                 './api/health.js'],
-  ['/api/auth/login',             './api/auth/login.js'],
-  ['/api/auth/logout',            './api/auth/logout.js'],
-  ['/api/auth/me',                './api/auth/me.js'],
-  ['/api/vt',                     './api/vt.js'],
-  ['/api/correlate',              './api/correlate.js'],
-  ['/api/cve',                    './api/cve.js'],
-  ['/api/attack',                 './api/attack.js'],
-  ['/api/passive-dns',            './api/passive-dns.js'],
-  ['/api/crt',                    './api/crt.js'],
-  ['/api/scan-merger',            './api/scan-merger.js'],
-  ['/api/scan-history',           './api/scan-history.js'],
-  ['/api/user-prefs',             './api/user-prefs.js'],
-  ['/api/user-webhook',           './api/user-webhook.js'],
-  ['/api/admin/usage',            './api/admin/usage.js'],
-  ['/api/admin/ip-scans',         './api/admin/ip-scans.js'],
-  ['/api/admin/vt-quota',          './api/admin/vt-quota.js'],
-  ['/api/kibana-combined-report', './api/kibana-combined-report.js'],
-  ['/api/admin/users',            './api/admin/users.js'],
-  ['/api/admin/logs',             './api/admin/logs.js'],
-  ['/api/ip-cache/by-id',         './api/ip-cache/by-id.js'],
-  ['/api/ip-cache/cleanup',       './api/ip-cache/cleanup.js'],
-  ['/api/ip-cache/recent',        './api/ip-cache/recent.js'],
-  ['/api/ir-cases/detail',        './api/ir-cases/detail.js'],
-  ['/api/ir-cases',               './api/ir-cases.js'],
-];
+const { revalidateRequestIdentity } = require('./api/_auth');
+const { getSupabase } = require('./api/_supabase');
+const { ROUTES: routes } = require('./api/_routes');
+const identitySupabase = getSupabase();
 
-for (const [route, file] of routes) {
-  const handler = require(file);
-  app.all(route, (req, res) => handler(req, res));
+for (const [route, handler] of routes) {
+  app.all(route, async (req, res) => {
+    const unsupportedTeamFilterMethod = route === '/api/v1/team-filter' && !['GET', 'POST', 'DELETE', 'OPTIONS'].includes(req.method);
+    const needsIdentity = req.method !== 'OPTIONS' && !unsupportedTeamFilterMethod;
+    if (needsIdentity && !identitySupabase && !['/api/health', '/api/auth/login', '/api/auth/logout'].includes(route)) {
+      return res.status(503).json({ error: 'Unable to validate current account.' });
+    }
+    if (needsIdentity && identitySupabase && !await revalidateRequestIdentity(req, res, identitySupabase)) return;
+    return handler(req, res);
+  });
 }
 
 // Static frontend

@@ -1,5 +1,6 @@
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
+const { firstQueryError } = require('./recent-query-errors');
 
 function dateMinusDaysIso(days) {
   const ms = Math.max(0, Number(days) || 0) * 24 * 60 * 60 * 1000;
@@ -105,6 +106,8 @@ module.exports = async function handler(req, res) {
     supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'clean'),
     timelineQuery,
   ]);
+  const countError = firstQueryError([totalRes, malRes, susRes, cleanRes]);
+  if (countError) return serverError(res, countError, 'ip-cache verdict counts');
   if (timelineRes.error) return serverError(res, timelineRes.error, 'ip-cache scan timeline');
 
   const scanTimeline = from && to

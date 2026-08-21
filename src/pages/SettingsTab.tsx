@@ -6,6 +6,7 @@ import { ALL_TABS, isTabVisible } from '../components/layout/TabNav';
 import { DEFAULT_NAV_LAYOUT, type NavGroup, type TabPrefsState } from '../hooks/useTabPrefs';
 import type { Role } from '../types/api';
 import type { TabId } from '../lib/permissions';
+import { useAuthActions, useAuthState } from '../context/AuthContext';
 
 interface Props {
   role: Role;
@@ -17,9 +18,20 @@ interface Props {
 }
 
 type DragItem = { type: 'tab'; id: TabId } | { type: 'group'; id: string };
+type SettingsSection = 'workspace' | 'navigation' | 'alerts';
+
+const SETTINGS_SECTIONS: { id: SettingsSection; label: string; note: string }[] = [
+  { id: 'workspace', label: 'Workspace', note: 'Team scope' },
+  { id: 'navigation', label: 'Navigation', note: 'Sidebar layout' },
+  { id: 'alerts', label: 'Alerts', note: 'Webhook delivery' },
+];
 
 export function SettingsTab({ role, prefs }: Props) {
-  const [loading, setLoading] = useState(true);
+  const { setActiveTeam } = useAuthActions();
+  const { assignedTeam, allowedTeams, canSwitchTeam, activeTeam } = useAuthState();
+  const canChooseTeam = canSwitchTeam && ['admin', 'l2', 'soc_lead'].includes(role);
+  const [activeSection, setActiveSection] = useState<SettingsSection>('workspace');
+  const [loadingWebhook, setLoadingWebhook] = useState(true);
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [savingNav, setSavingNav] = useState(false);
   const [navStatus, setNavStatus] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
@@ -51,11 +63,12 @@ export function SettingsTab({ role, prefs }: Props) {
       .catch(error => {
         if (!cancelled) setWebhookStatus({ type: 'error', text: error instanceof Error ? error.message : String(error) });
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) setLoadingWebhook(false); });
     return () => { cancelled = true; };
   }, []);
 
   const urlValid = !webhookUrl.trim() || /^https:\/\//i.test(webhookUrl.trim());
+  const alertState = !webhookUrl.trim() ? 'Not configured' : enabled ? 'Active' : 'Paused';
   const availableTabs = ALL_TABS.filter(tab => tab.id !== 'settings' && isTabVisible(tab, role));
   const assigned = new Set(draft.layout.flatMap(group => group.tabs));
   const poolTabs = availableTabs.filter(tab => !assigned.has(tab.id));
@@ -232,31 +245,55 @@ export function SettingsTab({ role, prefs }: Props) {
       .finally(() => setSavingWebhook(false));
   }
 
-  if (loading) return <div className="tab-content formatter-tab"><div className="settings-loading"><Spinner size={16} /> Loading settings…</div></div>;
-
   return (
     <div className="tab-content formatter-tab settings-tab">
-      <div className="section-header"><h2>Settings</h2><span className="form-hint">Navigation & alerts</span></div>
+      <header className="settings-page-head">
+        <div><span className="settings-page-head__eyebrow">Personal configuration</span><h2>Settings</h2></div>
+        <p>Workspace scope, sidebar layout, and alert delivery.</p>
+      </header>
 
-      <section className="settings-card nav-settings-card">
-        <div className="settings-card__head">
-          <h3>Navigation builder</h3>
-          <p className="settings-card__desc">Drag tabs into enabled groups. Drag group handles to reorder. Tabs left in Available stay hidden from sidebar.</p>
+      <div className="settings-layout">
+        <nav className="settings-section-nav" aria-label="Settings sections">
+          {SETTINGS_SECTIONS.map(section => (
+            <button key={section.id} type="button" className={activeSection === section.id ? 'is-active' : ''} onClick={() => setActiveSection(section.id)} aria-current={activeSection === section.id ? 'page' : undefined}>
+              <span>{section.label}</span><small>{section.note}</small>
+            </button>
+          ))}
+        </nav>
+
+        <main className="settings-content">
+          {activeSection === 'workspace' && (
+            <section className="settings-panel settings-workspace" aria-labelledby="workspace-settings-title">
+              <div className="settings-panel__head"><div><h3 id="workspace-settings-title">Workspace</h3><p>{canChooseTeam ? 'Choose which operational team data Team Filter reads and writes.' : 'Current operational team scope.'}</p></div><span className="settings-state">{role}</span></div>
+              {activeTeam ? (
+                <div className="settings-row">
+                  {canChooseTeam ? (
+                    <>
+                      <div><strong>Team context</strong><span>Applies immediately to Team Filter.</span></div>
+                      <select className="settings-select" value={activeTeam} onChange={event => setActiveTeam(event.target.value as 'PAC' | 'CHARLIE')} aria-label="Active Team Filter context">
+                        {allowedTeams.map(team => <option key={team} value={team}>{team}</option>)}
+                      </select>
+                    </>
+                  ) : <div className="settings-team-context">Team context: {activeTeam}</div>}
+                </div>
+              ) : <div className="settings-empty">This role has no Team Filter workspace.</div>}
+              <dl className="settings-meta"><div><dt>Role assignment</dt><dd>{assignedTeam || 'Cross-team access'}</dd></div><div><dt>Available contexts</dt><dd>{allowedTeams.join(', ') || 'None'}</dd></div></dl>
+            </section>
+          )}
+
+          {activeSection === 'navigation' && (
+      <section className="settings-panel nav-settings-card" aria-labelledby="navigation-settings-title">
+        <div className="settings-panel__head">
+          <div><h3 id="navigation-settings-title">Navigation</h3><p>Order groups and tabs. Items in Available stay hidden.</p></div>
+          <span className="settings-state">{draft.layout.length} groups</span>
         </div>
 
         {!prefs.tutorialDismissed && (
-          <aside className="nav-tutorial" aria-labelledby="nav-tutorial-title">
-            <div className="nav-tutorial__head">
-              <div><span className="nav-tutorial__eyebrow">Quick start</span><h4 id="nav-tutorial-title">Navigation builder crash course</h4></div>
-              <button type="button" className="nav-tutorial__dismiss" disabled={savingNav} onClick={dismissNavTutorial}>Do not show me again</button>
-            </div>
-            <ol className="nav-tutorial__steps">
-              <li><strong>Move tabs</strong><span>Grab six-dot handle, then drop tab inside any enabled group.</span></li>
-              <li><strong>Hide tabs</strong><span>Drop tab into Available tabs. Drag it back to enable it again.</span></li>
-              <li><strong>Organize groups</strong><span>Drag group header to reorder. Rename inline, add groups, or delete old ones.</span></li>
-              <li><strong>Make it stick</strong><span>Click Save navigation after arranging everything.</span></li>
-            </ol>
-          </aside>
+          <details className="nav-guide">
+            <summary>How navigation editing works</summary>
+            <div><span>Drag to reorder.</span><span>Move to Available to hide.</span><span>Rename inline.</span><span>Save when done.</span></div>
+            <button type="button" disabled={savingNav} onClick={dismissNavTutorial}>Do not show again</button>
+          </details>
         )}
 
         <div className="nav-builder">
@@ -276,15 +313,15 @@ export function SettingsTab({ role, prefs }: Props) {
 
           <div className="nav-enabled">
             <div className="nav-builder__title">Enabled groups <span>{draft.layout.length}</span></div>
-            {draft.layout.map(group => (
+            {draft.layout.map((group, groupIndex) => (
               <section className={`nav-builder-group ${dragging ? 'nav-drop-ready' : ''}`} key={group.id} onDragOver={allowDrop} onDrop={event => dropOnGroup(event, group.id)}>
                 <div className="nav-builder-group__head" draggable onDragStart={event => beginDrag(event, { type: 'group', id: group.id })} onDragEnd={() => setDragging(null)}>
                   <span className="drag-handle drag-handle--group" title="Drag group" aria-hidden="true">⠿</span>
                   <input className="nav-group-name" aria-label={`Rename ${group.label} group`} maxLength={24} value={group.label} onChange={event => renameGroup(group.id, event.target.value)} onPointerDown={event => event.stopPropagation()} />
                   <span className="nav-group-count">{group.tabs.length}</span>
                   <span className="nav-keyboard-actions">
-                    <button type="button" className="nav-move-btn" onClick={() => moveGroup(group.id, -1)} aria-label={`Move ${group.label} group up`}>↑</button>
-                    <button type="button" className="nav-move-btn" onClick={() => moveGroup(group.id, 1)} aria-label={`Move ${group.label} group down`}>↓</button>
+                    <button type="button" className="nav-move-btn" disabled={groupIndex === 0} onClick={() => moveGroup(group.id, -1)} aria-label={`Move ${group.label} group up`}>↑</button>
+                    <button type="button" className="nav-move-btn" disabled={groupIndex === draft.layout.length - 1} onClick={() => moveGroup(group.id, 1)} aria-label={`Move ${group.label} group down`}>↓</button>
                     <button type="button" className="nav-group-delete" title={`Delete ${group.label} group`} aria-label={`Delete ${group.label} group`} onClick={() => deleteGroup(group)}>×</button>
                   </span>
                 </div>
@@ -297,12 +334,12 @@ export function SettingsTab({ role, prefs }: Props) {
                         <span className="drag-handle" aria-hidden="true">⠿</span><span>{tab.icon}</span>
                         <input className="nav-tab-name" aria-label={`Rename ${tab.label} tab`} maxLength={24} value={draft.tabLabels[id] || ''} placeholder={tab.label} onChange={event => renameTab(id, event.target.value)} onPointerDown={event => event.stopPropagation()} />
                         <span className="nav-keyboard-actions">
-                          <select className="nav-group-select" value={group.id} onChange={event => moveTab(id, event.target.value)} aria-label={`Move ${tab.label} to group`}>
+                          <select className="nav-group-select" value={group.id} onChange={event => event.target.value === '__available__' ? moveTabToPool(id) : moveTab(id, event.target.value)} aria-label={`Move ${tab.label} to group`}>
                             {draft.layout.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                            <option value="__available__">Available (hidden)</option>
                           </select>
-                          <button type="button" className="nav-move-btn" onClick={() => moveTabBy(id, group.id, -1)} aria-label={`Move ${tab.label} up`}>↑</button>
-                          <button type="button" className="nav-move-btn" onClick={() => moveTabBy(id, group.id, 1)} aria-label={`Move ${tab.label} down`}>↓</button>
-                          <button type="button" className="nav-move-btn" onClick={() => moveTabToPool(id)} aria-label={`Hide ${tab.label}`}>Hide</button>
+                          <button type="button" className="nav-move-btn" disabled={group.tabs.indexOf(id) === 0} onClick={() => moveTabBy(id, group.id, -1)} aria-label={`Move ${tab.label} up`}>↑</button>
+                          <button type="button" className="nav-move-btn" disabled={group.tabs.indexOf(id) === group.tabs.length - 1} onClick={() => moveTabBy(id, group.id, 1)} aria-label={`Move ${tab.label} down`}>↓</button>
                         </span>
                       </div>
                     );
@@ -312,27 +349,35 @@ export function SettingsTab({ role, prefs }: Props) {
               </section>
             ))}
             <div className="nav-add-group">
-              <input className="form-input" maxLength={24} value={newGroupName} placeholder="New group name" onChange={event => setNewGroupName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addGroup(); } }} />
+              <input className="form-input" aria-label="New navigation group name" maxLength={24} value={newGroupName} placeholder="New group name" onChange={event => setNewGroupName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addGroup(); } }} />
               <button type="button" className="btn btn-ghost" disabled={!newGroupName.trim() || draft.layout.length >= 12} onClick={addGroup}>Add group</button>
             </div>
           </div>
         </div>
 
         {navStatus && <StatusMessage type={navStatus.type} message={navStatus.text} onDismiss={() => setNavStatus(null)} />}
-        <div className="settings-actions">
-          <button type="button" className="btn btn-ghost" disabled={savingNav} onClick={resetNavigation}>Reset navigation</button>
-          <button type="button" className="btn btn-primary" disabled={savingNav} onClick={saveNavigation}>{savingNav ? 'Saving…' : 'Save navigation'}</button>
+        <div className="settings-toolbar">
+          <span>{assigned.size} tabs enabled</span>
+          <div><button type="button" className="btn btn-ghost" disabled={savingNav} onClick={resetNavigation}>Reset</button><button type="button" className="btn btn-primary" disabled={savingNav} onClick={saveNavigation}>{savingNav ? 'Saving…' : 'Save navigation'}</button></div>
         </div>
       </section>
+          )}
 
-      <form onSubmit={saveWebhook} className="settings-card">
-        <div className="settings-card__head"><h3>Malicious IOC Alert Webhook</h3><p className="settings-card__desc">When an IOC scan resolves at or above your confidence threshold, an alert is posted to your URL.</p></div>
-        <label className="settings-field"><span className="settings-field__label">Webhook URL</span><input type="url" className={`form-input ${!urlValid ? 'form-input--error' : ''}`} placeholder="https://hooks.slack.com/services/… or https://discord.com/api/webhooks/…" value={webhookUrl} onChange={event => setWebhookUrl(event.target.value)} autoComplete="off" spellCheck={false} /><span className="settings-field__hint">Must use <code>https://</code>. Leave blank to disable.</span></label>
-        <label className="settings-toggle"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /><span className="settings-toggle__label">Enable alerts</span><span className="settings-field__hint">Pause alerts without deleting URL.</span></label>
-        <label className="settings-field"><span className="settings-field__label">Minimum confidence to alert: <strong>{minConfidence}</strong></span><input type="range" className="settings-range" min={0} max={100} step={5} value={minConfidence} onChange={event => setMinConfidence(Number(event.target.value))} /></label>
-        {webhookStatus && <StatusMessage type={webhookStatus.type} message={webhookStatus.text} onDismiss={() => setWebhookStatus(null)} />}
-        <div className="settings-actions"><button type="submit" className="btn btn-primary" disabled={savingWebhook || !urlValid}>{savingWebhook ? 'Saving…' : 'Save webhook'}</button></div>
-      </form>
+          {activeSection === 'alerts' && (
+            <form onSubmit={saveWebhook} className="settings-panel settings-alerts" aria-labelledby="alert-settings-title">
+              <div className="settings-panel__head"><div><h3 id="alert-settings-title">Malicious IOC alerts</h3><p>Send high-confidence scan outcomes to one HTTPS webhook.</p></div><span className={`settings-state ${alertState === 'Active' ? 'is-on' : ''}`}>{alertState}</span></div>
+              {loadingWebhook ? <div className="settings-loading"><Spinner size={16} /> Loading alert configuration…</div> : (
+                <>
+                  <label className="settings-field"><span className="settings-field__label">Webhook URL</span><input type="url" className={`form-input ${!urlValid ? 'form-input--error' : ''}`} placeholder="https://hooks.example.com/…" value={webhookUrl} onChange={event => setWebhookUrl(event.target.value)} autoComplete="off" spellCheck={false} aria-invalid={!urlValid} aria-describedby="webhook-url-help" /><span id="webhook-url-help" className="settings-field__hint">HTTPS only. Clear URL to stop delivery and remove destination.</span></label>
+                  <div className="settings-row settings-row--controls"><label className="settings-toggle"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /><span className="settings-toggle__label">Enable delivery</span><span className="settings-field__hint">Pause without deleting URL.</span></label><label className="settings-threshold"><span>Minimum confidence</span><output>{minConfidence}%</output><input type="range" className="settings-range" min={0} max={100} step={5} value={minConfidence} onChange={event => setMinConfidence(Number(event.target.value))} /><span className="settings-range-bounds"><small>0</small><small>100</small></span></label></div>
+                  {webhookStatus && <StatusMessage type={webhookStatus.type} message={webhookStatus.text} onDismiss={() => setWebhookStatus(null)} />}
+                  <div className="settings-toolbar"><span>Triggers after completed IOC scans.</span><button type="submit" className="btn btn-primary" disabled={savingWebhook || !urlValid}>{savingWebhook ? 'Saving…' : 'Save alerts'}</button></div>
+                </>
+              )}
+            </form>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

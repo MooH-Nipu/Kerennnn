@@ -1,5 +1,5 @@
 'use strict';
-const { requireRole } = require('../_auth');
+const { requireCurrentRole } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
 
@@ -85,7 +85,6 @@ async function fetchAnalyticsRows(supabase, from, to) {
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!requireRole(req, res, ['admin', 'l2'])) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });
 
   const from = new Date(String(req.query?.from || ''));
@@ -96,6 +95,7 @@ module.exports = async function handler(req, res) {
 
   const supabase = getSupabase();
   if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+  if (!await requireCurrentRole(req, res, supabase, ['admin', 'l2'])) return;
 
   let data;
   try {

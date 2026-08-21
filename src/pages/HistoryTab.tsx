@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function HistoryTab({ onReScan, onGoToScan }: Props) {
-  const { entries, search, setSearch, removeEntry, clearAll } = useScanHistory();
+  const { entries, allEntries, search, setSearch, removeEntry, clearAll } = useScanHistory();
   const [selected, setSelected] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
@@ -44,7 +44,7 @@ export function HistoryTab({ onReScan, onGoToScan }: Props) {
     <div className="tab-content history-tab">
       <div className="section-header">
         <h2>Scan History</h2>
-        {entries.length > 0 && (
+        {allEntries.length > 0 && (
           <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '0.25rem 0.5rem' }} onClick={clearAll}>
             Clear all
           </button>
@@ -66,7 +66,7 @@ export function HistoryTab({ onReScan, onGoToScan }: Props) {
 
           {entries.length === 0 && (
             <div className="history-empty">
-              No history yet.{' '}
+              {search.trim() ? 'No history matches your search. ' : 'No history yet. '}
               {onGoToScan ? (
                 <button
                   className="btn btn-primary btn-sm"

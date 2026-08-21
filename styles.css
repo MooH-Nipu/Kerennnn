@@ -31,11 +31,11 @@
         }
         .wrapper { max-width: 1440px; margin: 0 auto; }
 
-        header { text-align: center; margin-bottom: 2.5rem; }
-        header h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; letter-spacing: -1px; }
-        header h1 .w1 { color: var(--text-pri); }
-        header h1 .w2 { color: var(--bg-base); background: var(--accent-hl); padding: 0 10px 2px; border-radius: 6px; display: inline-block; font-weight: 800; }
-        header p { color: var(--text-sec); font-size: 0.85rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; }
+        .legacy-header { text-align: center; margin-bottom: 2.5rem; }
+        .legacy-header h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; letter-spacing: -1px; }
+        .legacy-header h1 .w1 { color: var(--text-pri); }
+        .legacy-header h1 .w2 { color: var(--bg-base); background: var(--accent-hl); padding: 0 10px 2px; border-radius: 6px; display: inline-block; font-weight: 800; }
+        .legacy-header p { color: var(--text-sec); font-size: 0.85rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; }
         .app-header { position: relative; }
         .header-actions { position: absolute; top: 0; right: 0; display:flex; gap: 8px; justify-content:flex-end; }
         .header-actions .btn { flex: 0 0 auto; min-width: 0; }
@@ -71,13 +71,14 @@
         .card-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); display: flex; align-items: center; gap: 8px; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
         .card-title .dot { width: 8px; height: 8px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); flex-shrink: 0; }
 
-        label { font-size: 0.75rem; font-weight: 700; color: var(--text-sec); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        textarea, input[type="text"], input[type="password"], select { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
-        select { cursor: pointer; resize: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235a7aa8' d='M1 1.5L6 6l5-4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 2.2rem; }
-        textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
+        .legacy-form label { font-size: 0.75rem; font-weight: 700; color: var(--text-sec); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .legacy-form textarea, .legacy-form input[type="text"], .legacy-form input[type="password"], .legacy-form select { width: 100%; background: var(--bg-input); color: var(--text-code); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
+        .legacy-form select { cursor: pointer; resize: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235a7aa8' d='M1 1.5L6 6l5-4.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 2.2rem; }
+        .legacy-form textarea:focus, .legacy-form input:focus, .legacy-form select:focus { outline: none; border-color: var(--accent-hl); box-shadow: 0 0 0 3px rgba(47,126,247,0.15); }
 
         .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .btn { flex:1; min-width: 100px; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.18s; }
+        .btn { flex: 0 0 auto; min-width: 0; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.85rem; cursor: pointer; transition: all 0.18s; }
+        .btn-row > .btn { flex: 1; min-width: 100px; }
         .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-hl)); color: #fff; box-shadow: 0 2px 12px rgba(29,106,229,0.3); }
         .btn-primary:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
         .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }

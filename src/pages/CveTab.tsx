@@ -94,6 +94,7 @@ export function CveTab() {
 
       <form onSubmit={search} className="cve-search">
         <input
+          aria-label="Search CVE by ID or keyword"
           type="text"
           className="form-input"
           placeholder="CVE-2024-3094  or  keyword (e.g. openssl heap overflow)"

@@ -1,14 +1,21 @@
 import type { ScanItem } from './vt';
 
-export type Role = 'admin' | 'pac' | 'charlie' | 'l1' | 'l2';
+export type Role = 'admin' | 'soc_lead' | 'pac' | 'charlie' | 'l1' | 'l2';
+export type Team = 'PAC' | 'CHARLIE';
 
-export interface MeResponse {
+export interface TeamAccess {
+  assignedTeam: Team | null;
+  allowedTeams: Team[];
+  canSwitchTeam: boolean;
+}
+
+export interface MeResponse extends TeamAccess {
   ok: boolean;
   role: Role;
   username: string;
 }
 
-export interface LoginResponse {
+export interface LoginResponse extends TeamAccess {
   ok: boolean;
   role: Role;
   username: string;

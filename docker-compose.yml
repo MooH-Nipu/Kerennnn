@@ -9,9 +9,18 @@ services:
     environment:
       - NODE_ENV=production
       - VT_KEY_STATE_FILE=/app/data/vt-key-state.json
-      # Set COOKIE_SECURE=false if you're not terminating TLS at this container
-      # (e.g. your reverse proxy handles HTTPS upstream)
-      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
     volumes:
-      - ./data:/app/data
+      - kerennnn-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
     restart: unless-stopped
+
+volumes:
+  kerennnn-data:

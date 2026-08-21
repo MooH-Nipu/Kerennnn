@@ -1,4 +1,4 @@
-import type { Role, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
+import type { Role, Team, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -27,10 +27,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const json = await res.json().catch(() => ({}));
-  const e = (json as { error?: string | { message?: string; code?: string; retryable?: boolean; resetAt?: string } }).error;
+  const body = json as { error?: string | { message?: string; code?: string; retryable?: boolean; resetAt?: string }; message?: string; error_code?: string };
+  const e = body.error;
   if (!res.ok) {
-    const err: ApiError = new Error(typeof e === 'string' ? e : e?.message || `HTTP ${res.status}`);
+    const err: ApiError = new Error(typeof e === 'string' ? e : e?.message || body.message || `HTTP ${res.status}`);
     err.status = res.status;
+    err.code = body.error_code;
     if (typeof e === 'object' && e) {
       err.code = e.code;
       err.retryable = e.retryable;
@@ -196,6 +198,18 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       }),
+  },
+
+  teamFilter: {
+    get: (team: Team) => apiFetch<{ success: boolean; team_context: Team; items: Array<{ ip: string; payload: Record<string, unknown>; updated_at: string }> }>('/api/v1/team-filter', { headers: { 'X-Team-Context': team } }),
+    post: (team: Team, ips: string[]) => apiFetch<Record<string, unknown>>('/api/v1/team-filter', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Team-Context': team },
+      body: JSON.stringify({ items: ips.map(ip => ({ ip })) }),
+    }),
+    delete: (team: Team, ips: string[]) => apiFetch<{ deletedCount: number }>('/api/v1/team-filter', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json', 'X-Team-Context': team },
+      body: JSON.stringify({ ips }),
+    }),
   },
 
   mergerDb: {

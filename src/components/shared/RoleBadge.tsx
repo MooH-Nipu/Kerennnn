@@ -2,6 +2,7 @@ import type { Role } from '../../types/api';
 
 const ROLE_LABELS: Record<Role, string> = {
   admin: 'ADMIN',
+  soc_lead: 'SOC LEAD',
   pac: 'PAC',
   charlie: 'CHARLIE',
   l1: 'L1',
