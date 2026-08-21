@@ -4,24 +4,54 @@ React + Vite single-page app (entry `index.html` → `src/main.tsx`, base styles
 
 ## Deploy
 
-Production builds are generated from source; `dist/` is intentionally not tracked.
-
-- **Docker:** the multi-stage `Dockerfile` runs `npm run build` and copies `dist/` into the runtime image.
-- **Vercel:** `vercel.json` runs `npm run build`, serves `dist/`, and keeps serverless handlers under `api/`.
+Production uses Docker on port `3000`. `dist/` is generated inside the multi-stage image and intentionally not tracked. Vercel is retired.
 
 ## Database (Supabase)
 
-PAC Filter tab persists IPs to the database (Supabase). Apply SQL in order:
+Apply SQL in this order:
 
-1. [supabase/app_users.sql](supabase/app_users.sql) — multi-user auth table
+1. [supabase/app_users.sql](supabase/app_users.sql)
 2. [supabase/merger_scanned_ips.sql](supabase/merger_scanned_ips.sql)
-3. [supabase/merger_scanned_ips_timestamp_wib.sql](supabase/merger_scanned_ips_timestamp_wib.sql) (if you use the timestamp column)
-4. [supabase/vt_ip_cache.sql](supabase/vt_ip_cache.sql) — VT IP scan cache
-5. [supabase/login_attempts.sql](supabase/login_attempts.sql) — brute-force lockout for login
-6. [supabase/audit_log.sql](supabase/audit_log.sql) — admin action audit trail
-7. [supabase/scan_history.sql](supabase/scan_history.sql) — per-user IoC scan history
+3. [supabase/merger_scanned_ips_timestamp_wib.sql](supabase/merger_scanned_ips_timestamp_wib.sql)
+4. [supabase/vt_ip_cache.sql](supabase/vt_ip_cache.sql)
+5. [supabase/login_attempts.sql](supabase/login_attempts.sql)
+6. [supabase/audit_log.sql](supabase/audit_log.sql)
+7. [supabase/team_filter.sql](supabase/team_filter.sql)
+8. [supabase/security_hardening.sql](supabase/security_hardening.sql)
+9. [supabase/scan_history.sql](supabase/scan_history.sql)
 
-Set the environment variables below, then use **Refresh dari DB** in the UI.
+### Security migration release procedure
+
+**Backup before migration:** export `app_users`, `audit_log`, `merger_scanned_ips`, `team_filter_ips`, and `team_filter_audit` from Supabase.
+
+Verify after applying:
+
+```sql
+select trigger_name from information_schema.triggers
+where trigger_name in ('team_filter_audit_immutable', 'audit_log_immutable');
+
+select routine_name from information_schema.routines
+where routine_schema = 'public'
+  and routine_name in ('mutate_team_filter', 'record_team_filter_event', 'mutate_app_user');
+
+select team, count(*) from public.team_filter_ips group by team order by team;
+```
+
+Before required migrations exist, authorized Team Filter requests intentionally return `503 ERR_SCHEMA_NOT_READY`.
+
+**Rollback:** roll application back first. Keep data and audit tables intact, then remove only hardening wrappers:
+
+```sql
+begin;
+drop trigger if exists team_filter_audit_immutable on public.team_filter_audit;
+drop trigger if exists audit_log_immutable on public.audit_log;
+drop function if exists public.record_team_filter_event(uuid, text, text, text, text, integer, integer, jsonb);
+drop function if exists public.mutate_app_user(uuid, text, uuid, text, text, text, jsonb);
+drop function if exists public.reject_audit_mutation();
+commit;
+```
+
+Production uses Docker named volume `kerennnn-data` for writable VT quota state. Copy existing `data/vt-key-state.json` into that volume before first hardened recreate.
 
 ## Environment variables
 
@@ -52,7 +82,7 @@ VirusTotal 0.30 · AbuseIPDB 0.20 · Abuse.ch 0.20 · URLScan.io 0.20 · OTX 0.1
 Enrichment (RDAP/GeoIP) is **context-only** — no verdict/weight, contributes only via risk-factor bonuses.
 Sources with no API key configured are silently excluded from results (no "SKIPPED" rows shown).
 
-The front end stores the VirusTotal key in **localStorage** for browser calls; server routes use env keys for `/api/vt` and correlation.
+Threat-intelligence credentials stay server-side. Frontend calls same-origin `/api/*` routes only.
 
 ## Security / trust boundary
 
@@ -66,11 +96,10 @@ The front end stores the VirusTotal key in **localStorage** for browser calls; s
   `/api/ir-cases*`, and `/api/ip-cache/*` (writes) all require a valid session
   cookie. `/api/admin/users` and `/api/ip-cache/cleanup` additionally require the
   `admin` role.
-- **Login brute-force** is rate-limited per (username, IP) via the
-  `login_attempts` table; admin user changes are recorded in `audit_log`.
+- **Login brute-force** uses persistent username+IP history plus a fail-safe local per-IP budget when database logging is unavailable.
+- **Audit trails are immutable.** Team Filter and admin-user mutations use database RPCs so state changes and success audits commit atomically; denied/failed Team Filter actions are recorded separately without payloads.
 - **Security headers** (CSP, HSTS, `X-Frame-Options: DENY`,
-  `X-Content-Type-Options: nosniff`, `Referrer-Policy`) are set in `server.js`
-  for self-hosting and mirrored in `vercel.json` for the Vercel deployment.
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy`) are set in `server.js`.
 - **Error responses are sanitized** — raw Supabase/Postgres error messages are
   logged server-side and never returned to the client (`api/_errors.js`).
 

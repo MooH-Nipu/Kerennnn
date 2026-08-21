@@ -137,6 +137,9 @@ export function IrManagerTab() {
 
   const fileRef    = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importDialogRef = useRef<HTMLDivElement>(null);
+  const importReturnFocusRef = useRef<HTMLElement | null>(null);
+  const importWasOpenRef = useRef(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────
   const fetchCases = useCallback(async (newOffset: number, q: string, append = false) => {
@@ -155,6 +158,41 @@ export function IrManagerTab() {
   }, []);
 
   useEffect(() => { fetchCases(0, ''); }, [fetchCases]);
+
+  useEffect(() => {
+    if (!importStep) return;
+    importWasOpenRef.current = true;
+    const dialog = importDialogRef.current;
+    if (!dialog) return;
+    const focusableSelector = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+    const focusables = () => Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+    requestAnimationFrame(() => focusables()[0]?.focus());
+
+    function onImportKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') cancelImport();
+      if (event.key !== 'Tab') return;
+      const controls = focusables();
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    window.addEventListener('keydown', onImportKey);
+    return () => window.removeEventListener('keydown', onImportKey);
+  }, [importStep]);
+
+  useEffect(() => {
+    if (importStep || !importWasOpenRef.current) return;
+    importWasOpenRef.current = false;
+    importReturnFocusRef.current?.focus();
+    importReturnFocusRef.current = null;
+  }, [importStep]);
 
   // ── Search debounce ────────────────────────────────────────────────────
   function handleSearchChange(q: string) {
@@ -331,7 +369,7 @@ export function IrManagerTab() {
           <button className="btn btn-secondary" onClick={() => { setShowAdd(v => !v); setError(null); }}>
             {showAdd ? '✕ Cancel' : '+ Add Case'}
           </button>
-          <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
+          <button className="btn btn-secondary" onClick={event => { importReturnFocusRef.current = event.currentTarget; fileRef.current?.click(); }}>
             ⬆ Import
           </button>
           <button className="btn btn-secondary" onClick={() => fetchCases(0, searchQ)} title="Refresh">
@@ -355,8 +393,9 @@ export function IrManagerTab() {
       {showAdd && (
         <div className="ir-add-form">
           <div className="form-group">
-            <label className="form-label">Title</label>
+            <label className="form-label" htmlFor="ir-new-title">Title</label>
             <input
+              id="ir-new-title"
               className="form-input"
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
@@ -365,8 +404,9 @@ export function IrManagerTab() {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Description</label>
+            <label className="form-label" htmlFor="ir-new-description">Description</label>
             <textarea
+              id="ir-new-description"
               className="form-textarea"
               rows={6}
               value={newDesc}
@@ -387,10 +427,10 @@ export function IrManagerTab() {
 
       {/* ── Import wizard overlay ── */}
       {importStep === 1 && (
-        <div className="ir-import-overlay" onClick={e => { if (e.target === e.currentTarget) { setImportStep(0); } }}>
-          <div className="ir-import-box">
+        <div className="ir-import-overlay" onClick={e => { if (e.target === e.currentTarget) cancelImport(); }}>
+          <div ref={importDialogRef} className="ir-import-box" role="dialog" aria-modal="true" aria-labelledby="ir-import-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h3 className="ir-import-title">Import IR Cases</h3>
+              <h3 className="ir-import-title" id="ir-import-title">Import IR Cases</h3>
               <span className="ir-import-step">Step 1 of 2 — Map Columns</span>
             </div>
 
@@ -449,11 +489,11 @@ export function IrManagerTab() {
         const removedCount = previewRows.filter(r => r._removed).length;
         return (
           <div className="ir-import-overlay" onClick={e => { if (e.target === e.currentTarget) cancelImport(); }}>
-            <div className="ir-import-box ir-import-box--wide">
+            <div ref={importDialogRef} className="ir-import-box ir-import-box--wide" role="dialog" aria-modal="true" aria-labelledby="ir-import-title">
 
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <h3 className="ir-import-title">Import IR Cases</h3>
+                <h3 className="ir-import-title" id="ir-import-title">Import IR Cases</h3>
                 <span className="ir-import-step">Step 2 of 2 — Review Rows</span>
               </div>
 
@@ -547,6 +587,7 @@ export function IrManagerTab() {
       {/* ── Search ── */}
       <div className="ir-search-row">
         <input
+          aria-label="Search IR cases"
           className="form-input"
           placeholder="Search cases..."
           value={searchQ}
@@ -571,7 +612,18 @@ export function IrManagerTab() {
             return (
               <div key={c.id} className={`ir-case-card${isExpanded ? ' ir-case-card--expanded' : ''}`}>
                 {/* Header row */}
-                <div className="ir-case-header" onClick={() => handleExpand(c.id)}>
+                <div
+                  className="ir-case-header"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  onClick={() => handleExpand(c.id)}
+                  onKeyDown={event => {
+                    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                    event.preventDefault();
+                    handleExpand(c.id);
+                  }}
+                >
                   <span className="ir-chevron">{isExpanded ? '▾' : '▸'}</span>
                   <span className="ir-case-glyph" aria-hidden="true">
                     {(c.title || '?').trim().charAt(0).toUpperCase() || '?'}

@@ -7,7 +7,7 @@ import { Spinner } from '../components/shared/Spinner';
 import type { AppUser, Role } from '../types/api';
 import { useAuthState } from '../context/AuthContext';
 
-const ROLES: Role[] = ['admin', 'pac', 'charlie', 'l1', 'l2'];
+const ROLES: Role[] = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
 
 export function AdminUsersTab() {
   const { username: selfUsername } = useAuthState();

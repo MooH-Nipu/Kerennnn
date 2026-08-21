@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { api } from '../lib/api';
 import { extractIOC, detectType } from '../lib/ioc';
+import type { Team } from '../types/api';
 
 const CHUNK = 40;
 
@@ -10,16 +11,13 @@ export interface MergerItem {
   updated_at: string;
 }
 
-/** Session cache — survives tab unmount (persists last-loaded merger rows across remounts). */
-let sessionItems: MergerItem[] = [];
-let sessionAutoFetched = false;
+/** Session cache — identity + team scoped so logout/login never leaks prior snapshots. */
+const sessionItems: Record<string, MergerItem[]> = {};
+const sessionAutoFetched: Record<string, boolean> = {};
 
-function syncSession(items: MergerItem[]) {
-  sessionItems = items;
-}
-
-export function useMergerDb() {
-  const [items, setItems] = useState<MergerItem[]>(() => sessionItems);
+export function useMergerDb(team: Team, identity: string) {
+  const cacheKey = `${identity}:${team}`;
+  const [items, setItems] = useState<MergerItem[]>(() => sessionItems[cacheKey] ?? []);
   const [loading, setLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -30,27 +28,27 @@ export function useMergerDb() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.mergerDb.get() as { items?: MergerItem[] };
+      const res = await api.teamFilter.get(team);
       const loaded = res.items ?? [];
-      syncSession(loaded);
+      sessionItems[cacheKey] = loaded;
       setItems(loaded);
-      sessionAutoFetched = true;
+      sessionAutoFetched[cacheKey] = true;
       setStatusMsg(`✓ ${loaded.length} IPs loaded from DB.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cacheKey, team]);
 
-  // Auto-fetch once per session on first mount; later visits reuse sessionItems.
+  // Auto-fetch once per identity and team; never reuse another user's rows.
   useEffect(() => {
-    if (sessionAutoFetched) {
-      setItems(sessionItems);
+    if (sessionAutoFetched[cacheKey]) {
+      setItems(sessionItems[cacheKey]);
       return;
     }
     refresh();
-  }, [refresh]);
+  }, [cacheKey, refresh]);
 
   const submitIps = useCallback(async (rawInput: string) => {
     const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
@@ -75,7 +73,7 @@ export function useMergerDb() {
     let done = 0;
     for (const chunk of chunks) {
       try {
-        await api.mergerDb.post(chunk);
+        await api.teamFilter.post(team, chunk);
         done += chunk.length;
         setProgress({ done, total: toPost.length });
       } catch (err) {
@@ -89,16 +87,19 @@ export function useMergerDb() {
 
     if (done > 0) {
       await refresh();
-      setStatusMsg(`✓ ${done} IPs submitted. Latest data loaded (${sessionItems.length} IPs in DB).`);
+      setStatusMsg(`✓ ${done} IPs submitted. Latest data loaded (${sessionItems[cacheKey].length} IPs in DB).`);
     }
-  }, [items, refresh]);
+  }, [cacheKey, items, refresh, team]);
 
   const deleteIps = useCallback(async (ips: string[]) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.mergerDb.delete(ips) as { deletedCount?: number };
-      const deleted = res.deletedCount ?? 0;
+      let deleted = 0;
+      for (let i = 0; i < ips.length; i += CHUNK) {
+        const res = await api.teamFilter.delete(team, ips.slice(i, i + CHUNK));
+        deleted += res.deletedCount ?? 0;
+      }
       // Always refresh from DB — if delete silently matched 0 rows (normalization
       // mismatch, stale session cache, etc.) the IPs reappear instead of being
       // ghost-removed from the UI while still in the database.
@@ -115,7 +116,12 @@ export function useMergerDb() {
     } finally {
       setLoading(false);
     }
-  }, [refresh]);
+  }, [refresh, team]);
+
+  const clearStatus = useCallback(() => {
+    setError(null);
+    setStatusMsg(null);
+  }, []);
 
   return {
     items,
@@ -126,6 +132,7 @@ export function useMergerDb() {
     error,
     statusMsg,
     setStatusMsg,
+    clearStatus,
     refresh,
     submitIps,
     deleteIps,

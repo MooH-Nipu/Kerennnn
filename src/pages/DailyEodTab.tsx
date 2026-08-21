@@ -193,9 +193,17 @@ export function DailyEodTab() {
             <div
               key={slot.id}
               className={`eod-slot ${f ? 'eod-slot--filled' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${slot.label}: ${f ? f.name : 'choose file'}`}
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(slot.id, e)}
               onClick={() => inputRefs.current[slot.id]?.click()}
+              onKeyDown={event => {
+                if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                inputRefs.current[slot.id]?.click();
+              }}
             >
               <input
                 type="file"
@@ -210,6 +218,7 @@ export function DailyEodTab() {
                   <div className="eod-slot__name">{f.name}</div>
                   {lineEst && <div className="eod-slot__est">~{lineEst} rows</div>}
                   <button
+                    type="button"
                     className="eod-slot__clear"
                     onClick={e => { e.stopPropagation(); handleFile(slot.id, null); }}
                   >×</button>

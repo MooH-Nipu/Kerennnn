@@ -1,10 +1,9 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuthState } from './context/AuthContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './components/layout/LoginPage';
 import { Spinner } from './components/shared/Spinner';
-import { useTabPrefs } from './hooks/useTabPrefs';
+import { L1_NAV_LAYOUT, useTabPrefs } from './hooks/useTabPrefs';
 import { allowedTabs, getRestoredTab } from './components/layout/TabNav';
 import { UpdateToast } from './components/shared/UpdateToast';
 import { ShortcutHelp } from './components/shared/ShortcutHelp';
@@ -27,8 +26,14 @@ const SettingsTab = lazy(() => import('./pages/SettingsTab').then(m => ({ defaul
 const AdminUsageTab = lazy(() => import('./pages/AdminUsageTab').then(m => ({ default: m.AdminUsageTab })));
 const ResultPage = lazy(() => import('./pages/ResultPage').then(m => ({ default: m.ResultPage })));
 
+function safeDecodePathSegment(value: string) {
+  try { return decodeURIComponent(value); } catch { return ''; }
+}
+
 function AppInner() {
-  const { ready, authed, role, username } = useAuthState();
+  const { ready, authed, role, username, activeTeam } = useAuthState();
+  const workspaceIdentity = authed && role && username ? `${username}:${role}` : null;
+  const workspaceIdentityRef = useRef(workspaceIdentity);
   const tabPrefs = useTabPrefs();
   const { hidden: hiddenTabs, tabLabels, groupLabels, layout } = tabPrefs;
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
@@ -56,15 +61,22 @@ function AppInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showShortcuts]);
 
-  // Restore once when auth identity changes. Preference saves must not navigate.
+  // Reset keep-alive state before the next identity may mount old tab children.
   useEffect(() => {
-    if (authed && role) {
-      setActiveTab(getRestoredTab(role, hiddenTabs));
+    if (!authed || !role || !username || !workspaceIdentity) {
+      workspaceIdentityRef.current = workspaceIdentity;
+      return;
     }
+    const restored = getRestoredTab(role, hiddenTabs);
+    workspaceIdentityRef.current = workspaceIdentity;
+    setActiveTab(restored);
+    setMountedTabs(new Set([restored]));
+    setPendingIoc('');
+    setPacFilterCount(undefined);
     // hiddenTabs is intentionally excluded: later preference changes are handled
     // by the permission fallback below without resetting the current tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authed, role]);
+  }, [workspaceIdentity]);
 
   // Add the active tab to the mounted set on first visit (keep-alive pattern).
   useEffect(() => {
@@ -108,6 +120,10 @@ function AppInner() {
     return <LoginPage />;
   }
 
+  if (workspaceIdentityRef.current !== workspaceIdentity) {
+    return <div className="app-loading"><Spinner size={32} /></div>;
+  }
+
   function tabElement(id: TabId) {
     switch (id) {
       case 'dashboard':  return <DashboardTab onScanIp={handleQuickScan} />;
@@ -116,7 +132,7 @@ function AppInner() {
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
       case 'history':     return <HistoryTab onReScan={handleReScan} onGoToScan={() => setActiveTab('ioc-scan')} />;
-      case 'pac-filter':  return <PacFilterTab onCountChange={setPacFilterCount} />;
+      case 'pac-filter':  return activeTeam ? <PacFilterTab key={`${workspaceIdentity}:${activeTeam}`} team={activeTeam} identity={workspaceIdentity!} onCountChange={setPacFilterCount} /> : <div className="empty-state">No team filter access.</div>;
       case 'daily-eod':   return <DailyEodTab />;
       case 'admin-users': return <AdminUsersTab />;
       case 'admin-logs':  return <AdminLogsTab />;
@@ -130,7 +146,8 @@ function AppInner() {
   }
 
   function renderAllTabs() {
-    return Array.from(mountedTabs).map(id => (
+    const permitted = new Set(allowedTabs(role!, hiddenTabs, activeTab).map(tab => tab.id));
+    return Array.from(mountedTabs).filter(id => permitted.has(id)).map(id => (
       <div key={id} style={{ display: activeTab === id ? 'contents' : 'none' }}>
         {tabElement(id)}
       </div>
@@ -148,8 +165,8 @@ function AppInner() {
         hiddenTabs={hiddenTabs}
         tabLabels={tabLabels}
         groupLabels={groupLabels}
-        layout={layout}
-        showSettingsFeature={!tabPrefs.tutorialDismissed}
+        layout={role === 'l1' ? L1_NAV_LAYOUT : layout}
+        showSettingsFeature={role !== 'l1' && !tabPrefs.tutorialDismissed}
       >
         <Suspense fallback={<Spinner size={32} />}>{renderAllTabs()}</Suspense>
       </AppShell>
@@ -161,14 +178,12 @@ function AppInner() {
 }
 
 export function App() {
+  const resultMatch = window.location.pathname.match(/^\/result\/([^/]+)$/);
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/result/:id" element={<Suspense fallback={<Spinner size={32} />}><ResultPage /></Suspense>} />
-          <Route path="/*" element={<AppInner />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      {resultMatch
+        ? <Suspense fallback={<Spinner size={32} />}><ResultPage id={safeDecodePathSegment(resultMatch[1])} /></Suspense>
+        : <AppInner />}
+    </AuthProvider>
   );
 }

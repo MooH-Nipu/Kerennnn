@@ -52,7 +52,7 @@ export function HighlightedOutput({
           className="output-box__copy"
         />
       )}
-      <pre className="form-textarea form-textarea--output ioc-output" aria-readonly="true">
+      <pre className="form-textarea form-textarea--output ioc-output" role="textbox" aria-label="Highlighted output" aria-readonly="true" tabIndex={0}>
         {value ? highlight(value) : <span className="ioc-output__placeholder">{placeholder}</span>}
       </pre>
     </div>

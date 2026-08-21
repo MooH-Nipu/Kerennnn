@@ -19,6 +19,7 @@ export function AppHeader({ username, role, settingsActive, showSettingsFeature,
         <span className="app-header__subtitle">SOC Toolbox</span>
       </div>
       <div className="app-header__actions">
+
         <div className="settings-feature-anchor">
           {showSettingsFeature && !settingsActive && (
             <button type="button" className="settings-feature-bubble" onClick={onOpenSettings}>

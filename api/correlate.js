@@ -8,6 +8,7 @@ const { requireAuth } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { logApiUsage } = require('./_usage');
 const { consumeScanBudget } = require('./_scan-budget');
+const { assertSafeWebhookDestination } = require('./_webhook-security');
 
 function getTrustFactor(envKey, defaultValue = 1) {
   const raw = process.env[envKey];
@@ -940,9 +941,9 @@ async function fireAlertWebhook(url, ioc, type, confidence, factors) {
   else if (/webhook\.office\.com|office365\.com|outlook\.office/i.test(url)) body = JSON.stringify({ text });
   else body = JSON.stringify({ ioc, type, confidence, riskFactors: (factors || []).slice(0, 5), resultUrl });
   try {
-    // httpPost rejects on non-JSON responses (Slack returns "ok", Discord 204) but
-    // the POST is sent regardless — we only swallow the parse rejection here.
-    await httpPost(url, body, headers, { timeout: 5000 });
+    const destination = await assertSafeWebhookDestination(url);
+    // Pin validated DNS answer into actual request to prevent DNS rebinding.
+    await httpPost(destination.url, body, headers, { timeout: 5000, lookup: destination.lookup });
   } catch {
     /* best-effort */
   }

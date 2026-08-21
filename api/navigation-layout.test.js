@@ -21,8 +21,8 @@ test('settings lives in header beside profile, not sidebar navigation', () => {
 test('navigation tutorial requires explicit permanent dismissal', () => {
   const settings = source('src/pages/SettingsTab.tsx');
 
-  assert.match(settings, /Navigation builder crash course/);
-  assert.match(settings, /Do not show me again/);
+  assert.match(settings, /How navigation editing works/);
+  assert.match(settings, /Do not show again/);
   assert.match(settings, /dismissNavTutorial/);
   assert.match(settings, /tutorialDismissed/);
   assert.match(settings, /prefs\.dismissTutorial\(\)/);
@@ -31,11 +31,11 @@ test('navigation tutorial requires explicit permanent dismissal', () => {
 
 test('preference saves do not restore default tab and hidden active tabs fall back', () => {
   const app = source('src/App.tsx');
-  const restoreEffect = app.match(/\/\/ Restore once when auth identity changes[\s\S]*?\}, \[([^\]]+)\]\);/)?.[1] || '';
+  const restoreEffect = app.match(/\/\/ Reset keep-alive state before the next identity may mount old tab children[\s\S]*?\}, \[([^\]]+)\]\);/)?.[1] || '';
 
-  assert.equal(restoreEffect.replace(/\s/g, ''), 'authed,role');
+  assert.equal(restoreEffect.replace(/\s/g, ''), 'workspaceIdentity');
   assert.match(app, /const tabs = allowedTabs\(role, hiddenTabs\);/);
-  assert.doesNotMatch(app, /allowedTabs\(role, hiddenTabs, activeTab\)/);
+  assert.match(app, /allowedTabs\(role!, hiddenTabs, activeTab\)/);
 });
 
 test('saved tab order drives sidebar and shortcut order', () => {
@@ -60,7 +60,7 @@ test('navigation builder has keyboard-operable alternatives to drag and visible 
   const css = source('src/styles/ui-improvements.css');
 
   assert.match(settings, /aria-label=\{`Move \$\{tab\.label\} up`\}/);
-  assert.match(settings, /aria-label=\{`Hide \$\{tab\.label\}`\}/);
+  assert.match(settings, /Available \(hidden\)/);
   assert.match(settings, /aria-label=\{`Move \$\{tab\.label\} to group`\}/);
   assert.match(settings, /aria-label=\{`Move \$\{group\.label\} group up`\}/);
   assert.match(css, /\.nav-tab-name:focus-visible/);
@@ -72,7 +72,7 @@ test('new navigation feature points users to settings', () => {
   const header = source('src/components/layout/AppHeader.tsx');
   const css = source('src/styles/ui-improvements.css');
 
-  assert.match(app, /showSettingsFeature=\{!tabPrefs\.tutorialDismissed\}/);
+  assert.match(app, /showSettingsFeature=\{role !== 'l1' && !tabPrefs\.tutorialDismissed\}/);
   assert.match(shell, /showSettingsFeature/);
   assert.match(header, /Customize your navigation/);
   assert.match(header, /settings-feature-bubble/);

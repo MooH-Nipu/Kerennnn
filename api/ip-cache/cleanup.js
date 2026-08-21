@@ -1,4 +1,4 @@
-const { requireRole } = require('../_auth');
+const { requireCurrentRole } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
 
@@ -17,15 +17,13 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  // Destructive maintenance — restrict to admin-tier roles (admin, l2).
-  if (!requireRole(req, res, ['admin', 'l2'])) return;
-
   const supabase = getSupabase();
   if (!supabase) {
     return res.status(503).json({
       error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
     });
   }
+  if (!await requireCurrentRole(req, res, supabase, ['admin', 'l2'])) return;
 
   const ttlDays = clampInt(req.query?.days, 1, 365, 15);
   const cutoffIso = dateMinusDaysIso(ttlDays);

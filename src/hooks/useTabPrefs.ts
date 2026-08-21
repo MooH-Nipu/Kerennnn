@@ -17,6 +17,9 @@ export const DEFAULT_NAV_LAYOUT: NavGroup[] = [
   { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack'] },
   { id: 'admin', label: 'Admin', tabs: ['dashboard', 'admin-usage', 'admin-users', 'admin-logs'] },
 ];
+export const L1_NAV_LAYOUT: NavGroup[] = [
+  { id: 'work', label: 'Investigation', tabs: ['ioc-scan', 'history', 'ir-manager'] },
+];
 
 export interface TabPrefsState {
   hidden: TabId[];

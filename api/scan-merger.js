@@ -1,11 +1,10 @@
 const { normalizeIpLine } = require('./_ioc');
-const { requireRole, readJsonBody } = require('./_auth');
+const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
 
-// Roles allowed to read/write the PAC Filter DB (mirrors PAC_ROLES in
-// src/lib/permissions.ts). L2 is a second admin tier.
-const PAC_ROLES = ['admin', 'pac', 'charlie', 'l2'];
+// Legacy PAC-only endpoint. Leads must use /api/v1/team-filter with explicit context.
+const PAC_ROLES = ['pac'];
 
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
 function currentUpdatedAtIsoWib() {
@@ -47,8 +46,6 @@ module.exports = async function handler(req, res) {
   // Auth is mandatory and now role-gated server-side: only PAC-capable roles may
   // read/write the PAC Filter DB. Previously this was requireAuth only, so any
   // logged-in user (incl. l1) could reach the DB by calling the API directly.
-  if (!requireRole(req, res, PAC_ROLES)) return;
-
   if (!mergerPasswordOk(req)) {
     return res.status(401).json({ error: 'Invalid or missing X-Merger-Password header.' });
   }
@@ -59,6 +56,7 @@ module.exports = async function handler(req, res) {
       error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
     });
   }
+  if (!await requireCurrentRole(req, res, supabase, PAC_ROLES)) return;
 
   try {
     if (req.method === 'GET') {

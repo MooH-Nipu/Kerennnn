@@ -5,6 +5,8 @@ const {
   verifySessionToken,
   buildSetCookie,
   buildClearCookie,
+  validateCurrentIdentity,
+  shouldRevalidateRoute,
 } = require('./_auth');
 
 const SECRET = 'test-secret-123';
@@ -65,5 +67,32 @@ describe('cookies', () => {
 
   test('buildClearCookie expires immediately', () => {
     assert.match(buildClearCookie(), /Max-Age=0/);
+  });
+});
+
+describe('current database identity', () => {
+  test('route boundary revalidates every protected API request', () => {
+    assert.equal(shouldRevalidateRoute('/api/health'), false);
+    assert.equal(shouldRevalidateRoute('/api/auth/login'), false);
+    assert.equal(shouldRevalidateRoute('/api/auth/logout'), false);
+    assert.equal(shouldRevalidateRoute('/api/vt'), true);
+    assert.equal(shouldRevalidateRoute('/api/v1/team-filter'), true);
+  });
+
+  test('accepts only an existing user whose current role is allowed', () => {
+    assert.deepEqual(
+      validateCurrentIdentity(
+        { userId: 'u1', role: 'soc_lead', username: 'old-name' },
+        { id: 'u1', role: 'soc_lead', username: 'lead' },
+        ['soc_lead', 'l2']
+      ),
+      { ok: true, auth: { userId: 'u1', role: 'soc_lead', username: 'lead' } }
+    );
+  });
+
+  test('rejects deleted, demoted, or malformed identities', () => {
+    assert.deepEqual(validateCurrentIdentity({ userId: 'u1', role: 'soc_lead' }, null, ['soc_lead']), { ok: false, status: 401 });
+    assert.deepEqual(validateCurrentIdentity({ userId: 'u1', role: 'soc_lead' }, { id: 'u1', role: 'l1', username: 'lead' }, ['soc_lead']), { ok: false, status: 403 });
+    assert.deepEqual(validateCurrentIdentity({}, { id: 'u1', role: 'soc_lead', username: 'lead' }, ['soc_lead']), { ok: false, status: 401 });
   });
 });

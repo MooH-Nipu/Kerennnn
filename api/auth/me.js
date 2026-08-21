@@ -1,4 +1,5 @@
 const { requireAuth } = require('../_auth');
+const { getRoleContext } = require('../_tenancy');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -10,5 +11,6 @@ module.exports = async function handler(req, res) {
     ok: true,
     role: req.auth.role,
     username: req.auth.username,
+    ...getRoleContext(req.auth.role),
   });
 };

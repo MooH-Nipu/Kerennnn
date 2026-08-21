@@ -1,0 +1,31 @@
+name: kerennnn-dev
+
+services:
+  app:
+    image: kerennnn-dev:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${KERENNNN_DEV_PORT:-3002}:3000"
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - VT_KEY_STATE_FILE=/app/data/vt-key-state.json
+      - COOKIE_SECURE=false
+    volumes:
+      - kerennnn-dev-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    restart: unless-stopped
+
+volumes:
+  kerennnn-dev-data:

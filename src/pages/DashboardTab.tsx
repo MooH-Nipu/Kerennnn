@@ -7,7 +7,9 @@ import {
 } from 'recharts';
 import { api } from '../lib/api';
 import { fmtWhen } from '../lib/utils';
+import { aggregateUserScans } from '../lib/dashboard-data';
 import { Spinner } from '../components/shared/Spinner';
+import { StatusMessage } from '../components/shared/StatusMessage';
 import type { RecentIp, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 
 interface Props {
@@ -73,10 +75,12 @@ export function DashboardTab({ onScanIp }: Props) {
   const [totalIps, setTotalIps] = useState(0);
   const [verdictCounts, setVerdictCounts] = useState({ malicious: 0, suspicious: 0, clean: 0 });
   const [ipLoading, setIpLoading] = useState(false);
+  const [ipError, setIpError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const fetchRecent = useCallback(async (f?: string, t?: string) => {
     setIpLoading(true);
+    setIpError(null);
     try {
       const fromISO = f ? new Date(f).toISOString() : undefined;
       const toISO = t ? new Date(t).toISOString() : undefined;
@@ -89,7 +93,9 @@ export function DashboardTab({ onScanIp }: Props) {
         clean: res.clean ?? 0,
       });
       setLastRefreshed(new Date());
-    } catch { /* ignore */ }
+    } catch (error) {
+      setIpError(error instanceof Error ? error.message : String(error));
+    }
     finally { setIpLoading(false); }
   }, []);
 
@@ -175,14 +181,15 @@ export function DashboardTab({ onScanIp }: Props) {
   const usageTotals = usageData
     ? usageData.byOutcome.reduce((acc, o) => { acc[o.outcome] = o.total; return acc; }, {} as Record<string, number>)
     : {};
+  const userScanChartData = aggregateUserScans(ipScanData?.byUser ?? []);
 
   const loading = ipLoading || usageLoading;
 
   return (
-    <div className="tab-content" style={{ display: 'block' }}>
+    <div className="tab-content dashboard-tab">
       {/* ── Header ──────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-foreground)' }}>Dashboard</h2>
+      <div className="section-header">
+        <h2>Dashboard</h2>
         {lastRefreshed && (
           <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>
             Updated {fmtWhen(lastRefreshed.toISOString())}
@@ -197,6 +204,8 @@ export function DashboardTab({ onScanIp }: Props) {
           {loading ? <Spinner size={12} /> : '↻ Refresh'}
         </button>
       </div>
+
+      {ipError && <StatusMessage type="error" message={`IP cache unavailable: ${ipError}`} onDismiss={() => setIpError(null)} />}
 
 
       {/* ── Unified stat cards ─────────────────────────────── */}
@@ -242,10 +251,10 @@ export function DashboardTab({ onScanIp }: Props) {
           </button>
         ))}
         <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', margin: '0 0.25rem' }}>|</span>
-        <input type="datetime-local" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading}
+        <input aria-label="Dashboard range start" type="datetime-local" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading}
           style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
         <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>→</span>
-        <input type="datetime-local" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading}
+        <input aria-label="Dashboard range end" type="datetime-local" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading}
           style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
         <button type="button" className="button button--primary button--sm" onClick={applyCustomRange} disabled={loading || !from || !to || new Date(from) >= new Date(to)}>Apply</button>
       </div>
@@ -269,13 +278,13 @@ export function DashboardTab({ onScanIp }: Props) {
 
       {/* ── Scan activity + outcome quality ────────────────── */}
       {!loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div className="dash-analysis-grid">
           <div className="card">
             <div className="card__header">
               <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans over time</h3>
               <span className="badge badge--soft" style={{ marginLeft: 'auto' }}>{scanTimelineBucket ?? '—'} buckets</span>
             </div>
-            <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="card__body dash-chart-body">
               {scanTimeline.length > 0 ? (
                 <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
                   <ResponsiveContainer width="100%" height={220}>
@@ -295,11 +304,11 @@ export function DashboardTab({ onScanIp }: Props) {
 
           <div className="card">
             <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans per user</h3></div>
-            <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
-              {ipScanData && ipScanData.byUser.length > 0 ? (
+            <div className="card__body dash-chart-body">
+              {userScanChartData.length > 0 ? (
                 <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-                  <ResponsiveContainer width="100%" height={Math.max(200, ipScanData.byUser.length * 34 + 48)}>
-                    <BarChart data={ipScanData.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
+                  <ResponsiveContainer width="100%" height={Math.max(200, userScanChartData.length * 34 + 48)}>
+                    <BarChart data={userScanChartData} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                       <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
                       <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--color-border)" width={96} />
@@ -392,7 +401,7 @@ export function DashboardTab({ onScanIp }: Props) {
       )}
 
       {/* ── Two-column tables ──────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
         {/* Recent IPs */}
         <div className="card">
           <div className="card__header">
@@ -406,8 +415,10 @@ export function DashboardTab({ onScanIp }: Props) {
               </thead>
               <tbody>
                 {items.slice(0, 15).map(item => (
-                  <tr key={item.ip} onClick={() => onScanIp?.(item.ip)} style={{ cursor: 'pointer' }} data-state={item.vt_verdict === 'malicious' ? 'active' : undefined}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{item.ip}</td>
+                  <tr key={item.ip} data-state={item.vt_verdict === 'malicious' ? 'active' : undefined}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                      <button type="button" className="dash-ip-action" onClick={() => onScanIp?.(item.ip)}>{item.ip}</button>
+                    </td>
                     <td><span className={verdictBadge(item.vt_verdict)}>{(item.vt_verdict ?? 'unknown').toUpperCase()}</span></td>
                     <td style={{ color: 'var(--color-muted-foreground)', fontSize: '0.75rem' }}>{fmtWhen(item.first_scanned_at)}</td>
                   </tr>

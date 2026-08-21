@@ -129,6 +129,11 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
         <div className="ioc-progress-bar">
           <div
             className="ioc-progress-bar__fill"
+            role="progressbar"
+            aria-label="IOC scan progress"
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+            aria-valuenow={progress.done}
             style={{ width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%` }}
           />
         </div>
@@ -192,7 +197,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
 
           {/* Status lives in the left panel — never pushes the results column */}
           {statusMsg && (
-            <div className={`ioc-status-inline ioc-status-inline--${statusType}`}>{statusMsg}</div>
+            <div className={`ioc-status-inline ioc-status-inline--${statusType}`} role={statusType === 'error' ? 'alert' : 'status'}>{statusMsg}</div>
           )}
         </aside>
 
@@ -250,6 +255,9 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
               </div>
 
               <div className="vt-cards">
+                {visibleItems.length === 0 && (
+                  <div className="ioc-scan-empty">No results match current filters. Reset filter chips to show all results.</div>
+                )}
                 {visibleItems.map(item => (
                   <VtCard
                     key={item.id}

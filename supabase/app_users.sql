@@ -3,7 +3,7 @@ create table app_users (
   id           uuid primary key default gen_random_uuid(),
   username     text unique not null,
   password_hash text not null,
-  role         text not null check (role in ('admin', 'pac', 'charlie', 'l1', 'l2')),
+  role         text not null check (role in ('admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2')),
   created_at   timestamptz default now(),
   created_by   uuid references app_users(id)
 );

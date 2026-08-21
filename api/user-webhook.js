@@ -2,14 +2,7 @@
 const { requireAuth, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
-
-function isValidWebhookUrl(u) {
-  try {
-    return new URL(u).protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+const { isAllowedWebhookUrl } = require('./_webhook-security');
 
 // Per-user MALICIOUS alert webhook config. Strictly scoped to req.auth.userId.
 module.exports = async function handler(req, res) {
@@ -56,8 +49,8 @@ module.exports = async function handler(req, res) {
     if (!Number.isFinite(min_confidence)) min_confidence = 70;
     min_confidence = Math.min(100, Math.max(0, Math.round(min_confidence)));
 
-    if (webhook_url && !isValidWebhookUrl(webhook_url))
-      return res.status(400).json({ error: 'Webhook URL must be a valid https:// URL.' });
+    if (webhook_url && !isAllowedWebhookUrl(webhook_url))
+      return res.status(400).json({ error: 'Use a supported Slack, Discord, or Microsoft Teams webhook URL.' });
 
     const { error } = await supabase.from('user_webhooks').upsert(
       {

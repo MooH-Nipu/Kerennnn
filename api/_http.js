@@ -38,6 +38,7 @@ function httpPost(url, postBody, headers = {}, opts = {}) {
         path: u.pathname + u.search,
         method: 'POST',
         headers: { ...headers },
+        lookup: opts.lookup,
       },
       (res) => {
         let body = '';
