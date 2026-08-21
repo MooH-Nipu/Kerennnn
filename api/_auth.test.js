@@ -7,6 +7,7 @@ const {
   buildClearCookie,
   validateCurrentIdentity,
   shouldRevalidateRoute,
+  requireAuth,
 } = require('./_auth');
 
 const SECRET = 'test-secret-123';
@@ -67,6 +68,25 @@ describe('cookies', () => {
 
   test('buildClearCookie expires immediately', () => {
     assert.match(buildClearCookie(), /Max-Age=0/);
+  });
+
+  test('malformed percent-encoding is rejected as unauthorized without throwing', () => {
+    const prior = process.env.APP_AUTH_SECRET;
+    process.env.APP_AUTH_SECRET = SECRET;
+    const response = {
+      statusCode: 0,
+      headers: {},
+      setHeader(name, value) { this.headers[name] = value; },
+      end(body) { this.body = body; },
+    };
+    try {
+      assert.doesNotThrow(() => requireAuth({ headers: { cookie: 'soc_session=%' } }, response));
+      assert.equal(response.statusCode, 401);
+      assert.match(response.body, /Unauthorized/);
+    } finally {
+      if (prior === undefined) delete process.env.APP_AUTH_SECRET;
+      else process.env.APP_AUTH_SECRET = prior;
+    }
   });
 });
 
