@@ -37,7 +37,7 @@ function parseCookies(req) {
     const k = part.slice(0, i).trim();
     const v = part.slice(i + 1).trim();
     if (!k) return;
-    out[k] = decodeURIComponent(v);
+    try { out[k] = decodeURIComponent(v); } catch { /* malformed cookie entry: ignore */ }
   });
   return out;
 }
