@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useMergerDb } from '../hooks/useMergerDb';
+import { invalidateMergerDbCache, useMergerDb } from '../hooks/useMergerDb';
 import { api } from '../lib/api';
 import { StatusMessage } from '../components/shared/StatusMessage';
 
@@ -33,7 +33,10 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
   const [newClientCode, setNewClientCode] = useState('');
   const [newClientLabel, setNewClientLabel] = useState('');
   const [clientCreating, setClientCreating] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [clientDeleting, setClientDeleting] = useState(false);
   const createInFlight = useRef(false);
+  const deleteClientInFlight = useRef(false);
 
   useEffect(() => {
     if (team !== 'CHARLIE') return;
@@ -53,7 +56,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
   const {
     items, itemCount,
     loading, posting, progress, error, statusMsg,
-    clearStatus,
+    setStatusMsg, clearStatus,
     refresh, submitIps, deleteIps,
   } = useMergerDb(team, identity, team === 'CHARLIE' ? clientCode : undefined);
 
@@ -77,6 +80,28 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     }
   }
 
+  async function handleDeleteClient() {
+    if (clientCode === 'GENERAL' || deleteConfirmation !== clientCode || deleteClientInFlight.current) return;
+    deleteClientInFlight.current = true;
+    setClientDeleting(true);
+    try {
+      const res = await api.charlieClients.delete(clientCode, deleteConfirmation);
+      invalidateMergerDbCache(identity, 'CHARLIE', clientCode);
+      setCharlieClients(prev => prev.filter(client => client.code !== clientCode));
+      setClientCode('GENERAL');
+      setDeleteConfirmation('');
+      setInput('');
+      setDeleteInput('');
+      setClientError(null);
+      setStatusMsg(`✓ ${res.deleted.code} deleted with ${res.deleted.deleted_ip_count} IPs.`);
+    } catch (err) {
+      setClientError(err instanceof Error ? err.message : String(err));
+    } finally {
+      deleteClientInFlight.current = false;
+      setClientDeleting(false);
+    }
+  }
+
   const [input, setInput] = useState('');
   const [deleteInput, setDeleteInput] = useState('');
 
@@ -97,8 +122,8 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
 
   async function handleDeleteSelected() {
     if (!toDelete.length) return;
-    await deleteIps(toDelete);
-    setDeleteInput('');
+    const deleted = await deleteIps(toDelete);
+    if (deleted) setDeleteInput('');
   }
 
   const queryIps = useMemo(() => items.map(i => i.ip), [items]);
@@ -164,9 +189,10 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
                 setClientCode(event.target.value);
                 setInput('');
                 setDeleteInput('');
+                setDeleteConfirmation('');
                 clearStatus();
               }}
-              disabled={clientLoading || loading || posting}
+              disabled={clientLoading || loading || posting || clientDeleting}
             >
               {charlieClients.map(client => (
                 <option key={client.id} value={client.code}>{client.label}</option>
@@ -219,9 +245,41 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
               type="button"
               className="btn btn-primary"
               onClick={handleCreateClient}
-              disabled={!newClientCode.trim() || !newClientLabel.trim() || loading || posting || clientLoading || clientCreating}
+              disabled={!newClientCode.trim() || !newClientLabel.trim() || loading || posting || clientLoading || clientCreating || clientDeleting}
             >
               Add client
+            </button>
+          </div>
+        </details>
+      )}
+
+      {team === 'CHARLIE' && canManageClients && clientCode !== 'GENERAL' && (
+        <details className="pac-client-delete">
+          <summary>Delete Charlie client</summary>
+          <div className="pac-client-delete-row">
+            <div>
+              <strong>Delete all IPs and client</strong>
+              <span>Type <code>{clientCode}</code> to permanently delete this client and its {itemCount} IPs.</span>
+            </div>
+            <label>
+              <span>Type “{clientCode}” to confirm</span>
+              <input
+                type="text"
+                className="form-input"
+                aria-label={`Type ${clientCode} to confirm client deletion`}
+                placeholder="Enter client code"
+                value={deleteConfirmation}
+                onChange={event => setDeleteConfirmation(event.target.value.toUpperCase())}
+                disabled={loading || posting || clientDeleting}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleDeleteClient}
+              disabled={deleteConfirmation !== clientCode || loading || posting || clientDeleting}
+            >
+              {clientDeleting ? 'Deleting…' : 'Delete client and all IPs'}
             </button>
           </div>
         </details>
