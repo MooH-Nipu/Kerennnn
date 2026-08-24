@@ -139,7 +139,7 @@ declare
 begin
   select role, username into actor_role, actor_username
   from public.app_users where id = p_actor_id;
-  if actor_role not in ('admin', 'soc_lead', 'l2') then
+  if actor_role is null or actor_role not in ('admin', 'soc_lead', 'l2') then
     raise exception 'Charlie client management denied' using errcode = '42501';
   end if;
   if p_code is null or p_code !~ '^[A-Z0-9_-]{2,32}$' then
@@ -180,7 +180,7 @@ declare
 begin
   select role, username into actor_role, actor_username
   from public.app_users where id = p_actor_id;
-  if actor_role not in ('admin', 'soc_lead', 'l2') then
+  if actor_role is null or actor_role not in ('admin', 'soc_lead', 'l2') then
     raise exception 'Charlie client management denied' using errcode = '42501';
   end if;
   if p_code is null or p_code !~ '^[A-Z0-9_-]{2,32}$' then
