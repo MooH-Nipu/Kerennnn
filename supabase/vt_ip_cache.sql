@@ -16,8 +16,5 @@ create table if not exists public.vt_ip_cache (
 create index if not exists vt_ip_cache_last_scanned_at_idx
   on public.vt_ip_cache (last_scanned_at desc);
 
-create index if not exists vt_ip_cache_id_idx
-  on public.vt_ip_cache (id);
-
 comment on table public.vt_ip_cache is 'Cache for VT IP scans (for seen-before + recent list). TTL: 15 days from first submission (first_scanned_at), via API cleanup.';
 

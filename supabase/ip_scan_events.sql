@@ -11,8 +11,6 @@ create table if not exists public.ip_scan_events (
 
 create index if not exists ip_scan_events_created_idx
   on public.ip_scan_events (created_at desc);
-create index if not exists ip_scan_events_user_created_idx
-  on public.ip_scan_events (user_id, created_at desc);
 
 comment on table public.ip_scan_events is
   'User-attributed IP lookup events. Includes VirusTotal cache hits and powers dashboard IP scans per user.';

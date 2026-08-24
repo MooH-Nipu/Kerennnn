@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import { extractIOC, detectType } from '../lib/ioc';
 import type { Team } from '../types/api';
@@ -15,34 +15,43 @@ export interface MergerItem {
 const sessionItems: Record<string, MergerItem[]> = {};
 const sessionAutoFetched: Record<string, boolean> = {};
 
-export function useMergerDb(team: Team, identity: string) {
-  const cacheKey = `${identity}:${team}`;
+export function useMergerDb(team: Team, identity: string, clientCode?: string) {
+  const cacheKey = `${identity}:${team}:${clientCode ?? 'LEGACY'}`;
   const [items, setItems] = useState<MergerItem[]>(() => sessionItems[cacheKey] ?? []);
   const [loading, setLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const submitInFlight = useRef(false);
+  const activeCacheKey = useRef(cacheKey);
+  activeCacheKey.current = cacheKey;
 
   const refresh = useCallback(async () => {
+    const requestCacheKey = cacheKey;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.teamFilter.get(team);
+      const res = await api.teamFilter.get(team, clientCode);
       const loaded = res.items ?? [];
       sessionItems[cacheKey] = loaded;
-      setItems(loaded);
       sessionAutoFetched[cacheKey] = true;
-      setStatusMsg(`✓ ${loaded.length} IPs loaded from DB.`);
+      if (activeCacheKey.current === requestCacheKey) {
+        setItems(loaded);
+        setStatusMsg(`✓ ${loaded.length} IPs loaded from DB.`);
+      }
+      return loaded;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (activeCacheKey.current === requestCacheKey) setError(err instanceof Error ? err.message : String(err));
+      return null;
     } finally {
-      setLoading(false);
+      if (activeCacheKey.current === requestCacheKey) setLoading(false);
     }
-  }, [cacheKey, team]);
+  }, [cacheKey, team, clientCode]);
 
   // Auto-fetch once per identity and team; never reuse another user's rows.
   useEffect(() => {
+    setItems(sessionItems[cacheKey] ?? []);
     if (sessionAutoFetched[cacheKey]) {
       setItems(sessionItems[cacheKey]);
       return;
@@ -50,46 +59,58 @@ export function useMergerDb(team: Team, identity: string) {
     refresh();
   }, [cacheKey, refresh]);
 
-  const submitIps = useCallback(async (rawInput: string) => {
-    const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
-    const unique = [...new Set(lines)];
-    const existing = new Set(items.map(i => i.ip));
-    const toPost = unique.filter(ip => !existing.has(ip));
+  const submitIps = useCallback(async (rawInput: string): Promise<boolean> => {
+    // React state updates on the next render. Ref locks synchronously so rapid clicks
+    // cannot start duplicate requests before `posting` disables the button.
+    if (submitInFlight.current) return false;
+    submitInFlight.current = true;
 
-    if (!toPost.length) {
-      setStatusMsg('No new IPs (all already in DB).');
-      return;
-    }
+    try {
+      const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
+      const unique = [...new Set(lines)];
+      const existing = new Set(items.map(i => i.ip));
+      const toPost = unique.filter(ip => !existing.has(ip));
 
-    setPosting(true);
-    setProgress({ done: 0, total: toPost.length });
-    setError(null);
-
-    const chunks: string[][] = [];
-    for (let i = 0; i < toPost.length; i += CHUNK) {
-      chunks.push(toPost.slice(i, i + CHUNK));
-    }
-
-    let done = 0;
-    for (const chunk of chunks) {
-      try {
-        await api.teamFilter.post(team, chunk);
-        done += chunk.length;
-        setProgress({ done, total: toPost.length });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-        break;
+      if (!toPost.length) {
+        setStatusMsg('No new IPs (all already in DB).');
+        return false;
       }
-    }
 
-    setPosting(false);
-    setProgress(null);
+      setPosting(true);
+      setProgress({ done: 0, total: toPost.length });
+      setError(null);
 
-    if (done > 0) {
-      await refresh();
-      setStatusMsg(`✓ ${done} IPs submitted. Latest data loaded (${sessionItems[cacheKey].length} IPs in DB).`);
+      const chunks: string[][] = [];
+      for (let i = 0; i < toPost.length; i += CHUNK) {
+        chunks.push(toPost.slice(i, i + CHUNK));
+      }
+
+      let done = 0;
+      for (const chunk of chunks) {
+        try {
+          await api.teamFilter.post(team, chunk, clientCode);
+          done += chunk.length;
+          setProgress({ done, total: toPost.length });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err));
+          break;
+        }
+      }
+
+      if (done > 0) {
+        const loaded = await refresh();
+        if (loaded) {
+          setStatusMsg(`✓ ${done} IPs submitted. Latest data loaded (${loaded.length} IPs in DB).`);
+        }
+        return done === toPost.length && loaded !== null;
+      }
+      return false;
+    } finally {
+      submitInFlight.current = false;
+      setPosting(false);
+      setProgress(null);
     }
-  }, [cacheKey, items, refresh, team]);
+  }, [items, refresh, team, clientCode]);
 
   const deleteIps = useCallback(async (ips: string[]) => {
     setLoading(true);
@@ -97,13 +118,14 @@ export function useMergerDb(team: Team, identity: string) {
     try {
       let deleted = 0;
       for (let i = 0; i < ips.length; i += CHUNK) {
-        const res = await api.teamFilter.delete(team, ips.slice(i, i + CHUNK));
+        const res = await api.teamFilter.delete(team, ips.slice(i, i + CHUNK), clientCode);
         deleted += res.deletedCount ?? 0;
       }
       // Always refresh from DB — if delete silently matched 0 rows (normalization
       // mismatch, stale session cache, etc.) the IPs reappear instead of being
       // ghost-removed from the UI while still in the database.
-      await refresh();
+      const loaded = await refresh();
+      if (!loaded) return;
       if (deleted === 0) {
         setStatusMsg('⚠ 0 IPs deleted — DB did not match. Reloaded from DB.');
       } else if (deleted < ips.length) {
@@ -116,7 +138,7 @@ export function useMergerDb(team: Team, identity: string) {
     } finally {
       setLoading(false);
     }
-  }, [refresh, team]);
+  }, [refresh, team, clientCode]);
 
   const clearStatus = useCallback(() => {
     setError(null);

@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMergerDb } from '../hooks/useMergerDb';
+import { api } from '../lib/api';
 import { StatusMessage } from '../components/shared/StatusMessage';
 
 import { OutputBox } from '../components/shared/OutputBox';
 import { extractIOC, detectType } from '../lib/ioc';
-import type { Team } from '../types/api';
+import type { CharlieFilterClient, Team } from '../types/api';
 
 const isIPv6 = (ip: string) => ip.includes(':');
 const SIEM_PREVIEW_IPS = 100;
@@ -21,15 +22,60 @@ interface Props {
   onCountChange?: (count: number) => void;
   team: Team;
   identity: string;
+  canManageClients?: boolean;
 }
 
-export function PacFilterTab({ onCountChange, team, identity }: Props) {
+export function PacFilterTab({ onCountChange, team, identity, canManageClients = false }: Props) {
+  const [charlieClients, setCharlieClients] = useState<CharlieFilterClient[]>([]);
+  const [clientCode, setClientCode] = useState('GENERAL');
+  const [clientLoading, setClientLoading] = useState(team === 'CHARLIE');
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [newClientCode, setNewClientCode] = useState('');
+  const [newClientLabel, setNewClientLabel] = useState('');
+  const [clientCreating, setClientCreating] = useState(false);
+  const createInFlight = useRef(false);
+
+  useEffect(() => {
+    if (team !== 'CHARLIE') return;
+    let cancelled = false;
+    setClientLoading(true);
+    api.charlieClients.list()
+      .then(res => {
+        if (cancelled) return;
+        setCharlieClients(res.clients);
+        setClientCode(current => res.clients.some(client => client.code === current) ? current : 'GENERAL');
+      })
+      .catch(err => { if (!cancelled) setClientError(err instanceof Error ? err.message : String(err)); })
+      .finally(() => { if (!cancelled) setClientLoading(false); });
+    return () => { cancelled = true; };
+  }, [team]); // client selection must not refetch the registry
+
   const {
     items, itemCount,
     loading, posting, progress, error, statusMsg,
     clearStatus,
     refresh, submitIps, deleteIps,
-  } = useMergerDb(team, identity);
+  } = useMergerDb(team, identity, team === 'CHARLIE' ? clientCode : undefined);
+
+  async function handleCreateClient() {
+    if (createInFlight.current) return;
+    createInFlight.current = true;
+    setClientCreating(true);
+    try {
+      const res = await api.charlieClients.create(newClientCode, newClientLabel);
+      const created = { ...res.client, sort_order: res.client.sort_order ?? 100 };
+      setCharlieClients(prev => [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label)));
+      setClientCode(created.code);
+      setNewClientCode('');
+      setNewClientLabel('');
+      setClientError(null);
+    } catch (err) {
+      setClientError(err instanceof Error ? err.message : String(err));
+    } finally {
+      createInFlight.current = false;
+      setClientCreating(false);
+    }
+  }
 
   const [input, setInput] = useState('');
   const [deleteInput, setDeleteInput] = useState('');
@@ -45,8 +91,8 @@ export function PacFilterTab({ onCountChange, team, identity }: Props) {
 
   async function handleSubmit() {
     if (!input.trim()) return;
-    await submitIps(input);
-    setInput('');
+    const submitted = await submitIps(input);
+    if (submitted) setInput('');
   }
 
   async function handleDeleteSelected() {
@@ -107,18 +153,83 @@ export function PacFilterTab({ onCountChange, team, identity }: Props) {
     <div className="tab-content pac-filter-tab">
       <div className="section-header">
         <h2>{team} Filter</h2>
+        {team === 'CHARLIE' && (
+          <label className="pac-client-switcher">
+            <span>Client</span>
+            <select
+              aria-label="Charlie client filter"
+              className="form-input pac-client-select"
+              value={clientCode}
+              onChange={event => {
+                setClientCode(event.target.value);
+                setInput('');
+                setDeleteInput('');
+                clearStatus();
+              }}
+              disabled={clientLoading || loading || posting}
+            >
+              {charlieClients.map(client => (
+                <option key={client.id} value={client.code}>{client.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {itemCount > 0 && <span className="line-count">{itemCount} IPs</span>}
         <button
           type="button"
           className="pac-refresh-btn"
           onClick={refresh}
-          disabled={loading || posting}
+          disabled={loading || posting || clientLoading}
           title="Refresh Team Filter data"
           aria-label="Refresh Team Filter data"
         >
           <span className={`pac-refresh-icon${loading ? ' is-loading' : ''}`} aria-hidden="true">↻</span>
         </button>
       </div>
+
+      {team === 'CHARLIE' && canManageClients && (
+        <details className="pac-client-create">
+          <summary>Add Charlie client</summary>
+          <div className="pac-client-create-row">
+            <label>
+              <span>Code</span>
+              <input
+                type="text"
+                className="form-input"
+                aria-label="New Charlie client code"
+                placeholder="CLIENT_CODE"
+                maxLength={32}
+                value={newClientCode}
+                onChange={event => setNewClientCode(event.target.value.toUpperCase())}
+              />
+            </label>
+            <label>
+              <span>Name</span>
+              <input
+                type="text"
+                className="form-input"
+                aria-label="New Charlie client label"
+                placeholder="Client name"
+                maxLength={64}
+                value={newClientLabel}
+                onChange={event => setNewClientLabel(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleCreateClient}
+              disabled={!newClientCode.trim() || !newClientLabel.trim() || loading || posting || clientLoading || clientCreating}
+            >
+              Add client
+            </button>
+          </div>
+        </details>
+      )}
+
+      {clientError && (
+        <StatusMessage type="error" message={clientError} onDismiss={() => setClientError(null)} />
+      )}
 
       {(error || statusMsg) && (
         <StatusMessage

@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 'loopback');
 app.use((req, _res, next) => { req.trustedClientIp = req.ip; next(); });
 
-// Security headers (mirror these in vercel.json for the Vercel deployment).
+// Security headers for the Docker deployment.
 // CSP is tuned for this Vite SPA: bundled self-hosted JS, inline style attributes
 // from React, and Google Fonts. All API calls are same-origin (connect-src 'self').
 const CSP = [

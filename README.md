@@ -1,28 +1,30 @@
 # soc-toolbox (Charlie kerennnn)
 
-React + Vite single-page app (entry `index.html` → `src/main.tsx`, base styles in `styles.css`) plus Vercel serverless routes under `api/`. VirusTotal and correlation features call same-origin `/api/*` from the browser.
+React + Vite single-page app (entry `index.html` → `src/main.tsx`, base styles in `styles.css`) plus Express routes under `api/`. VirusTotal and correlation features call same-origin `/api/*` from the browser.
 
 ## Deploy
 
-Production uses Docker on port `3000`. `dist/` is generated inside the multi-stage image and intentionally not tracked. Vercel is retired.
+Production uses Docker on port `3000`. `dist/` is generated inside the multi-stage image and intentionally not tracked.
 
 ## Database (Supabase)
 
 Apply SQL in this order:
 
 1. [supabase/app_users.sql](supabase/app_users.sql)
-2. [supabase/merger_scanned_ips.sql](supabase/merger_scanned_ips.sql)
-3. [supabase/merger_scanned_ips_timestamp_wib.sql](supabase/merger_scanned_ips_timestamp_wib.sql)
-4. [supabase/vt_ip_cache.sql](supabase/vt_ip_cache.sql)
-5. [supabase/login_attempts.sql](supabase/login_attempts.sql)
-6. [supabase/audit_log.sql](supabase/audit_log.sql)
-7. [supabase/team_filter.sql](supabase/team_filter.sql)
-8. [supabase/security_hardening.sql](supabase/security_hardening.sql)
-9. [supabase/scan_history.sql](supabase/scan_history.sql)
+2. [supabase/vt_ip_cache.sql](supabase/vt_ip_cache.sql)
+3. [supabase/login_attempts.sql](supabase/login_attempts.sql)
+4. [supabase/audit_log.sql](supabase/audit_log.sql)
+5. [supabase/team_filter.sql](supabase/team_filter.sql)
+6. [supabase/security_hardening.sql](supabase/security_hardening.sql)
+7. [supabase/charlie_multi_client_filter.sql](supabase/charlie_multi_client_filter.sql)
+8. [supabase/scan_history.sql](supabase/scan_history.sql)
+
+Existing databases that still contain legacy PAC copies must then apply
+[supabase/team_filter_storage_optimization.sql](supabase/team_filter_storage_optimization.sql).
 
 ### Security migration release procedure
 
-**Backup before migration:** export `app_users`, `audit_log`, `merger_scanned_ips`, `team_filter_ips`, and `team_filter_audit` from Supabase.
+**Backup before migration:** export `app_users`, `audit_log`, `team_filter_ips`, and `team_filter_audit`. Before storage consolidation, also export legacy `merger_scanned_ips*` tables.
 
 Verify after applying:
 
@@ -115,4 +117,11 @@ CI runs lint → typecheck → tests → build on every push/PR
 
 ## Local development
 
-Use `npm run dev` for the Vite frontend. API-backed workflows require the Docker app or [Vercel CLI](https://vercel.com/docs/cli) (`vercel dev`) with env vars in `.env.local`.
+Use `npm run dev` for the Vite frontend. API-backed workflows require Docker Compose and both env files:
+
+```bash
+cp .env.example .env
+cp .env.example .env.local
+# Edit .env.local with local secrets and overrides.
+docker compose up -d --build
+```

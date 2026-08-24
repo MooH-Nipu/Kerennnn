@@ -21,9 +21,6 @@ create table if not exists public.vt_ioc_cache (
   primary key (ioc_type, ioc)
 );
 
-create index if not exists vt_ioc_cache_id_idx
-  on public.vt_ioc_cache (id);
-
 create index if not exists vt_ioc_cache_last_scanned_at_idx
   on public.vt_ioc_cache (last_scanned_at desc);
 

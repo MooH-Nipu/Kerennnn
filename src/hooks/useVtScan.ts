@@ -175,7 +175,7 @@ export function useVtScan() {
 
     // Derive pacing interval from how many VT keys the server has configured.
     // 4 req/min per key → 60000 / (keyCount * 4) ms between requests.
-    // Fetched once per scan so adding keys to Vercel takes effect immediately.
+    // Fetched once per scan so rotated runtime keys take effect immediately.
     const keyCount = await fetchVtKeyCount();
     const vtPaceMs = Math.ceil(60_000 / (keyCount * 4)); // e.g. 5 keys → 3000ms
     let lastVtCallAt = 0; // shared across workers — enforces global pace

@@ -132,7 +132,7 @@ function AppInner() {
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
       case 'history':     return <HistoryTab onReScan={handleReScan} onGoToScan={() => setActiveTab('ioc-scan')} />;
-      case 'pac-filter':  return activeTeam ? <PacFilterTab key={`${workspaceIdentity}:${activeTeam}`} team={activeTeam} identity={workspaceIdentity!} onCountChange={setPacFilterCount} /> : <div className="empty-state">No team filter access.</div>;
+      case 'pac-filter':  return activeTeam ? <PacFilterTab key={`${workspaceIdentity}:${activeTeam}`} team={activeTeam} identity={workspaceIdentity!} canManageClients={role === 'admin' || role === 'soc_lead' || role === 'l2'} onCountChange={setPacFilterCount} /> : <div className="empty-state">No team filter access.</div>;
       case 'daily-eod':   return <DailyEodTab />;
       case 'admin-users': return <AdminUsersTab />;
       case 'admin-logs':  return <AdminLogsTab />;
