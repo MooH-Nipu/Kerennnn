@@ -1,4 +1,4 @@
-import type { Role, Team, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
+import type { Role, Team, CharlieFilterClient, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -201,39 +201,27 @@ export const api = {
   },
 
   teamFilter: {
-    get: (team: Team) => apiFetch<{ success: boolean; team_context: Team; items: Array<{ ip: string; payload: Record<string, unknown>; updated_at: string }> }>('/api/v1/team-filter', { headers: { 'X-Team-Context': team } }),
-    post: (team: Team, ips: string[]) => apiFetch<Record<string, unknown>>('/api/v1/team-filter', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Team-Context': team },
+    get: (team: Team, clientCode?: string) => apiFetch<{ success: boolean; team_context: Team; client_context: string | null; items: Array<{ ip: string; payload: Record<string, unknown>; updated_at: string }> }>('/api/v1/team-filter', {
+      headers: { 'X-Team-Context': team, ...(clientCode ? { 'X-Client-Context': clientCode } : {}) },
+    }),
+    post: (team: Team, ips: string[], clientCode?: string) => apiFetch<Record<string, unknown>>('/api/v1/team-filter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Team-Context': team, ...(clientCode ? { 'X-Client-Context': clientCode } : {}) },
       body: JSON.stringify({ items: ips.map(ip => ({ ip })) }),
     }),
-    delete: (team: Team, ips: string[]) => apiFetch<{ deletedCount: number }>('/api/v1/team-filter', {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json', 'X-Team-Context': team },
+    delete: (team: Team, ips: string[], clientCode?: string) => apiFetch<{ deletedCount: number }>('/api/v1/team-filter', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'X-Team-Context': team, ...(clientCode ? { 'X-Client-Context': clientCode } : {}) },
       body: JSON.stringify({ ips }),
     }),
   },
 
-  mergerDb: {
-    get: (password?: string) =>
-      apiFetch<Record<string, unknown>>('/api/scan-merger', {
-        headers: password ? { 'X-Merger-Password': password } : {},
-      }),
-    post: (ips: string[], password?: string) =>
-      apiFetch<Record<string, unknown>>('/api/scan-merger', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(password ? { 'X-Merger-Password': password } : {}),
-        },
-        body: JSON.stringify({ items: ips.map(ip => ({ ip })) }),
-      }),
-    delete: (ips: string[], password?: string) =>
-      apiFetch<Record<string, unknown>>('/api/scan-merger', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(password ? { 'X-Merger-Password': password } : {}),
-        },
-        body: JSON.stringify({ ips }),
-      }),
+  charlieClients: {
+    list: () => apiFetch<{ ok: boolean; clients: CharlieFilterClient[] }>('/api/v1/charlie-clients'),
+    create: (code: string, label: string) => apiFetch<{ ok: boolean; client: CharlieFilterClient }>('/api/v1/charlie-clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, label }),
+    }),
   },
 };

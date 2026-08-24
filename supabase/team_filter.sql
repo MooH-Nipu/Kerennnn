@@ -21,9 +21,6 @@ create table if not exists public.team_filter_ips (
   check (family(ip) = 4)
 );
 
-create index if not exists team_filter_ips_team_updated_idx
-  on public.team_filter_ips (team, updated_at desc);
-
 create table if not exists public.team_filter_audit (
   id bigint generated always as identity primary key,
   request_id text not null unique,
@@ -42,38 +39,6 @@ create index if not exists team_filter_audit_team_created_idx
   on public.team_filter_audit (team, created_at desc);
 create index if not exists team_filter_audit_actor_created_idx
   on public.team_filter_audit (actor_id, created_at desc);
-
-create or replace function public.sync_legacy_pac_filter()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-begin
-  if tg_op = 'DELETE' then
-    if old.ip ~ '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$' then
-      delete from public.team_filter_ips where team = 'PAC' and ip = old.ip::inet;
-    end if;
-    return old;
-  end if;
-  if tg_op = 'UPDATE' and old.ip is distinct from new.ip then
-    if old.ip ~ '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$' then
-      delete from public.team_filter_ips where team = 'PAC' and ip = old.ip::inet;
-    end if;
-  end if;
-  if new.ip !~ '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$' then return new; end if;
-  insert into public.team_filter_ips (team, ip, payload, updated_at)
-  values ('PAC', new.ip::inet, new.payload, new.updated_at)
-  on conflict (team, ip) do update
-    set payload = excluded.payload, updated_at = excluded.updated_at;
-  return new;
-end;
-$$;
-
-drop trigger if exists merger_scanned_ips_team_bridge on public.merger_scanned_ips;
-create trigger merger_scanned_ips_team_bridge
-after insert or update or delete on public.merger_scanned_ips
-for each row execute function public.sync_legacy_pac_filter();
 
 create or replace function public.mutate_team_filter(
   p_team text,
@@ -115,11 +80,6 @@ begin
       returning host(ip) as ip
     ) select coalesce(array_agg(ip), array[]::text[]) into changed from inserted;
 
-    if p_team = 'PAC' and cardinality(changed) > 0 then
-      insert into public.merger_scanned_ips (ip, payload, updated_at)
-      select value, jsonb_build_object('ioc', value), now() from unnest(changed) value
-      on conflict (ip) do nothing;
-    end if;
   else
     with deleted as (
       delete from public.team_filter_ips
@@ -127,9 +87,6 @@ begin
       returning host(ip) as ip
     ) select coalesce(array_agg(ip), array[]::text[]) into changed from deleted;
 
-    if p_team = 'PAC' and cardinality(changed) > 0 then
-      delete from public.merger_scanned_ips where ip = any(changed);
-    end if;
   end if;
 
   insert into public.team_filter_audit (
@@ -149,20 +106,8 @@ begin
 end;
 $$;
 
-revoke all on function public.sync_legacy_pac_filter() from public, anon, authenticated;
 revoke all on function public.mutate_team_filter(text, text, text[], uuid, text, text, integer) from public, anon, authenticated;
 grant execute on function public.mutate_team_filter(text, text, text[], uuid, text, text, integer) to service_role;
-
--- Preserve current PAC list as PAC data. Conflict-safe on repeated runs.
-with valid_legacy_ips as materialized (
-  select ip, payload, updated_at
-  from public.merger_scanned_ips
-  where ip ~ '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$'
-)
-insert into public.team_filter_ips (team, ip, payload, updated_at)
-select 'PAC', ip::inet, payload, updated_at
-from valid_legacy_ips
-on conflict (team, ip) do nothing;
 
 -- Browser clients have no direct table access. Server uses service-role key.
 alter table public.team_filter_ips enable row level security;

@@ -3,7 +3,7 @@ const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
 
-// Legacy PAC-only endpoint. Leads must use /api/v1/team-filter with explicit context.
+// Legacy PAC-only endpoint backed by canonical team_filter_ips storage.
 const PAC_ROLES = ['pac'];
 
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
@@ -67,8 +67,9 @@ module.exports = async function handler(req, res) {
       for (;;) {
         const to = from + pageSize - 1;
         const { data, error } = await supabase
-          .from('merger_scanned_ips')
+          .from('team_filter_ips')
           .select('ip,payload,updated_at')
+          .eq('team', 'PAC')
           .order('ip', { ascending: true })
           .range(from, to);
         if (error) return serverError(res, error, 'scan-merger GET');
@@ -130,8 +131,9 @@ module.exports = async function handler(req, res) {
       for (let li = 0; li < ipList.length; li += EXISTING_LOOKUP_CHUNK) {
         const slice = ipList.slice(li, li + EXISTING_LOOKUP_CHUNK);
         const { data: rows, error: selErr } = await supabase
-          .from('merger_scanned_ips')
+          .from('team_filter_ips')
           .select('ip')
+          .eq('team', 'PAC')
           .in('ip', slice);
         if (selErr) {
           return serverError(res, selErr, 'scan-merger lookup');
@@ -149,7 +151,8 @@ module.exports = async function handler(req, res) {
 
         const merged = { ...mergedPatch, ioc: ip };
 
-        const { error: insErr } = await supabase.from('merger_scanned_ips').insert({
+        const { error: insErr } = await supabase.from('team_filter_ips').insert({
+          team: 'PAC',
           ip,
           payload: merged,
           updated_at: currentUpdatedAtIsoWib(),
@@ -184,8 +187,9 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ error: 'Invalid ip query parameter.' });
         }
         const { data: delRows, error } = await supabase
-          .from('merger_scanned_ips')
+          .from('team_filter_ips')
           .delete()
+          .eq('team', 'PAC')
           .eq('ip', norm)
           .select('ip');
         if (error) return serverError(res, error, 'scan-merger DELETE (single)');
@@ -222,8 +226,9 @@ module.exports = async function handler(req, res) {
         for (let i = 0; i < norms.length; i += DELETE_IN_CHUNK) {
           const slice = norms.slice(i, i + DELETE_IN_CHUNK);
           const { data: delRows, error } = await supabase
-            .from('merger_scanned_ips')
+            .from('team_filter_ips')
             .delete()
+            .eq('team', 'PAC')
             .in('ip', slice)
             .select('ip');
           if (error) return serverError(res, error, 'scan-merger DELETE (batch)');
@@ -244,8 +249,9 @@ module.exports = async function handler(req, res) {
         });
       }
       const { data: delRows, error } = await supabase
-        .from('merger_scanned_ips')
+        .from('team_filter_ips')
         .delete()
+        .eq('team', 'PAC')
         .eq('ip', norm)
         .select('ip');
       if (error) return serverError(res, error, 'scan-merger DELETE');

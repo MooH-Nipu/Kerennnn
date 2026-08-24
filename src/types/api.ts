@@ -3,6 +3,13 @@ import type { ScanItem } from './vt';
 export type Role = 'admin' | 'soc_lead' | 'pac' | 'charlie' | 'l1' | 'l2';
 export type Team = 'PAC' | 'CHARLIE';
 
+export interface CharlieFilterClient {
+  id: number;
+  code: string;
+  label: string;
+  sort_order: number;
+}
+
 export interface TeamAccess {
   assignedTeam: Team | null;
   allowedTeams: Team[];

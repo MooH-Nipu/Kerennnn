@@ -13,6 +13,7 @@ const ROUTES = [
   ['/api/crt', require('./crt.js')],
   ['/api/scan-merger', require('./scan-merger.js')],
   ['/api/v1/team-filter', require('./team-filter.js')],
+  ['/api/v1/charlie-clients', require('./charlie-clients.js')],
   ['/api/scan-history', require('./scan-history.js')],
   ['/api/user-prefs', require('./user-prefs.js')],
   ['/api/user-webhook', require('./user-webhook.js')],

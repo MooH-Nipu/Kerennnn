@@ -45,22 +45,20 @@ test('L1 navigation defaults to focused investigation workflow', () => {
   assert.match(source('src/App.tsx'), /role !== 'l1' && !tabPrefs\.tutorialDismissed/);
 });
 
-test('team migration skips malformed legacy IP text before inet cast', () => {
+test('team filter schema uses one canonical storage table', () => {
   const migration = source('supabase/team_filter.sql');
   assert.match(migration, /begin;/);
   assert.match(migration, /commit;/);
-  assert.doesNotMatch(migration, /pg_input_is_valid/);
-  assert.match(migration, /valid_legacy_ips as materialized/);
-  assert.match(migration, /ip ~ '\^/);
-  assert.match(migration, /select 'PAC', ip::inet/);
+  assert.match(migration, /create table if not exists public\.team_filter_ips/);
+  assert.doesNotMatch(migration, /merger_scanned_ips/);
 });
 
-test('team mutations are transactional and legacy PAC remains bridged during cutover', () => {
+test('team mutations remain transactional without legacy PAC mirroring', () => {
   const migration = source('supabase/team_filter.sql');
   const endpoint = source('api/team-filter.js');
   assert.match(migration, /create or replace function public\.mutate_team_filter/);
   assert.match(migration, /insert into public\.team_filter_audit/);
-  assert.match(migration, /sync_legacy_pac_filter/);
+  assert.doesNotMatch(migration, /sync_legacy_pac_filter/);
   assert.match(endpoint, /\.rpc\('mutate_team_filter'/);
   assert.doesNotMatch(endpoint, /\.from\('team_filter_ips'\)\.upsert/);
 });
@@ -91,8 +89,43 @@ test('Team Filter session cache is isolated by authenticated identity', () => {
   const app = source('src/App.tsx');
   const hook = source('src/hooks/useMergerDb.ts');
   assert.match(app, /identity=\{workspaceIdentity!\}/);
-  assert.match(hook, /export function useMergerDb\(team: Team, identity: string\)/);
-  assert.match(hook, /const cacheKey = `\$\{identity\}:\$\{team\}`/);
+  assert.match(hook, /export function useMergerDb\(team: Team, identity: string, clientCode\?: string\)/);
+  assert.match(hook, /const cacheKey = `\$\{identity\}:\$\{team\}:\$\{clientCode \?\? 'LEGACY'\}`/);
+});
+
+test('Team Filter ignores stale responses after rapid client switching', () => {
+  const hook = source('src/hooks/useMergerDb.ts');
+  assert.match(hook, /const activeCacheKey = useRef\(cacheKey\)/);
+  assert.match(hook, /activeCacheKey\.current = cacheKey/);
+  assert.match(hook, /if \(activeCacheKey\.current === requestCacheKey\) \{[\s\S]*setItems\(loaded\)/);
+  assert.match(hook, /if \(activeCacheKey\.current === requestCacheKey\) setError/);
+});
+
+test('Charlie client creation is locked during active filter work', () => {
+  const filter = source('src/pages/PacFilterTab.tsx');
+  assert.match(filter, /const createInFlight = useRef\(false\)/);
+  assert.match(filter, /if \(createInFlight\.current\) return/);
+  assert.match(filter, /createInFlight\.current = true/);
+  assert.match(filter, /createInFlight\.current = false/);
+  assert.match(filter, /disabled=\{[^}]*loading[^}]*posting[^}]*clientLoading[^}]*clientCreating[^}]*\}/);
+});
+
+test('Team Filter submit reports success only after DB reload succeeds', () => {
+  const hook = source('src/hooks/useMergerDb.ts');
+  assert.match(hook, /const loaded = await refresh\(\)/);
+  assert.match(hook, /if \(loaded\) \{/);
+  assert.match(hook, /return done === toPost\.length && loaded !== null/);
+  assert.doesNotMatch(hook, /sessionItems\[cacheKey\]\.length/);
+});
+
+test('Team Filter submit is synchronously locked against rapid repeat clicks', () => {
+  const hook = source('src/hooks/useMergerDb.ts');
+  const filter = source('src/pages/PacFilterTab.tsx');
+  assert.match(hook, /const submitInFlight = useRef\(false\)/);
+  assert.match(hook, /if \(submitInFlight\.current\) return false/);
+  assert.match(hook, /submitInFlight\.current = true;[\s\S]*setPosting\(true\)/);
+  assert.match(hook, /finally \{[\s\S]*submitInFlight\.current = false/);
+  assert.match(filter, /const submitted = await submitIps\(input\);[\s\S]*if \(submitted\) setInput\(''\)/);
 });
 
 test('Team Filter refresh is a prominent header icon action', () => {

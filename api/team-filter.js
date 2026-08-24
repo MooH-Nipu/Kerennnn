@@ -10,6 +10,14 @@ const { resolveTeamContext } = require('./_tenancy');
 const MAX_BATCH = 1000;
 const PAGE_SIZE = 1000;
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'DELETE']);
+const CLIENT_CODE_RE = /^[A-Z0-9_-]{2,32}$/;
+
+function normalizeClientCode(value) {
+  if (typeof value !== 'string') throw boundaryError('Client context is required.');
+  const code = value.trim().toUpperCase();
+  if (!CLIENT_CODE_RE.test(code)) throw boundaryError('Client code must be 2-32 characters: A-Z, 0-9, underscore, or hyphen.');
+  return code;
+}
 
 function isAllowedMethod(method) {
   return ALLOWED_METHODS.has(method);
@@ -91,11 +99,37 @@ async function fetchAllTeamFilterRows(supabase, team) {
   }
 }
 
+async function resolveCharlieClient(supabase, code) {
+  const { data, error } = await supabase
+    .from('charlie_filter_clients')
+    .select('id,code,label')
+    .eq('code', code)
+    .eq('active', true)
+    .maybeSingle();
+  return { client: data || null, error };
+}
+
+async function fetchAllCharlieClientFilterRows(supabase, clientId) {
+  const items = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('charlie_client_filter_ips')
+      .select('ip,payload,updated_at')
+      .eq('client_id', clientId)
+      .order('ip', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) return { items, error };
+    const rows = data || [];
+    items.push(...rows);
+    if (rows.length < PAGE_SIZE) return { items, error: null };
+  }
+}
+
 module.exports = async function handler(req, res) {
   const id = requestId();
   const started = Date.now();
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Team-Context');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Team-Context, X-Client-Context');
   res.setHeader('X-Request-Id', id);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (!isAllowedMethod(req.method)) {
@@ -118,9 +152,34 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  let clientCode = null;
+  let charlieClient = null;
+  const requestedClient = req.headers['x-client-context'];
+  if (requestedClient != null && String(requestedClient).trim() !== '') {
+    try { clientCode = normalizeClientCode(requestedClient); }
+    catch (error) {
+      return sendError(res, error.status || 400, 'ERR_INVALID_CLIENT_CONTEXT', error.message, id);
+    }
+    if (team !== 'CHARLIE') {
+      return sendError(res, 400, 'ERR_INVALID_CLIENT_CONTEXT', 'Client context is available only for CHARLIE.', id);
+    }
+    if (clientCode !== 'GENERAL') {
+      const resolved = await resolveCharlieClient(supabase, clientCode);
+      if (resolved.error) {
+        if (isSchemaMissingError(resolved.error)) return sendError(res, 503, 'ERR_CLIENT_SCHEMA_NOT_READY', 'Charlie client filters are not ready.', id);
+        return sendError(res, 503, 'ERR_CLIENT_LOOKUP_FAILED', 'Unable to load Charlie client context.', id);
+      }
+      if (!resolved.client) return sendError(res, 404, 'ERR_CLIENT_NOT_FOUND', 'Charlie client not found or inactive.', id);
+      charlieClient = resolved.client;
+    }
+  }
+
   try {
     if (req.method === 'GET') {
-      const { items, error } = await fetchAllTeamFilterRows(supabase, team);
+      const scoped = team === 'CHARLIE' && clientCode && clientCode !== 'GENERAL';
+      const { items, error } = scoped
+        ? await fetchAllCharlieClientFilterRows(supabase, charlieClient.id)
+        : await fetchAllTeamFilterRows(supabase, team);
       if (error) {
         const schemaMissing = isSchemaMissingError(error);
         if (schemaMissing) return sendError(res, 503, 'ERR_SCHEMA_NOT_READY', 'Run required Supabase migrations before using team filters.', id);
@@ -130,9 +189,13 @@ module.exports = async function handler(req, res) {
       }
       const auditOk = await recordTeamFilterEvent(supabase, req, id, started, {
         team, operation: 'list', itemCount: items.length, status: 'ok',
+        detail: clientCode ? { client: clientCode } : null,
       });
       if (!auditOk) return sendError(res, 503, 'ERR_AUDIT_UNAVAILABLE', 'Query completed but audit persistence failed; result withheld.', id);
-      return res.status(200).json({ success: true, team_context: team, items, total_records: items.length, request_id: id });
+      return res.status(200).json({
+        success: true, team_context: team, client_context: clientCode,
+        items, total_records: items.length, request_id: id,
+      });
     }
 
     let body;
@@ -152,11 +215,21 @@ module.exports = async function handler(req, res) {
         }, { status: error.status || 400, code: 'ERR_INVALID_FILTER_ITEMS', message: error.message });
       }
       const ips = clean.map(row => row.ip);
-      const { data, error } = await supabase.rpc('mutate_team_filter', {
-        p_team: team, p_operation: 'insert', p_ips: ips,
-        p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
-        p_request_id: id, p_execution_time_ms: Date.now() - started,
-      });
+      let mutation;
+      if (team === 'CHARLIE' && clientCode && clientCode !== 'GENERAL') {
+        mutation = await supabase.rpc('mutate_charlie_client_filter', {
+          p_client_id: charlieClient.id, p_operation: 'insert', p_ips: ips,
+          p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
+          p_request_id: id, p_execution_time_ms: Date.now() - started,
+        });
+      } else {
+        mutation = await supabase.rpc('mutate_team_filter', {
+          p_team: team, p_operation: 'insert', p_ips: ips,
+          p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
+          p_request_id: id, p_execution_time_ms: Date.now() - started,
+        });
+      }
+      const { data, error } = mutation;
       if (error) {
         const schemaMissing = isSchemaMissingError(error) || error.code === 'PGRST202';
         if (schemaMissing) return sendError(res, 503, 'ERR_SCHEMA_NOT_READY', 'Run required Supabase migrations before using team filters.', id);
@@ -176,11 +249,21 @@ module.exports = async function handler(req, res) {
           team, operation: 'delete', status: 'denied', detail: { code: 'ERR_INVALID_FILTER_ITEMS' },
         }, { status: error.status || 400, code: 'ERR_INVALID_FILTER_ITEMS', message: error.message });
       }
-      const { data, error } = await supabase.rpc('mutate_team_filter', {
-        p_team: team, p_operation: 'delete', p_ips: ips,
-        p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
-        p_request_id: id, p_execution_time_ms: Date.now() - started,
-      });
+      let mutation;
+      if (team === 'CHARLIE' && clientCode && clientCode !== 'GENERAL') {
+        mutation = await supabase.rpc('mutate_charlie_client_filter', {
+          p_client_id: charlieClient.id, p_operation: 'delete', p_ips: ips,
+          p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
+          p_request_id: id, p_execution_time_ms: Date.now() - started,
+        });
+      } else {
+        mutation = await supabase.rpc('mutate_team_filter', {
+          p_team: team, p_operation: 'delete', p_ips: ips,
+          p_actor_id: req.auth.userId, p_actor_username: req.auth.username,
+          p_request_id: id, p_execution_time_ms: Date.now() - started,
+        });
+      }
+      const { data, error } = mutation;
       if (error) {
         const schemaMissing = isSchemaMissingError(error) || error.code === 'PGRST202';
         if (schemaMissing) return sendError(res, 503, 'ERR_SCHEMA_NOT_READY', 'Run required Supabase migrations before using team filters.', id);
@@ -206,3 +289,6 @@ module.exports.isSchemaMissingError = isSchemaMissingError;
 module.exports.requestId = requestId;
 module.exports.isAllowedMethod = isAllowedMethod;
 module.exports.fetchAllTeamFilterRows = fetchAllTeamFilterRows;
+module.exports.normalizeClientCode = normalizeClientCode;
+module.exports.resolveCharlieClient = resolveCharlieClient;
+module.exports.fetchAllCharlieClientFilterRows = fetchAllCharlieClientFilterRows;
