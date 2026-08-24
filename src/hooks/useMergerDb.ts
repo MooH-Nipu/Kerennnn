@@ -14,9 +14,11 @@ export interface MergerItem {
 /** Session cache — identity + team scoped so logout/login never leaks prior snapshots. */
 const sessionItems: Record<string, MergerItem[]> = {};
 const sessionAutoFetched: Record<string, boolean> = {};
+const sessionGeneration: Record<string, number> = {};
 
 export function invalidateMergerDbCache(identity: string, team: Team, clientCode?: string) {
   const cacheKey = `${identity}:${team}:${clientCode ?? 'LEGACY'}`;
+  sessionGeneration[cacheKey] = (sessionGeneration[cacheKey] ?? 0) + 1;
   delete sessionItems[cacheKey];
   delete sessionAutoFetched[cacheKey];
 }
@@ -31,16 +33,20 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const submitInFlight = useRef(false);
   const deleteInFlight = useRef(false);
+  const activeOperations = useRef(0);
   const activeCacheKey = useRef(cacheKey);
   activeCacheKey.current = cacheKey;
 
   const refresh = useCallback(async () => {
     const requestCacheKey = cacheKey;
+    const requestGeneration = sessionGeneration[cacheKey] ?? 0;
+    activeOperations.current += 1;
     setLoading(true);
     setError(null);
     try {
       const res = await api.teamFilter.get(team, clientCode);
       const loaded = res.items ?? [];
+      if ((sessionGeneration[cacheKey] ?? 0) !== requestGeneration) return null;
       sessionItems[cacheKey] = loaded;
       sessionAutoFetched[cacheKey] = true;
       if (activeCacheKey.current === requestCacheKey) {
@@ -52,6 +58,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       if (activeCacheKey.current === requestCacheKey) setError(err instanceof Error ? err.message : String(err));
       return null;
     } finally {
+      activeOperations.current -= 1;
       if (activeCacheKey.current === requestCacheKey) setLoading(false);
     }
   }, [cacheKey, team, clientCode]);
@@ -71,6 +78,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
     // cannot start duplicate requests before `posting` disables the button.
     if (submitInFlight.current) return false;
     submitInFlight.current = true;
+    activeOperations.current += 1;
 
     try {
       const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
@@ -113,6 +121,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       }
       return false;
     } finally {
+      activeOperations.current -= 1;
       submitInFlight.current = false;
       setPosting(false);
       setProgress(null);
@@ -122,6 +131,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
   const deleteIps = useCallback(async (ips: string[]): Promise<boolean> => {
     if (deleteInFlight.current) return false;
     deleteInFlight.current = true;
+    activeOperations.current += 1;
     setLoading(true);
     setError(null);
     let deleted = 0;
@@ -149,6 +159,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       setError(message);
       return false;
     } finally {
+      activeOperations.current -= 1;
       deleteInFlight.current = false;
       setLoading(false);
     }
@@ -158,6 +169,8 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
     setError(null);
     setStatusMsg(null);
   }, []);
+
+  const hasActiveOperation = useCallback(() => activeOperations.current > 0, []);
 
   return {
     items,
@@ -172,5 +185,6 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
     refresh,
     submitIps,
     deleteIps,
+    hasActiveOperation,
   };
 }

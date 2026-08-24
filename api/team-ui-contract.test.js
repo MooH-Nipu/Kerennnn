@@ -101,6 +101,20 @@ test('Team Filter ignores stale responses after rapid client switching', () => {
   assert.match(hook, /if \(activeCacheKey\.current === requestCacheKey\) setError/);
 });
 
+test('deleted client cache rejects late responses and concurrent filter actions', () => {
+  const hook = source('src/hooks/useMergerDb.ts');
+  const filter = source('src/pages/PacFilterTab.tsx');
+  assert.match(hook, /const sessionGeneration: Record<string, number> = \{\}/);
+  assert.match(hook, /sessionGeneration\[cacheKey\] = \(sessionGeneration\[cacheKey\] \?\? 0\) \+ 1/);
+  assert.match(hook, /const requestGeneration = sessionGeneration\[cacheKey\] \?\? 0/);
+  assert.match(hook, /if \(\(sessionGeneration\[cacheKey\] \?\? 0\) !== requestGeneration\) return null/);
+  assert.match(hook, /const hasActiveOperation = useCallback\(\(\) => activeOperations\.current > 0, \[\]\)/);
+  assert.match(filter, /if \(deleteClientInFlight\.current\) return/);
+  assert.match(filter, /if \(deleteClientInFlight\.current \|\| !toDelete\.length\) return/);
+  assert.match(filter, /if \(hasActiveOperation\(\)\) return/);
+  assert.match(filter, /onClick=\{handleRefresh\}/);
+});
+
 test('Charlie client creation is locked during active filter work', () => {
   const filter = source('src/pages/PacFilterTab.tsx');
   assert.match(filter, /const createInFlight = useRef\(false\)/);
