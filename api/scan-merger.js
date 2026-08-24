@@ -2,9 +2,10 @@ const { normalizeIpLine } = require('./_ioc');
 const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
+const { getRoleContext } = require('./_tenancy');
 
 // Legacy PAC-only endpoint backed by canonical team_filter_ips storage.
-const PAC_ROLES = ['pac'];
+const VALID_ROLES = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
 
 /** ISO-8601 dengan offset WIB (+07:00) untuk kolom timestamptz (Postgres menyimpan momen absolut). */
 function currentUpdatedAtIsoWib() {
@@ -56,7 +57,9 @@ module.exports = async function handler(req, res) {
       error: 'Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).',
     });
   }
-  if (!await requireCurrentRole(req, res, supabase, PAC_ROLES)) return;
+  if (!await requireCurrentRole(req, res, supabase, VALID_ROLES)) return;
+  const { allowedTeams } = getRoleContext(req.auth.role, req.auth.teamAccess);
+  if (!allowedTeams.includes('PAC')) return res.status(403).json({ error: 'PAC access denied.' });
 
   try {
     if (req.method === 'GET') {

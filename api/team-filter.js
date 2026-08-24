@@ -11,6 +11,7 @@ const MAX_BATCH = 1000;
 const PAGE_SIZE = 1000;
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'DELETE']);
 const CLIENT_CODE_RE = /^[A-Z0-9_-]{2,32}$/;
+const VALID_ROLES = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
 
 function normalizeClientCode(value) {
   if (typeof value !== 'string') throw boundaryError('Client context is required.');
@@ -139,7 +140,7 @@ module.exports = async function handler(req, res) {
 
   const supabase = getSupabase();
   if (!supabase) return sendError(res, 503, 'ERR_DATABASE_UNAVAILABLE', 'Supabase is not configured.', id);
-  if (!await requireCurrentRole(req, res, supabase, ['admin', 'pac', 'charlie', 'soc_lead', 'l2'])) return;
+  if (!await requireCurrentRole(req, res, supabase, VALID_ROLES)) return;
 
   let team;
   try {

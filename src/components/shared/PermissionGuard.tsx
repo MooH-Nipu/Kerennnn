@@ -8,9 +8,9 @@ interface Props {
 }
 
 export function PermissionGuard({ tab, children }: Props) {
-  const { role } = useAuthState();
+  const { role, allowedTeams } = useAuthState();
 
-  if (!role || !canViewTab(role, tab)) {
+  if (!role || !canViewTab(role, tab, allowedTeams)) {
     return (
       <div className="perm-guard-blocked">
         <div className="perm-guard-icon">🔒</div>

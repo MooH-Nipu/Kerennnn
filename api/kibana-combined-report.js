@@ -55,9 +55,6 @@ const TS_CANDIDATES = [
   'Timestamp',
 ];
 
-function authEnabled() {
-  return !!(process.env.APP_PASSWORD && process.env.APP_AUTH_SECRET);
-}
 
 function todayMMDDYYYY() {
   const d = new Date();
@@ -476,7 +473,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (authEnabled() && !requireAuth(req, res)) return;
+  if (!requireAuth(req, res)) return;
 
   let fields;
   let files;

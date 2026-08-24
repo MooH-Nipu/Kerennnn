@@ -17,7 +17,10 @@ Apply SQL in this order:
 5. [supabase/team_filter.sql](supabase/team_filter.sql)
 6. [supabase/security_hardening.sql](supabase/security_hardening.sql)
 7. [supabase/charlie_multi_client_filter.sql](supabase/charlie_multi_client_filter.sql)
-8. [supabase/scan_history.sql](supabase/scan_history.sql)
+8. [supabase/multi_team_access.sql](supabase/multi_team_access.sql)
+9. [supabase/scan_history.sql](supabase/scan_history.sql)
+
+`multi_team_access.sql` is additive: it keeps `app_users.role` and legacy RPC signatures intact while adding PAC/CHARLIE memberships. Apply it before deploying app code that reads `team_access`.
 
 Existing databases that still contain legacy PAC copies must then apply
 [supabase/team_filter_storage_optimization.sql](supabase/team_filter_storage_optimization.sql).

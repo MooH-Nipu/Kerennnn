@@ -16,7 +16,7 @@ test('team-aware filter UI carries server-issued access and explicit context', (
   assert.match(auth, /activeTeam:\s*Team \| null/);
   assert.match(auth, /setActiveTeam/);
   assert.match(settings, /Team context/);
-  assert.match(settings, /const canChooseTeam = canSwitchTeam && \['admin', 'l2', 'soc_lead'\]\.includes\(role\)/);
+  assert.match(settings, /const canChooseTeam = canSwitchTeam/);
   assert.match(settings, /canChooseTeam \? \(/);
   assert.match(settings, /className="settings-team-context"/);
   assert.match(settings, /Team context: \{activeTeam\}/);
@@ -25,23 +25,28 @@ test('team-aware filter UI carries server-issued access and explicit context', (
   assert.match(app, /<PacFilterTab[\s\S]*team=\{activeTeam\}/);
 });
 
-test('admin has end-to-end Team Filter access', () => {
+test('Team Filter access requires explicit membership independently from authority role', () => {
   const permissions = source('src/lib/permissions.ts');
   const tenancy = source('api/_tenancy.js');
   const endpoint = source('api/team-filter.js');
-  const migration = source('supabase/team_filter.sql');
-  assert.match(permissions, /TEAM_FILTER_ROLES: Role\[\] = \['admin', 'soc_lead', 'pac', 'charlie', 'l2'\]/);
-  assert.match(tenancy, /admin:\s*\{ assignedTeam: null, allowedTeams: \['PAC', 'CHARLIE'\], canSwitchTeam: true \}/);
-  assert.match(endpoint, /\['admin', 'pac', 'charlie', 'soc_lead', 'l2'\]/);
-  assert.match(migration, /actor_role in \('admin', 'soc_lead', 'l2'\)/);
+  const migration = source('supabase/multi_team_access.sql');
+  assert.match(permissions, /if \(tab === 'pac-filter'\) return allowedTeams\.length > 0/);
+  assert.match(tenancy, /allowedTeams = \['PAC', 'CHARLIE'\]\.filter\(team => explicit\.includes\(team\)\)/);
+  assert.doesNotMatch(tenancy, /const TEAM_CONTEXT|legacy\?\.allowedTeams/);
+  assert.match(endpoint, /requireCurrentRole\(req, res, supabase, VALID_ROLES\)/);
+  assert.match(migration, /p_team = any\(actor_team_access\)/);
+  assert.doesNotMatch(migration, /actor_role in \('admin', 'soc_lead', 'l2'\) or/);
 });
 
-test('L1 navigation defaults to focused investigation workflow', () => {
+test('L1 navigation includes global utilities without admin tools', () => {
   const permissions = source('src/lib/permissions.ts');
   const prefs = source('src/hooks/useTabPrefs.ts');
   assert.match(permissions, /const ANALYST_ROLES/);
-  assert.doesNotMatch(permissions, /'formatter':\s+null/);
-  assert.match(prefs, /L1_NAV_LAYOUT/);
+  assert.match(permissions, /'formatter':\s+null/);
+  assert.match(permissions, /'daily-eod':\s+null/);
+  const l1Layout = prefs.match(/L1_NAV_LAYOUT[\s\S]*?\n\];/)?.[0] || '';
+  assert.match(l1Layout, /'formatter', 'merger', 'json', 'cve', 'attack'/);
+  assert.doesNotMatch(l1Layout, /dashboard|admin-users|admin-logs/);
   assert.match(source('src/App.tsx'), /role !== 'l1' && !tabPrefs\.tutorialDismissed/);
 });
 
@@ -82,7 +87,7 @@ test('Team Filter status dismissal clears both success and error state', () => {
 
 test('SOC Lead can select every server-issued team context', () => {
   const settings = source('src/pages/SettingsTab.tsx');
-  assert.match(settings, /const canChooseTeam = canSwitchTeam && \['admin', 'l2', 'soc_lead'\]\.includes\(role\)/);
+  assert.match(settings, /const canChooseTeam = canSwitchTeam/);
 });
 
 test('Team Filter session cache is isolated by authenticated identity', () => {

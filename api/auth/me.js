@@ -11,6 +11,7 @@ module.exports = async function handler(req, res) {
     ok: true,
     role: req.auth.role,
     username: req.auth.username,
-    ...getRoleContext(req.auth.role),
+    teamAccess: req.auth.teamAccess,
+    ...getRoleContext(req.auth.role, req.auth.teamAccess),
   });
 };

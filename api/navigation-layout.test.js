@@ -34,8 +34,8 @@ test('preference saves do not restore default tab and hidden active tabs fall ba
   const restoreEffect = app.match(/\/\/ Reset keep-alive state before the next identity may mount old tab children[\s\S]*?\}, \[([^\]]+)\]\);/)?.[1] || '';
 
   assert.equal(restoreEffect.replace(/\s/g, ''), 'workspaceIdentity');
-  assert.match(app, /const tabs = allowedTabs\(role, hiddenTabs\);/);
-  assert.match(app, /allowedTabs\(role!, hiddenTabs, activeTab\)/);
+  assert.match(app, /const tabs = allowedTabs\(role, hiddenTabs, undefined, allowedTeams\);/);
+  assert.match(app, /allowedTabs\(role!, hiddenTabs, activeTab, allowedTeams\)/);
 });
 
 test('saved tab order drives sidebar and shortcut order', () => {

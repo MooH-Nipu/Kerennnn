@@ -64,13 +64,13 @@ export const api = {
 
   admin: {
     listUsers: () => apiFetch<UsersListResponse>('/api/admin/users'),
-    createUser: (username: string, password: string, role: Role) =>
+    createUser: (username: string, password: string, role: Role, teamAccess: Team[]) =>
       apiFetch<{ ok: boolean; user: AppUser }>('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ username, password, role, teamAccess }),
       }),
-    updateUser: (id: string, updates: { role?: Role; password?: string; username?: string }) =>
+    updateUser: (id: string, updates: { role?: Role; teamAccess?: Team[]; password?: string; username?: string }) =>
       apiFetch<{ ok: boolean; user: AppUser }>('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

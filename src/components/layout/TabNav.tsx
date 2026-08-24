@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { Role } from '../../types/api';
+import type { Role, Team } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
 import { TAB_ACCESS } from '../../lib/permissions';
 import { DEFAULT_NAV_LAYOUT, type NavGroup, type TabSectionId } from '../../hooks/useTabPrefs';
@@ -36,15 +36,16 @@ export const ALL_TABS: TabDef[] = [
   { id: 'admin-usage', label: 'API Usage', icon: '⌁' },
 ];
 
-export function isTabVisible(tab: TabDef, role: Role): boolean {
+export function isTabVisible(tab: TabDef, role: Role, allowedTeams: Team[] = []): boolean {
+  if (tab.id === 'pac-filter') return allowedTeams.length > 0;
   const allowed = TAB_ACCESS[tab.id];
   return allowed === null || (allowed as Role[]).includes(role);
 }
 
-export function allowedTabs(role: Role, hidden: TabId[] = [], activeTab?: TabId): TabDef[] {
+export function allowedTabs(role: Role, hidden: TabId[] = [], activeTab?: TabId, allowedTeams: Team[] = []): TabDef[] {
   const hiddenSet = new Set(hidden);
   return ALL_TABS.filter(tab =>
-    isTabVisible(tab, role)
+    isTabVisible(tab, role, allowedTeams)
     && (!hiddenSet.has(tab.id) || tab.id === activeTab || tab.id === 'settings')
   );
 }
@@ -62,10 +63,11 @@ interface Props {
   groupLabels?: Partial<Record<TabSectionId, string>>;
   layout?: NavGroup[];
   pacFilterCount?: number;
+  allowedTeams?: Team[];
 }
 
-export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels = {}, groupLabels = {}, layout = DEFAULT_NAV_LAYOUT, pacFilterCount }: Props) {
-  const tabs = allowedTabs(role, hidden, activeTab);
+export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels = {}, groupLabels = {}, layout = DEFAULT_NAV_LAYOUT, pacFilterCount, allowedTeams = [] }: Props) {
+  const tabs = allowedTabs(role, hidden, activeTab, allowedTeams);
   const tabsById = new Map(tabs.map(tab => [tab.id, tab]));
   const tabsInSection = (section: NavGroup) => section.tabs.map(id => tabsById.get(id)).filter((tab): tab is TabDef => Boolean(tab));
   const navigationTabs = layout.flatMap(tabsInSection);
@@ -135,12 +137,12 @@ export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels =
   );
 }
 
-export function getRestoredTab(role: Role, hidden: TabId[] = []): TabId {
+export function getRestoredTab(role: Role, hidden: TabId[] = [], allowedTeams: Team[] = []): TabId {
   try {
     const saved = localStorage.getItem(getTabMemoryKey(role)) as TabId | null;
-    if (saved && !hidden.includes(saved) && ALL_TABS.some(tab => tab.id === saved && isTabVisible(tab, role))) return saved;
+    if (saved && !hidden.includes(saved) && ALL_TABS.some(tab => tab.id === saved && isTabVisible(tab, role, allowedTeams))) return saved;
   } catch { /* ignore */ }
   const preferred = role === 'admin' || role === 'l2' ? 'dashboard' : 'ioc-scan';
   if (!hidden.includes(preferred)) return preferred;
-  return allowedTabs(role, hidden)[0]?.id ?? 'settings';
+  return allowedTabs(role, hidden, undefined, allowedTeams)[0]?.id ?? 'settings';
 }

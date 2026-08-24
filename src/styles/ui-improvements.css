@@ -2889,9 +2889,37 @@ body { padding: 0; }
 
 .admin-create-form {
   display: grid;
-  grid-template-columns: 1fr 1fr 140px auto;
+  grid-template-columns: 1fr 1fr 140px 180px auto;
   gap: 0.75rem;
   align-items: end;
+}
+
+.team-access-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.team-access-options {
+  display: flex;
+  gap: 0.75rem;
+  min-height: 38px;
+  align-items: center;
+}
+
+.team-access-option {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.user-card__team-access {
+  padding: 0 1rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .admin-create-submit {

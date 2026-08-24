@@ -72,7 +72,7 @@ test('custom clickable rows expose keyboard behavior', () => {
 
 test('authenticated workspace blocks stale mounted tabs until identity reset commits', () => {
   const app = source('src/App.tsx');
-  assert.match(app, /const workspaceIdentity = authed && role && username \? `\$\{username\}:\$\{role\}` : null/);
+  assert.match(app, /const workspaceIdentity = authed && role && username \? `\$\{username\}:\$\{role\}:\$\{allowedTeams\.join\(','\)\}` : null/);
   assert.match(app, /workspaceIdentityRef\.current = workspaceIdentity/);
   assert.match(app, /if \(workspaceIdentityRef\.current !== workspaceIdentity\)/);
   assert.match(app, /setMountedTabs\(new Set\(\[restored\]\)\)/);
@@ -80,7 +80,7 @@ test('authenticated workspace blocks stale mounted tabs until identity reset com
 
 test('hidden active tab remains mounted until permission fallback commits', () => {
   const app = source('src/App.tsx');
-  assert.match(app, /allowedTabs\(role!, hiddenTabs, activeTab\)/);
+  assert.match(app, /allowedTabs\(role!, hiddenTabs, activeTab, allowedTeams\)/);
   assert.match(app, /\.filter\(id => permitted\.has\(id\)\)/);
 });
 

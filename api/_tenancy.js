@@ -1,14 +1,5 @@
 'use strict';
 
-const TEAM_CONTEXT = Object.freeze({
-  pac: { assignedTeam: 'PAC', allowedTeams: ['PAC'], canSwitchTeam: false },
-  charlie: { assignedTeam: 'CHARLIE', allowedTeams: ['CHARLIE'], canSwitchTeam: false },
-  soc_lead: { assignedTeam: null, allowedTeams: ['PAC', 'CHARLIE'], canSwitchTeam: true },
-  l2: { assignedTeam: null, allowedTeams: ['PAC', 'CHARLIE'], canSwitchTeam: true },
-  admin: { assignedTeam: null, allowedTeams: ['PAC', 'CHARLIE'], canSwitchTeam: true },
-  l1: { assignedTeam: null, allowedTeams: [], canSwitchTeam: false },
-});
-
 function tenancyError(status, code, message) {
   const error = new Error(message);
   error.status = status;
@@ -16,10 +7,15 @@ function tenancyError(status, code, message) {
   return error;
 }
 
-function getRoleContext(role) {
-  const value = TEAM_CONTEXT[String(role || '').toLowerCase()];
-  return value ? { ...value, allowedTeams: [...value.allowedTeams] } : {
-    assignedTeam: null, allowedTeams: [], canSwitchTeam: false,
+function getRoleContext(role, teamAccess) {
+  const explicit = Array.isArray(teamAccess)
+    ? teamAccess.map(value => String(value).trim().toUpperCase()).filter(value => value === 'PAC' || value === 'CHARLIE')
+    : [];
+  const allowedTeams = ['PAC', 'CHARLIE'].filter(team => explicit.includes(team));
+  return {
+    assignedTeam: allowedTeams.length === 1 ? allowedTeams[0] : null,
+    allowedTeams,
+    canSwitchTeam: allowedTeams.length > 1,
   };
 }
 
@@ -33,7 +29,7 @@ function normalizeTeamContext(value) {
 }
 
 function resolveTeamContext(auth, requestedContext) {
-  const context = getRoleContext(auth?.role);
+  const context = getRoleContext(auth?.role, auth?.teamAccess);
   const requested = normalizeTeamContext(requestedContext);
   if (!context.allowedTeams.length) {
     throw tenancyError(403, 'ERR_TEAM_ACCESS_DENIED', 'Role cannot access team filter data.');
@@ -53,4 +49,4 @@ function resolveTeamContext(auth, requestedContext) {
   return requested;
 }
 
-module.exports = { TEAM_CONTEXT, getRoleContext, normalizeTeamContext, resolveTeamContext };
+module.exports = { getRoleContext, normalizeTeamContext, resolveTeamContext };

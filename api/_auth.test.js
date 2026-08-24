@@ -103,10 +103,21 @@ describe('current database identity', () => {
     assert.deepEqual(
       validateCurrentIdentity(
         { userId: 'u1', role: 'soc_lead', username: 'old-name' },
-        { id: 'u1', role: 'soc_lead', username: 'lead' },
+        { id: 'u1', role: 'soc_lead', username: 'lead', team_access: ['CHARLIE', 'PAC', 'bad'] },
         ['soc_lead', 'l2']
       ),
-      { ok: true, auth: { userId: 'u1', role: 'soc_lead', username: 'lead' } }
+      { ok: true, auth: { userId: 'u1', role: 'soc_lead', username: 'lead', teamAccess: ['PAC', 'CHARLIE'] } }
+    );
+  });
+
+  test('current database identity replaces stale token team memberships', () => {
+    assert.deepEqual(
+      validateCurrentIdentity(
+        { userId: 'u1', role: 'l1', username: 'analyst', teamAccess: ['PAC'] },
+        { id: 'u1', role: 'l1', username: 'analyst', team_access: ['CHARLIE'] },
+        ['l1']
+      ),
+      { ok: true, auth: { userId: 'u1', role: 'l1', username: 'analyst', teamAccess: ['CHARLIE'] } }
     );
   });
 
