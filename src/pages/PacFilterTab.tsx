@@ -57,11 +57,13 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     items, itemCount,
     loading, posting, progress, error, statusMsg,
     setStatusMsg, clearStatus,
-    refresh, submitIps, deleteIps,
+    refresh, submitIps, deleteIps, hasActiveOperation,
   } = useMergerDb(team, identity, team === 'CHARLIE' ? clientCode : undefined);
 
   async function handleCreateClient() {
+    if (hasActiveOperation()) return;
     if (createInFlight.current) return;
+    if (deleteClientInFlight.current) return;
     createInFlight.current = true;
     setClientCreating(true);
     try {
@@ -81,7 +83,9 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
   }
 
   async function handleDeleteClient() {
-    if (clientCode === 'GENERAL' || deleteConfirmation !== clientCode || deleteClientInFlight.current) return;
+    if (hasActiveOperation()) return;
+    if (deleteClientInFlight.current) return;
+    if (clientCode === 'GENERAL' || deleteConfirmation !== clientCode) return;
     deleteClientInFlight.current = true;
     setClientDeleting(true);
     try {
@@ -115,15 +119,20 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
   }, [itemCount, onCountChange]);
 
   async function handleSubmit() {
-    if (!input.trim()) return;
+    if (deleteClientInFlight.current || !input.trim()) return;
     const submitted = await submitIps(input);
     if (submitted) setInput('');
   }
 
   async function handleDeleteSelected() {
-    if (!toDelete.length) return;
+    if (deleteClientInFlight.current || !toDelete.length) return;
     const deleted = await deleteIps(toDelete);
     if (deleted) setDeleteInput('');
+  }
+
+  function handleRefresh() {
+    if (deleteClientInFlight.current) return;
+    refresh();
   }
 
   const queryIps = useMemo(() => items.map(i => i.ip), [items]);
@@ -204,8 +213,8 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
         <button
           type="button"
           className="pac-refresh-btn"
-          onClick={refresh}
-          disabled={loading || posting || clientLoading}
+          onClick={handleRefresh}
+          disabled={loading || posting || clientLoading || clientDeleting}
           title="Refresh Team Filter data"
           aria-label="Refresh Team Filter data"
         >
@@ -308,7 +317,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
               value={input}
               onChange={e => setInput(e.target.value)}
               rows={12}
-              disabled={posting}
+              disabled={posting || clientDeleting}
             />
           </div>
           {parsedInputIps.length > 0 && (
@@ -333,7 +342,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
           )}
 
           <div className="tab-actions">
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting || newIps.length === 0}>
+            <button className="btn btn-primary" onClick={handleSubmit} disabled={!input.trim() || posting || clientDeleting || newIps.length === 0}>
               {posting && progress ? `Posting… (${progress.done}/${progress.total})` : `Submit ${newIps.length > 0 ? `${newIps.length} IPs` : ''} to DB`}
             </button>
           </div>
@@ -347,7 +356,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
                 value={deleteInput}
                 onChange={e => setDeleteInput(e.target.value)}
                 rows={5}
-                disabled={loading || posting}
+                disabled={loading || posting || clientDeleting}
               />
             </div>
             {parsedDeleteIps.length > 0 && (
@@ -370,7 +379,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
               type="button"
               className="btn btn-danger"
               onClick={handleDeleteSelected}
-              disabled={toDelete.length === 0 || loading || posting}
+              disabled={toDelete.length === 0 || loading || posting || clientDeleting}
             >
               {toDelete.length > 0 ? `Delete ${toDelete.length} IPs from DB` : 'Delete from DB'}
             </button>
