@@ -93,6 +93,36 @@ describe('Charlie multi-client rollout contract', () => {
     assert.match(migration, /drop constraint if exists charlie_client_filter_audit_client_id_fkey/);
   });
 
+  test('named-client deletion is transactional, audited, and protects GENERAL', () => {
+    const migration = source('supabase/charlie_multi_client_filter.sql');
+    const endpoint = source('api/charlie-clients.js');
+    assert.match(migration, /create or replace function public\.delete_charlie_filter_client/);
+    assert.match(migration, /if p_code = 'GENERAL' then raise exception 'GENERAL is reserved'/);
+    assert.match(migration, /delete from public\.charlie_client_filter_ips[\s\S]*where client_id = target\.id/);
+    assert.match(migration, /delete from public\.charlie_filter_clients where id = target\.id/);
+    assert.match(migration, /'charlie_client\.delete'/);
+    assert.match(migration, /'deleted_ip_count'/);
+    assert.match(migration, /revoke all on function public\.delete_charlie_filter_client/);
+    assert.match(endpoint, /'GET', 'POST', 'DELETE'/);
+    assert.match(endpoint, /req\.method === 'DELETE'/);
+    assert.match(endpoint, /confirmation !== code/);
+    assert.match(endpoint, /delete_charlie_filter_client/);
+  });
+
+  test('client deletion UI requires exact code confirmation and resets to GENERAL', () => {
+    const filter = source('src/pages/PacFilterTab.tsx');
+    const api = source('src/lib/api.ts');
+    assert.match(filter, /Delete Charlie client/);
+    assert.match(filter, /Delete all IPs and client/);
+    assert.match(filter, /deleteConfirmation !== clientCode/);
+    assert.match(filter, /disabled=\{deleteConfirmation !== clientCode/);
+    assert.match(filter, /api\.charlieClients\.delete\(clientCode, deleteConfirmation\)/);
+    assert.match(filter, /invalidateMergerDbCache\(identity, 'CHARLIE', clientCode\)/);
+    assert.match(filter, /setClientCode\('GENERAL'\)/);
+    assert.match(api, /delete: \(code: string, confirmation: string\)/);
+    assert.match(api, /method: 'DELETE'/);
+  });
+
   test('rollback removes only dedicated Charlie objects', () => {
     const rollback = source('supabase/charlie_multi_client_filter_rollback.sql');
     assert.match(rollback, /drop table if exists public\.charlie_client_filter_audit/);

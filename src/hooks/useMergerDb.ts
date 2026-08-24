@@ -15,6 +15,12 @@ export interface MergerItem {
 const sessionItems: Record<string, MergerItem[]> = {};
 const sessionAutoFetched: Record<string, boolean> = {};
 
+export function invalidateMergerDbCache(identity: string, team: Team, clientCode?: string) {
+  const cacheKey = `${identity}:${team}:${clientCode ?? 'LEGACY'}`;
+  delete sessionItems[cacheKey];
+  delete sessionAutoFetched[cacheKey];
+}
+
 export function useMergerDb(team: Team, identity: string, clientCode?: string) {
   const cacheKey = `${identity}:${team}:${clientCode ?? 'LEGACY'}`;
   const [items, setItems] = useState<MergerItem[]>(() => sessionItems[cacheKey] ?? []);
@@ -24,6 +30,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const submitInFlight = useRef(false);
+  const deleteInFlight = useRef(false);
   const activeCacheKey = useRef(cacheKey);
   activeCacheKey.current = cacheKey;
 
@@ -112,11 +119,13 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
     }
   }, [items, refresh, team, clientCode]);
 
-  const deleteIps = useCallback(async (ips: string[]) => {
+  const deleteIps = useCallback(async (ips: string[]): Promise<boolean> => {
+    if (deleteInFlight.current) return false;
+    deleteInFlight.current = true;
     setLoading(true);
     setError(null);
+    let deleted = 0;
     try {
-      let deleted = 0;
       for (let i = 0; i < ips.length; i += CHUNK) {
         const res = await api.teamFilter.delete(team, ips.slice(i, i + CHUNK), clientCode);
         deleted += res.deletedCount ?? 0;
@@ -125,7 +134,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       // mismatch, stale session cache, etc.) the IPs reappear instead of being
       // ghost-removed from the UI while still in the database.
       const loaded = await refresh();
-      if (!loaded) return;
+      if (!loaded) return false;
       if (deleted === 0) {
         setStatusMsg('⚠ 0 IPs deleted — DB did not match. Reloaded from DB.');
       } else if (deleted < ips.length) {
@@ -133,9 +142,14 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       } else {
         setStatusMsg(`✓ ${deleted} IPs deleted from DB.`);
       }
+      return deleted === ips.length;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      if (deleted > 0) await refresh();
+      setError(message);
+      return false;
     } finally {
+      deleteInFlight.current = false;
       setLoading(false);
     }
   }, [refresh, team, clientCode]);

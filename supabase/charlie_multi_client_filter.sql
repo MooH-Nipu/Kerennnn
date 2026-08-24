@@ -162,6 +162,52 @@ begin
 end;
 $$;
 
+create or replace function public.delete_charlie_filter_client(
+  p_code text,
+  p_confirmation text,
+  p_actor_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  actor_role text;
+  actor_username text;
+  target public.charlie_filter_clients%rowtype;
+  deleted_ip_count integer;
+begin
+  select role, username into actor_role, actor_username
+  from public.app_users where id = p_actor_id;
+  if actor_role not in ('admin', 'soc_lead', 'l2') then
+    raise exception 'Charlie client management denied' using errcode = '42501';
+  end if;
+  if p_code is null or p_code !~ '^[A-Z0-9_-]{2,32}$' then
+    raise exception 'invalid Charlie client code' using errcode = '22023';
+  end if;
+  if p_code = 'GENERAL' then raise exception 'GENERAL is reserved' using errcode = '22023'; end if;
+  if p_confirmation is distinct from p_code then
+    raise exception 'client code confirmation does not match' using errcode = '22023';
+  end if;
+
+  select * into target from public.charlie_filter_clients
+  where code = p_code and active = true
+  for update;
+  if target.id is null then raise exception 'Charlie client not found' using errcode = 'P0002'; end if;
+
+  delete from public.charlie_client_filter_ips where client_id = target.id;
+  get diagnostics deleted_ip_count = row_count;
+  delete from public.charlie_filter_clients where id = target.id;
+
+  insert into public.audit_log (actor_id, actor_username, action, target, detail)
+  values (p_actor_id, actor_username, 'charlie_client.delete', p_code,
+          jsonb_build_object('label', target.label, 'deleted_ip_count', deleted_ip_count));
+
+  return jsonb_build_object('code', target.code, 'label', target.label, 'deleted_ip_count', deleted_ip_count);
+end;
+$$;
+
 -- Dedicated audit is append-only, matching existing audit posture.
 drop trigger if exists charlie_client_filter_audit_immutable on public.charlie_client_filter_audit;
 create trigger charlie_client_filter_audit_immutable
@@ -175,6 +221,10 @@ grant execute on function public.mutate_charlie_client_filter(bigint, text, text
 revoke all on function public.create_charlie_filter_client(text, text, uuid)
   from public, anon, authenticated;
 grant execute on function public.create_charlie_filter_client(text, text, uuid)
+  to service_role;
+revoke all on function public.delete_charlie_filter_client(text, text, uuid)
+  from public, anon, authenticated;
+grant execute on function public.delete_charlie_filter_client(text, text, uuid)
   to service_role;
 
 alter table public.charlie_filter_clients enable row level security;

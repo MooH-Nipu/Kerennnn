@@ -118,6 +118,18 @@ test('Team Filter submit reports success only after DB reload succeeds', () => {
   assert.doesNotMatch(hook, /sessionItems\[cacheKey\]\.length/);
 });
 
+test('Team Filter delete clears input only after DB-confirmed delete and reload', () => {
+  const hook = source('src/hooks/useMergerDb.ts');
+  const filter = source('src/pages/PacFilterTab.tsx');
+  assert.match(hook, /const deleteInFlight = useRef\(false\)/);
+  assert.match(hook, /if \(deleteInFlight\.current\) return false/);
+  assert.match(hook, /const deleteIps = useCallback\(async \(ips: string\[\]\): Promise<boolean>/);
+  assert.match(hook, /return deleted === ips\.length/);
+  assert.match(hook, /catch \(err\) \{[\s\S]*if \(deleted > 0\) await refresh\(\);[\s\S]*return false/);
+  assert.match(filter, /const deleted = await deleteIps\(toDelete\);[\s\S]*if \(deleted\) setDeleteInput\(''\)/);
+  assert.doesNotMatch(filter, /await deleteIps\(toDelete\);\s*setDeleteInput\(''\)/);
+});
+
 test('Team Filter submit is synchronously locked against rapid repeat clicks', () => {
   const hook = source('src/hooks/useMergerDb.ts');
   const filter = source('src/pages/PacFilterTab.tsx');

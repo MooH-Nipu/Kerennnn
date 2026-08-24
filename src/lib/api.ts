@@ -223,5 +223,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, label }),
     }),
+    delete: (code: string, confirmation: string) => apiFetch<{ ok: boolean; deleted: { code: string; label: string; deleted_ip_count: number } }>('/api/v1/charlie-clients', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, confirmation }),
+    }),
   },
 };

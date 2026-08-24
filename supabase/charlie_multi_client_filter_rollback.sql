@@ -6,6 +6,7 @@
 begin;
 
 drop function if exists public.create_charlie_filter_client(text, text, uuid);
+drop function if exists public.delete_charlie_filter_client(text, text, uuid);
 drop function if exists public.mutate_charlie_client_filter(bigint, text, text[], uuid, text, text, integer);
 drop table if exists public.charlie_client_filter_audit;
 drop table if exists public.charlie_client_filter_ips;
