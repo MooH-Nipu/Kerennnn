@@ -12,8 +12,12 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test api/*.test.js",
     "lint": "eslint api src",
-    "test:e2e": "playwright test",
-    "test:e2e:local": "node scripts/run-e2e-local.js",
+    "test:e2e": "npm run test:e2e:dev",
+    "test:e2e:dev": "node scripts/run-e2e.js dev",
+    "test:e2e:prod": "node scripts/run-e2e.js prod",
+    "test:e2e:list": "playwright test --list",
+    "e2e:dev:prepare": "docker compose -f docker-compose.dev.yml build && docker compose -f docker-compose.dev.yml up -d --force-recreate",
+    "release:check": "npm test && npm run typecheck && npm run lint && npm run build && npm run e2e:dev:prepare && npm run test:e2e:dev",
     "format": "prettier --write \"api/**/*.js\" \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {

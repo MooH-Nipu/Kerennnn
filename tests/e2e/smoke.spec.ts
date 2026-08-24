@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { dismissUpdateToast, installEnvSession, stubTeamFilterReads } from './helpers';
 
 async function login(page: Page, username: string, password: string) {
   await page.goto('/');
@@ -20,9 +21,16 @@ const admin = { username: process.env.E2E_USERNAME, password: process.env.E2E_PA
 test.describe('authenticated admin smoke', () => {
   test.skip(!admin.username || !admin.password, 'Set E2E_USERNAME and E2E_PASSWORD.');
 
-  test.beforeEach(async ({ page }) => login(page, admin.username!, admin.password!));
+  test.beforeEach(async ({ page, context, baseURL }) => {
+    await stubTeamFilterReads(page);
+    await installEnvSession(context, baseURL!, 'admin');
+    await page.goto('/');
+    await dismissUpdateToast(page);
+  });
 
   test('authentication and protected navigation work', async ({ page }) => {
+    await page.context().clearCookies();
+    await login(page, admin.username!, admin.password!);
     await expectRole(page, 'admin');
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -30,14 +38,17 @@ test.describe('authenticated admin smoke', () => {
     await expect(page.getByRole('heading', { name: 'IoC Scan' })).toBeVisible();
     await page.getByRole('button', { name: 'Settings' }).click();
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Navigation builder', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /^Navigation/ }).click();
+    await expect(page.getByRole('heading', { name: 'Navigation', exact: true })).toBeVisible();
   });
 
   test('navigation preference save survives reload', async ({ page }) => {
     let renamed = false;
     try {
       await page.getByRole('button', { name: 'Settings' }).click();
+      await page.getByRole('button', { name: /^Navigation/ }).click();
       await page.getByRole('textbox', { name: /Rename IoC Scan tab/i }).fill('IOC Review');
+      await dismissUpdateToast(page);
       await page.getByRole('button', { name: 'Save navigation' }).click();
       await expect(page.getByText('Navigation layout saved.')).toBeVisible();
       renamed = true;
@@ -46,6 +57,7 @@ test.describe('authenticated admin smoke', () => {
     } finally {
       if (renamed) {
         await page.getByRole('button', { name: 'Settings' }).click();
+        await page.getByRole('button', { name: /^Navigation/ }).click();
         await page.getByRole('textbox', { name: /Rename IoC Scan tab/i }).fill('');
         await page.getByRole('button', { name: 'Save navigation' }).click();
         await expect(page.getByText('Navigation layout saved.')).toBeVisible();
@@ -54,7 +66,7 @@ test.describe('authenticated admin smoke', () => {
   });
 
   test('PAC preview skips IPv6 and keeps IPv4 submit available', async ({ page }) => {
-    await page.getByRole('button', { name: /PAC Filter/ }).click();
+    await page.getByRole('button', { name: 'Team Filter', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'PAC Filter' })).toBeVisible();
     await page.locator('.pac-input-panel textarea').first().fill('192.0.2.10\n2001:db8::1');
     await expect(page.getByText('IPv6 detected — will not be saved to DB')).toBeVisible();
@@ -84,15 +96,13 @@ test.describe('authenticated admin smoke', () => {
 });
 
 for (const role of ['l1', 'pac'] as const) {
-  test(`${role} navigation enforces role access`, async ({ page }) => {
-    const username = process.env[`E2E_${role.toUpperCase()}_USERNAME`];
-    const password = process.env[`E2E_${role.toUpperCase()}_PASSWORD`];
-    test.skip(!username || !password, `Set E2E_${role.toUpperCase()} credentials.`);
-    await login(page, username!, password!);
+  test(`${role} navigation enforces role access`, async ({ page, context, baseURL }) => {
+    await installEnvSession(context, baseURL!, role);
+    await page.goto('/');
     await expectRole(page, role);
     await expect(page.getByRole('button', { name: /IoC Scan/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Dashboard' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /PAC Filter/ })).toHaveCount(role === 'pac' ? 1 : 0);
+    await expect(page.getByRole('button', { name: 'Team Filter', exact: true })).toHaveCount(role === 'pac' ? 1 : 0);
   });
 }
 

@@ -113,10 +113,13 @@ Threat-intelligence credentials stay server-side. Frontend calls same-origin `/a
 - `npm test` — run all Node tests under `api/` (`node --test api/`)
 - `npm run lint` — ESLint on `api/` and `src/`
 - `npm run typecheck` — `tsc --noEmit`
+- `npm run test:e2e:dev` — desktop+narrow Playwright suite with exact synthetic-user cleanup
+- `npm run test:e2e:prod` — read-only desktop+narrow production smoke; mutating API requests are blocked
+- `npm run release:check` — source gates, fresh dev Docker build, and full dev browser E2E
 - `npm run format` — Prettier write for `api/**/*.js` and `src/**/*.{ts,tsx}`
 
-CI runs lint → typecheck → tests → build on every push/PR
-(see `.github/workflows/ci.yml`).
+CI runs lint → typecheck → tests → build → browser-suite discovery on every push/PR
+(see `.github/workflows/ci.yml`). Dev and production currently share Supabase, so only dev synthetic fixtures mutate data; production smoke is read-only.
 
 ## Local development
 

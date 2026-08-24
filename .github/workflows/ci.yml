@@ -31,3 +31,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Validate browser QA suite discovery
+        run: npx playwright test --list
