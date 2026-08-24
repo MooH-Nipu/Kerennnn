@@ -97,6 +97,7 @@ describe('Charlie multi-client rollout contract', () => {
     const migration = source('supabase/charlie_multi_client_filter.sql');
     const endpoint = source('api/charlie-clients.js');
     assert.match(migration, /create or replace function public\.delete_charlie_filter_client/);
+    assert.equal((migration.match(/actor_role is null or actor_role not in \('admin', 'soc_lead', 'l2'\)/g) ?? []).length, 2);
     assert.match(migration, /if p_code = 'GENERAL' then raise exception 'GENERAL is reserved'/);
     assert.match(migration, /delete from public\.charlie_client_filter_ips[\s\S]*where client_id = target\.id/);
     assert.match(migration, /delete from public\.charlie_filter_clients where id = target\.id/);
