@@ -110,7 +110,7 @@ describe('Charlie multi-client rollout contract', () => {
     assert.match(endpoint, /delete_charlie_filter_client/);
   });
 
-  test('client deletion UI requires exact code confirmation and resets to GENERAL', () => {
+  test('client deletion UI requires exact code confirmation and never falls back to GENERAL', () => {
     const filter = source('src/pages/PacFilterTab.tsx');
     const api = source('src/lib/api.ts');
     assert.match(filter, /Delete Charlie client/);
@@ -119,7 +119,8 @@ describe('Charlie multi-client rollout contract', () => {
     assert.match(filter, /disabled=\{deleteConfirmation !== clientCode/);
     assert.match(filter, /api\.charlieClients\.delete\(clientCode, deleteConfirmation\)/);
     assert.match(filter, /invalidateMergerDbCache\(identity, 'CHARLIE', clientCode\)/);
-    assert.match(filter, /setClientCode\('GENERAL'\)/);
+    assert.match(filter, /remaining\[0\]\?\.code \?\? ''/);
+    assert.doesNotMatch(filter, /setClientCode\('GENERAL'\)/);
     assert.match(api, /delete: \(code: string, confirmation: string\)/);
     assert.match(api, /method: 'DELETE'/);
   });
@@ -147,7 +148,9 @@ describe('Charlie multi-client rollout contract', () => {
     const api = source('src/lib/api.ts');
     assert.match(filter, /aria-label="Charlie client filter"/);
     assert.match(filter, /team === 'CHARLIE'/);
-    assert.match(filter, /charlieClients/);
+    assert.match(filter, /res\.clients\.filter\(client => client\.code !== 'GENERAL'\)/);
+    assert.match(filter, /namedClients\[0\]\?\.code \?\? ''/);
+    assert.doesNotMatch(filter, /<option[\s\S]*GENERAL/);
     assert.match(filter, /<span>Code<\/span>[\s\S]*aria-label="New Charlie client code"/);
     assert.match(filter, /<span>Name<\/span>[\s\S]*aria-label="New Charlie client label"/);
     assert.match(hook, /clientCode\?: string/);

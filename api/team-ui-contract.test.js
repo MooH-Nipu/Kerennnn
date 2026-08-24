@@ -94,7 +94,7 @@ test('Team Filter session cache is isolated by authenticated identity', () => {
   const app = source('src/App.tsx');
   const hook = source('src/hooks/useMergerDb.ts');
   assert.match(app, /identity=\{workspaceIdentity!\}/);
-  assert.match(hook, /export function useMergerDb\(team: Team, identity: string, clientCode\?: string\)/);
+  assert.match(hook, /export function useMergerDb\(team: Team, identity: string, clientCode\?: string, enabled = true\)/);
   assert.match(hook, /const cacheKey = `\$\{identity\}:\$\{team\}:\$\{clientCode \?\? 'LEGACY'\}`/);
 });
 

@@ -27,7 +27,7 @@ interface Props {
 
 export function PacFilterTab({ onCountChange, team, identity, canManageClients = false }: Props) {
   const [charlieClients, setCharlieClients] = useState<CharlieFilterClient[]>([]);
-  const [clientCode, setClientCode] = useState('GENERAL');
+  const [clientCode, setClientCode] = useState('');
   const [clientLoading, setClientLoading] = useState(team === 'CHARLIE');
   const [clientError, setClientError] = useState<string | null>(null);
   const [newClientCode, setNewClientCode] = useState('');
@@ -45,8 +45,9 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     api.charlieClients.list()
       .then(res => {
         if (cancelled) return;
-        setCharlieClients(res.clients);
-        setClientCode(current => res.clients.some(client => client.code === current) ? current : 'GENERAL');
+        const namedClients = res.clients.filter(client => client.code !== 'GENERAL');
+        setCharlieClients(namedClients);
+        setClientCode(current => namedClients.some(client => client.code === current) ? current : namedClients[0]?.code ?? '');
       })
       .catch(err => { if (!cancelled) setClientError(err instanceof Error ? err.message : String(err)); })
       .finally(() => { if (!cancelled) setClientLoading(false); });
@@ -58,7 +59,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     loading, posting, progress, error, statusMsg,
     setStatusMsg, clearStatus,
     refresh, submitIps, deleteIps, hasActiveOperation,
-  } = useMergerDb(team, identity, team === 'CHARLIE' ? clientCode : undefined);
+  } = useMergerDb(team, identity, team === 'CHARLIE' ? clientCode : undefined, team !== 'CHARLIE' || !!clientCode);
 
   async function handleCreateClient() {
     if (hasActiveOperation()) return;
@@ -91,8 +92,11 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     try {
       const res = await api.charlieClients.delete(clientCode, deleteConfirmation);
       invalidateMergerDbCache(identity, 'CHARLIE', clientCode);
-      setCharlieClients(prev => prev.filter(client => client.code !== clientCode));
-      setClientCode('GENERAL');
+      setCharlieClients(prev => {
+        const remaining = prev.filter(client => client.code !== clientCode);
+        setClientCode(remaining[0]?.code ?? '');
+        return remaining;
+      });
       setDeleteConfirmation('');
       setInput('');
       setDeleteInput('');
@@ -187,7 +191,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
     <div className="tab-content pac-filter-tab">
       <div className="section-header">
         <h2>{team} Filter</h2>
-        {team === 'CHARLIE' && (
+        {team === 'CHARLIE' && charlieClients.length > 0 && (
           <label className="pac-client-switcher">
             <span>Client</span>
             <select
@@ -262,7 +266,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
         </details>
       )}
 
-      {team === 'CHARLIE' && canManageClients && clientCode !== 'GENERAL' && (
+      {team === 'CHARLIE' && canManageClients && !!clientCode && (
         <details className="pac-client-delete">
           <summary>Delete Charlie client</summary>
           <div className="pac-client-delete-row">
@@ -298,6 +302,10 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
         <StatusMessage type="error" message={clientError} onDismiss={() => setClientError(null)} />
       )}
 
+      {team === 'CHARLIE' && !clientLoading && charlieClients.length === 0 && (
+        <div className="empty-state">No named Charlie clients configured.</div>
+      )}
+
       {(error || statusMsg) && (
         <StatusMessage
           type={error ? 'error' : statusMsg?.startsWith('⚠') ? 'warning' : 'success'}
@@ -306,7 +314,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
         />
       )}
 
-      <div className="pac-layout">
+      {(team !== 'CHARLIE' || !!clientCode) && <div className="pac-layout">
         <aside className="pac-input-panel">
           <div className="pac-section-title">Add IP</div>
           <div className="form-group" style={{ marginBottom: '0.5rem' }}>
@@ -451,7 +459,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
             </>
           )}
         </section>
-      </div>
+      </div>}
 
     </div>
   );
