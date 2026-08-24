@@ -23,7 +23,7 @@ export function invalidateMergerDbCache(identity: string, team: Team, clientCode
   delete sessionAutoFetched[cacheKey];
 }
 
-export function useMergerDb(team: Team, identity: string, clientCode?: string) {
+export function useMergerDb(team: Team, identity: string, clientCode?: string, enabled = true) {
   const cacheKey = `${identity}:${team}:${clientCode ?? 'LEGACY'}`;
   const [items, setItems] = useState<MergerItem[]>(() => sessionItems[cacheKey] ?? []);
   const [loading, setLoading] = useState(false);
@@ -38,6 +38,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
   activeCacheKey.current = cacheKey;
 
   const refresh = useCallback(async () => {
+    if (!enabled) return null;
     const requestCacheKey = cacheKey;
     const requestGeneration = sessionGeneration[cacheKey] ?? 0;
     activeOperations.current += 1;
@@ -61,19 +62,24 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       activeOperations.current -= 1;
       if (activeCacheKey.current === requestCacheKey) setLoading(false);
     }
-  }, [cacheKey, team, clientCode]);
+  }, [cacheKey, team, clientCode, enabled]);
 
   // Auto-fetch once per identity and team; never reuse another user's rows.
   useEffect(() => {
+    if (!enabled) {
+      setItems([]);
+      return;
+    }
     setItems(sessionItems[cacheKey] ?? []);
     if (sessionAutoFetched[cacheKey]) {
       setItems(sessionItems[cacheKey]);
       return;
     }
     refresh();
-  }, [cacheKey, refresh]);
+  }, [cacheKey, refresh, enabled]);
 
   const submitIps = useCallback(async (rawInput: string): Promise<boolean> => {
+    if (!enabled) return false;
     // React state updates on the next render. Ref locks synchronously so rapid clicks
     // cannot start duplicate requests before `posting` disables the button.
     if (submitInFlight.current) return false;
@@ -126,9 +132,10 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       setPosting(false);
       setProgress(null);
     }
-  }, [items, refresh, team, clientCode]);
+  }, [items, refresh, team, clientCode, enabled]);
 
   const deleteIps = useCallback(async (ips: string[]): Promise<boolean> => {
+    if (!enabled) return false;
     if (deleteInFlight.current) return false;
     deleteInFlight.current = true;
     activeOperations.current += 1;
@@ -163,7 +170,7 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string) {
       deleteInFlight.current = false;
       setLoading(false);
     }
-  }, [refresh, team, clientCode]);
+  }, [refresh, team, clientCode, enabled]);
 
   const clearStatus = useCallback(() => {
     setError(null);
