@@ -48,6 +48,11 @@ test('live identity and auth responses carry database team memberships', () => {
   assert.match(me, /getRoleContext\(req\.auth\.role, req\.auth\.teamAccess\)/);
   const adminUi = source('src/pages/AdminUsersTab.tsx');
   assert.match(adminUi, /const ASSIGNABLE_ROLES: Role\[\] = \['admin', 'soc_lead', 'l1', 'l2'\]/);
+  assert.match(adminUi, /function TeamAccessSelect/);
+  assert.match(adminUi, /<details ref=\{rootRef\} className="team-access-select"/);
+  assert.match(adminUi, /aria-pressed=\{selected\}/);
+  assert.match(adminUi, /type="button"/);
+  assert.doesNotMatch(adminUi, /type="checkbox"/);
   assert.match(adminUi, /const \{ user: savedUser \} = await api\.admin\.updateUser/);
   assert.match(adminUi, /u\.id === user\.id \? savedUser : u/);
 });

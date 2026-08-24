@@ -2901,19 +2901,83 @@ body { padding: 0; }
   border: 0;
 }
 
-.team-access-options {
+.team-access-select {
+  position: relative;
+  min-width: 0;
+}
+
+.team-access-trigger {
   display: flex;
-  gap: 0.75rem;
   min-height: 38px;
+  padding: 0 0.75rem;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-pri);
+  font-size: 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.team-access-trigger::-webkit-details-marker { display: none; }
+.team-access-trigger::marker { content: ''; }
+.team-access-trigger:hover { border-color: var(--border-hl, var(--border)); }
+.team-access-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.team-access-placeholder { color: var(--text-muted); }
+.team-access-chevron {
+  color: var(--text-muted);
+  font-size: 1rem;
+  transition: transform 150ms ease;
+}
+.team-access-select[open] .team-access-chevron { transform: rotate(180deg); }
+
+.team-access-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-hl, var(--border));
+  border-radius: 6px;
+  background: var(--bg-card);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
 }
 
 .team-access-option {
-  display: inline-flex;
-  gap: 0.35rem;
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 0.65rem;
   align-items: center;
-  color: var(--text-secondary);
+  justify-content: space-between;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-sec);
+  font: inherit;
   font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+}
+.team-access-option:hover { background: rgba(47, 126, 247, 0.08); color: var(--text-pri); }
+.team-access-option.is-selected { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+.team-access-option:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.team-access-check { width: 1rem; color: var(--accent); font-weight: 700; text-align: center; }
+.team-access-fieldset:disabled .team-access-trigger { opacity: 0.55; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .team-access-chevron { transition: none; }
 }
 
 .user-card__team-access {

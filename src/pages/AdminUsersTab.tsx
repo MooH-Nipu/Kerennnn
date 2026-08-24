@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { RoleBadge } from '../components/shared/RoleBadge';
 import { Modal } from '../components/shared/Modal';
@@ -12,6 +12,68 @@ const TEAMS: Team[] = ['PAC', 'CHARLIE'];
 
 function toggleTeam(teams: Team[], team: Team): Team[] {
   return TEAMS.filter(value => value === team ? !teams.includes(value) : teams.includes(value));
+}
+
+function TeamAccessSelect({ value, onChange, disabled = false }: {
+  value: Team[];
+  onChange: (teams: Team[]) => void;
+  disabled?: boolean;
+}) {
+  const rootRef = useRef<HTMLDetailsElement>(null);
+  const selection = value.length ? value.join(', ') : 'Select teams';
+
+  useEffect(() => {
+    function close(event: PointerEvent | KeyboardEvent) {
+      const root = rootRef.current;
+      if (!root?.open) return;
+      if (event instanceof KeyboardEvent && event.key === 'Escape') {
+        root.removeAttribute('open');
+        root.querySelector<HTMLElement>('summary')?.focus();
+      } else if (event instanceof PointerEvent && !root.contains(event.target as Node)) {
+        root.removeAttribute('open');
+      }
+    }
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, []);
+
+  return (
+    <details ref={rootRef} className="team-access-select">
+      <summary
+        className="team-access-trigger"
+        aria-label={`Team access: ${selection}`}
+        aria-disabled={disabled}
+        onClick={event => { if (disabled) event.preventDefault(); }}
+      >
+        <span className={value.length ? '' : 'team-access-placeholder'}>{selection}</span>
+        <span className="team-access-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="team-access-menu" role="listbox" aria-multiselectable="true" aria-label="Team access options">
+        {TEAMS.map(team => {
+          const selected = value.includes(team);
+          return (
+            <button
+              key={team}
+              type="button"
+              className={`team-access-option${selected ? ' is-selected' : ''}`}
+              role="option"
+              aria-selected={selected}
+              aria-pressed={selected}
+              disabled={disabled}
+              onClick={() => onChange(toggleTeam(value, team))}
+            >
+              <span>{team}</span>
+              <span className="team-access-check" aria-hidden="true">{selected ? '✓' : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+    </details>
+  );
 }
 
 export function AdminUsersTab() {
@@ -160,9 +222,7 @@ export function AdminUsersTab() {
           </div>
           <fieldset className="form-group team-access-fieldset">
             <legend className="form-label">Team access</legend>
-            <div className="team-access-options">
-              {TEAMS.map(team => <label key={team} className="team-access-option"><input type="checkbox" checked={newTeams.includes(team)} onChange={() => setNewTeams(current => toggleTeam(current, team))} />{team}</label>)}
-            </div>
+            <TeamAccessSelect value={newTeams} onChange={setNewTeams} />
           </fieldset>
           <button
             className="btn btn-primary admin-create-submit"
@@ -244,9 +304,7 @@ export function AdminUsersTab() {
                       </label>
                       <fieldset className="user-card__field team-access-fieldset" disabled={isSelf}>
                         <legend className="user-card__field-label">Team access</legend>
-                        <div className="team-access-options">
-                          {TEAMS.map(team => <label key={team} className="team-access-option"><input type="checkbox" checked={editTeams.includes(team)} onChange={() => setEditTeams(current => toggleTeam(current, team))} />{team}</label>)}
-                        </div>
+                        <TeamAccessSelect value={editTeams} onChange={setEditTeams} disabled={isSelf} />
                       </fieldset>
                     </div>
 
