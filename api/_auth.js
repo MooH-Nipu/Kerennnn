@@ -157,7 +157,7 @@ function requireAuth(req, res) {
   const ttl = getSessionTtlSeconds();
   if (ttl > 0 && exp - now <= getSessionRefreshWindowSeconds()) {
     const refreshed = makeSessionToken(
-      { userId: v.payload.userId, role: v.payload.role, username: v.payload.username },
+      { userId: v.payload.userId, role: v.payload.role, username: v.payload.username, teamAccess: v.payload.teamAccess },
       secret,
       ttl
     );
@@ -178,12 +178,17 @@ function requireRole(req, res, allowedRoles) {
   return true;
 }
 
+function normalizeTeamAccess(value) {
+  if (!Array.isArray(value)) return [];
+  return ['PAC', 'CHARLIE'].filter(team => value.some(item => String(item).trim().toUpperCase() === team));
+}
+
 function validateCurrentIdentity(tokenAuth, dbUser, allowedRoles) {
   if (!tokenAuth?.userId || !dbUser || dbUser.id !== tokenAuth.userId) return { ok: false, status: 401 };
   if (!allowedRoles.includes(dbUser.role)) return { ok: false, status: 403 };
   return {
     ok: true,
-    auth: { userId: dbUser.id, role: dbUser.role, username: dbUser.username },
+    auth: { userId: dbUser.id, role: dbUser.role, username: dbUser.username, teamAccess: normalizeTeamAccess(dbUser.team_access) },
   };
 }
 
@@ -197,7 +202,7 @@ async function revalidateRequestIdentity(req, res, supabase) {
   const tokenExp = req.auth.exp || 0;
   const { data, error } = await supabase
     .from('app_users')
-    .select('id,username,role')
+    .select('id,username,role,team_access')
     .eq('id', req.auth.userId)
     .maybeSingle();
   if (error) {
@@ -230,7 +235,7 @@ async function requireCurrentRole(req, res, supabase, allowedRoles) {
   }
   const { data, error } = await supabase
     .from('app_users')
-    .select('id,username,role')
+    .select('id,username,role,team_access')
     .eq('id', req.auth.userId)
     .maybeSingle();
   if (error) {
@@ -282,5 +287,6 @@ module.exports = {
   shouldRevalidateRoute,
   revalidateRequestIdentity,
   readJsonBody,
+  normalizeTeamAccess,
 };
 

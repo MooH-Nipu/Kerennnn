@@ -11,6 +11,7 @@ export interface CharlieFilterClient {
 }
 
 export interface TeamAccess {
+  teamAccess: Team[];
   assignedTeam: Team | null;
   allowedTeams: Team[];
   canSwitchTeam: boolean;
@@ -32,6 +33,7 @@ export interface AppUser {
   id: string;
   username: string;
   role: Role;
+  team_access: Team[];
   created_at: string;
   created_by: string | null;
 }

@@ -23,7 +23,7 @@ test('security migration makes audit rows immutable and privileged mutations tra
 
 test('admin user mutations use one audited database transaction', () => {
   const users = source('api/admin/users.js');
-  assert.match(users, /supabase\.rpc\('mutate_app_user'/);
+  assert.match(users, /supabase\.rpc\('mutate_app_user_v2'/);
   assert.doesNotMatch(users, /\.from\('app_users'\)\s*\.insert/);
   assert.doesNotMatch(users, /\.from\('app_users'\)\s*\.update/);
   assert.doesNotMatch(users, /\.from\('app_users'\)\.delete/);

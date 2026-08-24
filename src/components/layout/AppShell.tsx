@@ -1,4 +1,4 @@
-import type { Role } from '../../types/api';
+import type { Role, Team } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
 import type { NavGroup, TabSectionId } from '../../hooks/useTabPrefs';
 import { AppHeader } from './AppHeader';
@@ -15,12 +15,13 @@ interface Props {
   groupLabels: Partial<Record<TabSectionId, string>>;
   layout: NavGroup[];
   showSettingsFeature: boolean;
+  allowedTeams: Team[];
   children: React.ReactNode;
 }
 
 export function AppShell({
   role, username, activeTab, setActiveTab, pacFilterCount,
-  hiddenTabs, tabLabels, groupLabels, layout, showSettingsFeature, children,
+  hiddenTabs, tabLabels, groupLabels, layout, showSettingsFeature, allowedTeams, children,
 }: Props) {
   return (
     <div className="app-shell app-shell--sidebar">
@@ -41,6 +42,7 @@ export function AppShell({
           groupLabels={groupLabels}
           layout={layout}
           pacFilterCount={pacFilterCount}
+          allowedTeams={allowedTeams}
         />
         <main className="app-shell__content" id="main-content">{children}</main>
       </div>

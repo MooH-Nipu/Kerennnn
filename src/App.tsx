@@ -31,8 +31,8 @@ function safeDecodePathSegment(value: string) {
 }
 
 function AppInner() {
-  const { ready, authed, role, username, activeTeam } = useAuthState();
-  const workspaceIdentity = authed && role && username ? `${username}:${role}` : null;
+  const { ready, authed, role, username, activeTeam, allowedTeams } = useAuthState();
+  const workspaceIdentity = authed && role && username ? `${username}:${role}:${allowedTeams.join(',')}` : null;
   const workspaceIdentityRef = useRef(workspaceIdentity);
   const tabPrefs = useTabPrefs();
   const { hidden: hiddenTabs, tabLabels, groupLabels, layout } = tabPrefs;
@@ -67,7 +67,7 @@ function AppInner() {
       workspaceIdentityRef.current = workspaceIdentity;
       return;
     }
-    const restored = getRestoredTab(role, hiddenTabs);
+    const restored = getRestoredTab(role, hiddenTabs, allowedTeams);
     workspaceIdentityRef.current = workspaceIdentity;
     setActiveTab(restored);
     setMountedTabs(new Set([restored]));
@@ -92,11 +92,11 @@ function AppInner() {
   // available tab so the user is never staring at an empty selection.
   useEffect(() => {
     if (!authed || !role) return;
-    const tabs = allowedTabs(role, hiddenTabs);
+    const tabs = allowedTabs(role, hiddenTabs, undefined, allowedTeams);
     if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
       setActiveTab(tabs[0].id);
     }
-  }, [authed, role, hiddenTabs, activeTab]);
+  }, [authed, role, hiddenTabs, activeTab, allowedTeams]);
 
   function handleQuickScan(ioc: string) {
     setPendingIoc(ioc);
@@ -146,7 +146,7 @@ function AppInner() {
   }
 
   function renderAllTabs() {
-    const permitted = new Set(allowedTabs(role!, hiddenTabs, activeTab).map(tab => tab.id));
+    const permitted = new Set(allowedTabs(role!, hiddenTabs, activeTab, allowedTeams).map(tab => tab.id));
     return Array.from(mountedTabs).filter(id => permitted.has(id)).map(id => (
       <div key={id} style={{ display: activeTab === id ? 'contents' : 'none' }}>
         {tabElement(id)}
@@ -167,6 +167,7 @@ function AppInner() {
         groupLabels={groupLabels}
         layout={role === 'l1' ? L1_NAV_LAYOUT : layout}
         showSettingsFeature={role !== 'l1' && !tabPrefs.tutorialDismissed}
+        allowedTeams={allowedTeams}
       >
         <Suspense fallback={<Spinner size={32} />}>{renderAllTabs()}</Suspense>
       </AppShell>

@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
 
   const { data: user } = await supabase
     .from('app_users')
-    .select('id, username, password_hash, role')
+    .select('id, username, password_hash, role, team_access')
     .eq('username', username)
     .single();
 
@@ -67,7 +67,7 @@ module.exports = async function handler(req, res) {
 
   const ttlSec = 60 * 60 * 8; // 8 hours
   const token = makeSessionToken(
-    { userId: user.id, role: user.role, username: user.username },
+    { userId: user.id, role: user.role, username: user.username, teamAccess: user.team_access },
     secret,
     ttlSec
   );
@@ -77,7 +77,8 @@ module.exports = async function handler(req, res) {
     ok: true,
     role: user.role,
     username: user.username,
-    ...getRoleContext(user.role),
+    teamAccess: user.team_access,
+    ...getRoleContext(user.role, user.team_access),
     ttlMinutes: Math.round(ttlSec / 60),
   });
 };

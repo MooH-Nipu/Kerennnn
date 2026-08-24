@@ -19,6 +19,8 @@ export const DEFAULT_NAV_LAYOUT: NavGroup[] = [
 ];
 export const L1_NAV_LAYOUT: NavGroup[] = [
   { id: 'work', label: 'Investigation', tabs: ['ioc-scan', 'history', 'ir-manager'] },
+  { id: 'operations', label: 'Operations', tabs: ['pac-filter', 'daily-eod'] },
+  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack'] },
 ];
 
 export interface TabPrefsState {

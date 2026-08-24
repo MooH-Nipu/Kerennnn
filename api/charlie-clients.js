@@ -4,6 +4,9 @@ const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
 const { normalizeClientCode, isSchemaMissingError } = require('./team-filter');
+const { getRoleContext } = require('./_tenancy');
+
+const VALID_ROLES = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
 
 async function listClients(supabase) {
   const { data, error } = await supabase
@@ -37,7 +40,9 @@ module.exports = async function handler(req, res) {
   if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
 
   if (req.method === 'GET') {
-    if (!await requireCurrentRole(req, res, supabase, ['admin', 'soc_lead', 'l2', 'charlie'])) return;
+    if (!await requireCurrentRole(req, res, supabase, VALID_ROLES)) return;
+    const { allowedTeams } = getRoleContext(req.auth.role, req.auth.teamAccess);
+    if (!allowedTeams.includes('CHARLIE')) return res.status(403).json({ error: 'Charlie client access denied.' });
     const { clients, error } = await listClients(supabase);
     if (error) {
       if (isSchemaMissingError(error)) return res.status(503).json({ error: 'Charlie client filters are not ready.' });

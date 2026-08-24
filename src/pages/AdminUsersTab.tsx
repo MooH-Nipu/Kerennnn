@@ -4,10 +4,15 @@ import { RoleBadge } from '../components/shared/RoleBadge';
 import { Modal } from '../components/shared/Modal';
 import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
-import type { AppUser, Role } from '../types/api';
+import type { AppUser, Role, Team } from '../types/api';
 import { useAuthState } from '../context/AuthContext';
 
-const ROLES: Role[] = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
+const ASSIGNABLE_ROLES: Role[] = ['admin', 'soc_lead', 'l1', 'l2'];
+const TEAMS: Team[] = ['PAC', 'CHARLIE'];
+
+function toggleTeam(teams: Team[], team: Team): Team[] {
+  return TEAMS.filter(value => value === team ? !teams.includes(value) : teams.includes(value));
+}
 
 export function AdminUsersTab() {
   const { username: selfUsername } = useAuthState();
@@ -20,6 +25,7 @@ export function AdminUsersTab() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<Role>('l1');
+  const [newTeams, setNewTeams] = useState<Team[]>([]);
   const [creating, setCreating] = useState(false);
 
   // Inline edit (one card at a time) — username + password + role
@@ -27,6 +33,7 @@ export function AdminUsersTab() {
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editRole, setEditRole] = useState<Role>('l1');
+  const [editTeams, setEditTeams] = useState<Team[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   // Delete modal
@@ -51,9 +58,9 @@ export function AdminUsersTab() {
     setCreating(true);
     setError(null);
     try {
-      await api.admin.createUser(newUsername.trim(), newPassword, newRole);
+      await api.admin.createUser(newUsername.trim(), newPassword, newRole, newTeams);
       setSuccess(`User "${newUsername}" created.`);
-      setNewUsername(''); setNewPassword(''); setNewRole('l1');
+      setNewUsername(''); setNewPassword(''); setNewRole('l1'); setNewTeams([]);
       fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -67,6 +74,7 @@ export function AdminUsersTab() {
     setEditUsername(user.username);
     setEditPassword('');
     setEditRole(user.role);
+    setEditTeams(user.team_access || []);
     setError(null);
     setSuccess(null);
   }
@@ -82,10 +90,11 @@ export function AdminUsersTab() {
     const isSelf = user.username === selfUsername;
     if (!uname) { setError('Username cannot be empty.'); return; }
 
-    const updates: { username?: string; password?: string; role?: Role } = {};
+    const updates: { username?: string; password?: string; role?: Role; teamAccess?: Team[] } = {};
     if (uname !== user.username) updates.username = uname;
     if (editPassword) updates.password = editPassword;
     if (!isSelf && editRole !== user.role) updates.role = editRole;
+    if (!isSelf && JSON.stringify(editTeams) !== JSON.stringify(user.team_access || [])) updates.teamAccess = editTeams;
 
     if (Object.keys(updates).length === 0) {
       setError('No changes to save.');
@@ -95,12 +104,8 @@ export function AdminUsersTab() {
     setSavingId(user.id);
     setError(null);
     try {
-      await api.admin.updateUser(user.id, updates);
-      setUsers(prev => prev.map(u =>
-        u.id === user.id
-          ? { ...u, username: updates.username ?? u.username, role: updates.role ?? u.role }
-          : u
-      ));
+      const { user: savedUser } = await api.admin.updateUser(user.id, updates);
+      setUsers(prev => prev.map(u => u.id === user.id ? savedUser : u));
       setSuccess(`User "${uname}" updated.`);
       cancelEdit();
     } catch (err) {
@@ -150,9 +155,15 @@ export function AdminUsersTab() {
           <div className="form-group">
             <label className="form-label">Role</label>
             <select className="form-input role-select" value={newRole} onChange={e => setNewRole(e.target.value as Role)}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              {ASSIGNABLE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
+          <fieldset className="form-group team-access-fieldset">
+            <legend className="form-label">Team access</legend>
+            <div className="team-access-options">
+              {TEAMS.map(team => <label key={team} className="team-access-option"><input type="checkbox" checked={newTeams.includes(team)} onChange={() => setNewTeams(current => toggleTeam(current, team))} />{team}</label>)}
+            </div>
+          </fieldset>
           <button
             className="btn btn-primary admin-create-submit"
             onClick={handleCreate}
@@ -195,6 +206,7 @@ export function AdminUsersTab() {
                   </div>
                   <RoleBadge role={user.role} size="sm" />
                 </div>
+                <div className="user-card__team-access">Teams: {(user.team_access || []).join(', ') || 'None'}</div>
 
                 {isEditing ? (
                   <>
@@ -227,9 +239,15 @@ export function AdminUsersTab() {
                           disabled={isSelf}
                           title={isSelf ? 'Cannot change your own role' : undefined}
                         >
-                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          {(!ASSIGNABLE_ROLES.includes(user.role) ? [user.role, ...ASSIGNABLE_ROLES] : ASSIGNABLE_ROLES).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </label>
+                      <fieldset className="user-card__field team-access-fieldset" disabled={isSelf}>
+                        <legend className="user-card__field-label">Team access</legend>
+                        <div className="team-access-options">
+                          {TEAMS.map(team => <label key={team} className="team-access-option"><input type="checkbox" checked={editTeams.includes(team)} onChange={() => setEditTeams(current => toggleTeam(current, team))} />{team}</label>)}
+                        </div>
+                      </fieldset>
                     </div>
 
                     <div className="user-card__actions user-card__actions--edit">

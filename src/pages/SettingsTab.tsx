@@ -29,7 +29,7 @@ const SETTINGS_SECTIONS: { id: SettingsSection; label: string; note: string }[] 
 export function SettingsTab({ role, prefs }: Props) {
   const { setActiveTeam } = useAuthActions();
   const { assignedTeam, allowedTeams, canSwitchTeam, activeTeam } = useAuthState();
-  const canChooseTeam = canSwitchTeam && ['admin', 'l2', 'soc_lead'].includes(role);
+  const canChooseTeam = canSwitchTeam;
   const [activeSection, setActiveSection] = useState<SettingsSection>('workspace');
   const [loadingWebhook, setLoadingWebhook] = useState(true);
   const [savingWebhook, setSavingWebhook] = useState(false);
@@ -69,7 +69,7 @@ export function SettingsTab({ role, prefs }: Props) {
 
   const urlValid = !webhookUrl.trim() || /^https:\/\//i.test(webhookUrl.trim());
   const alertState = !webhookUrl.trim() ? 'Not configured' : enabled ? 'Active' : 'Paused';
-  const availableTabs = ALL_TABS.filter(tab => tab.id !== 'settings' && isTabVisible(tab, role));
+  const availableTabs = ALL_TABS.filter(tab => tab.id !== 'settings' && isTabVisible(tab, role, allowedTeams));
   const assigned = new Set(draft.layout.flatMap(group => group.tabs));
   const poolTabs = availableTabs.filter(tab => !assigned.has(tab.id));
   const tabById = new Map(availableTabs.map(tab => [tab.id, tab]));

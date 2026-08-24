@@ -3,7 +3,16 @@ const { requireCurrentRole, readJsonBody } = require('../_auth');
 const { getSupabase } = require('../_supabase');
 const { serverError } = require('../_errors');
 
-const VALID_ROLES = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
+const ASSIGNABLE_ROLES = ['admin', 'soc_lead', 'l1', 'l2'];
+const VALID_TEAMS = ['PAC', 'CHARLIE'];
+
+function sanitizeTeamAccess(value, optional = false) {
+  if (value === undefined && optional) return null;
+  if (!Array.isArray(value)) throw new Error('Team access must be an array.');
+  const normalized = value.map(team => String(team).trim().toUpperCase());
+  if (normalized.some(team => !VALID_TEAMS.includes(team))) throw new Error('Team access values must be PAC or CHARLIE.');
+  return VALID_TEAMS.filter(team => normalized.includes(team));
+}
 
 function mutationError(res, error, context) {
   if (error?.code === '23505') return res.status(409).json({ error: 'Username already exists.' });
@@ -14,7 +23,7 @@ function mutationError(res, error, context) {
 }
 
 async function mutateUser(supabase, req, operation, values) {
-  return supabase.rpc('mutate_app_user', {
+  return supabase.rpc('mutate_app_user_v2', {
     p_actor_id: req.auth.userId,
     p_operation: operation,
     p_target_id: values.id || null,
@@ -22,6 +31,7 @@ async function mutateUser(supabase, req, operation, values) {
     p_password_hash: values.passwordHash || null,
     p_role: values.role || null,
     p_detail: values.detail || null,
+    p_team_access: values.teamAccess ?? null,
   });
 }
 
@@ -37,7 +47,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('app_users')
-      .select('id, username, role, created_at, created_by')
+      .select('id, username, role, team_access, created_at, created_by')
       .order('created_at', { ascending: true });
     if (error) return serverError(res, error, 'admin/users GET');
     return res.status(200).json({ ok: true, users: data });
@@ -51,11 +61,14 @@ module.exports = async function handler(req, res) {
     const username = String(body?.username || '').trim();
     const password = String(body?.password || '');
     const role = body?.role;
+    let teamAccess;
+    try { teamAccess = sanitizeTeamAccess(body?.teamAccess, true); }
+    catch (error) { return res.status(400).json({ error: error.message }); }
     if (!username || !password || !role) return res.status(400).json({ error: 'Missing username, password, or role.' });
-    if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if (!ASSIGNABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await mutateUser(supabase, req, 'create', {
-      username, passwordHash, role, detail: { role },
+      username, passwordHash, role, teamAccess, detail: { role, teamAccess },
     });
     if (result.error) return mutationError(res, result.error, 'admin/users POST');
     return res.status(201).json({ ok: true, user: result.data });
@@ -63,15 +76,21 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const { id, role, password } = body || {};
+    const hasTeamAccess = Object.prototype.hasOwnProperty.call(body || {}, 'teamAccess');
+    let teamAccess = null;
+    if (hasTeamAccess) {
+      try { teamAccess = sanitizeTeamAccess(body.teamAccess); }
+      catch (error) { return res.status(400).json({ error: error.message }); }
+    }
     const username = body?.username == null ? null : String(body.username).trim();
     if (!id) return res.status(400).json({ error: 'Missing id.' });
-    if (!role && !password && username == null) return res.status(400).json({ error: 'Provide username, role, or password to update.' });
+    if (!role && !password && username == null && !hasTeamAccess) return res.status(400).json({ error: 'Provide username, role, team access, or password to update.' });
     if (username != null && !username) return res.status(400).json({ error: 'Username cannot be empty.' });
-    if (role && !VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if (role && !ASSIGNABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const result = await mutateUser(supabase, req, 'update', {
-      id, username, passwordHash, role,
-      detail: { usernameChanged: username != null, roleChanged: !!role, passwordChanged: !!password, newRole: role || undefined },
+      id, username, passwordHash, role, teamAccess,
+      detail: { usernameChanged: username != null, roleChanged: !!role, teamAccessChanged: hasTeamAccess, passwordChanged: !!password, newRole: role || undefined, teamAccess: teamAccess ?? undefined },
     });
     if (result.error) return mutationError(res, result.error, 'admin/users PATCH');
     return res.status(200).json({ ok: true, user: result.data });
@@ -90,3 +109,4 @@ module.exports = async function handler(req, res) {
 };
 
 module.exports.mutateUser = mutateUser;
+module.exports.sanitizeTeamAccess = sanitizeTeamAccess;

@@ -1,4 +1,4 @@
-import type { Role } from '../types/api';
+import type { Role, Team } from '../types/api';
 
 export const ROLES = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'] as const;
 
@@ -22,30 +22,30 @@ export type TabId =
 // Admin-equivalent roles. L2 is treated as a second admin tier.
 export const ADMIN_ROLES: Role[] = ['admin', 'l2'];
 export const LEAD_ROLES: Role[] = ['admin', 'soc_lead', 'l2'];
-export const TEAM_FILTER_ROLES: Role[] = ['admin', 'soc_lead', 'pac', 'charlie', 'l2'];
 const ANALYST_ROLES: Role[] = ['admin', 'soc_lead', 'pac', 'charlie', 'l1', 'l2'];
-const ADVANCED_ROLES: Role[] = ['admin', 'soc_lead', 'pac', 'charlie', 'l2'];
+
 
 // null = any authenticated role; Role[] = specific allowlist
 export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'dashboard':   ADMIN_ROLES,
-  'formatter':   ADVANCED_ROLES,
-  'json':        ADVANCED_ROLES,
-  'merger':      ADVANCED_ROLES,
+  'formatter':   null,
+  'json':        null,
+  'merger':      null,
   'ioc-scan':    ANALYST_ROLES,
   'history':     ANALYST_ROLES,
-  'pac-filter':  TEAM_FILTER_ROLES,
-  'daily-eod':   ADVANCED_ROLES,
+  'pac-filter':  [],
+  'daily-eod':   null,
   'admin-users': ADMIN_ROLES,
   'admin-logs':  LEAD_ROLES,
   'ir-manager':  ANALYST_ROLES,
-  'cve':         ADVANCED_ROLES,
-  'attack':      ADVANCED_ROLES,
+  'cve':         null,
+  'attack':      null,
   'settings':    ANALYST_ROLES,
   'admin-usage': ADMIN_ROLES,
 };
 
-export function canViewTab(role: Role, tab: TabId): boolean {
+export function canViewTab(role: Role, tab: TabId, allowedTeams: Team[] = []): boolean {
+  if (tab === 'pac-filter') return allowedTeams.length > 0;
   const allowed = TAB_ACCESS[tab];
   if (allowed === null) return true;
   return (allowed as Role[]).includes(role);
@@ -60,13 +60,14 @@ export type Action =
 
 export const ACTION_ACCESS: Record<Action, Role[] | null> = {
   'manage:users':     ADMIN_ROLES,
-  'write:pac-filter': TEAM_FILTER_ROLES,
-  'read:pac-filter':  TEAM_FILTER_ROLES,
+  'write:pac-filter': [],
+  'read:pac-filter':  [],
   'export:pdf':       null,
   'export:csv':       null,
 };
 
-export function canPerform(role: Role, action: Action): boolean {
+export function canPerform(role: Role, action: Action, allowedTeams: Team[] = []): boolean {
+  if (action === 'read:pac-filter' || action === 'write:pac-filter') return allowedTeams.length > 0;
   const allowed = ACTION_ACCESS[action];
   if (allowed === null) return true;
   return (allowed as Role[]).includes(role);

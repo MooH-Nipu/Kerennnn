@@ -7,6 +7,7 @@ export interface AuthState {
   ready: boolean;
   authed: boolean;
   role: Role | null;
+  teamAccess: Team[];
   username: string | null;
   assignedTeam: Team | null;
   allowedTeams: Team[];
@@ -40,6 +41,7 @@ const initialState: AuthState = {
   ready: false,
   authed: false,
   role: null,
+  teamAccess: [],
   username: null,
   assignedTeam: null,
   allowedTeams: [],
