@@ -4,9 +4,9 @@ const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
 
 // Strictly per-user history: every query is filtered by req.auth.userId.
-const MAX_ROWS = 50;      // hard cap per user; oldest rows pruned on each insert
+const MAX_ROWS = 20;      // hard cap per user; oldest rows pruned on each insert
 const DEFAULT_LIMIT = MAX_ROWS;
-const MAX_LIMIT = 200;
+const MAX_LIMIT = MAX_ROWS;
 
 function clampLimit(raw) {
   const n = parseInt(String(raw ?? ''), 10);
@@ -36,6 +36,7 @@ module.exports = async function handler(req, res) {
       .select('id, input, count, items, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(limit);
 
     if (error) return serverError(res, error, 'scan-history GET');
@@ -74,6 +75,7 @@ module.exports = async function handler(req, res) {
         .select('id')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(MAX_ROWS, MAX_ROWS + 499);
       if (overflow && overflow.length > 0) {
         await supabase.from('scan_history').delete().in('id', overflow.map(r => r.id));

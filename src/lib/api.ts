@@ -118,7 +118,7 @@ export const api = {
   },
 
   history: {
-    list: (limit = 50) =>
+    list: (limit = 20) =>
       apiFetch<HistoryListResponse>(`/api/scan-history?limit=${limit}`),
     add: (input: string, count: number, items: ScanItem[]) =>
       apiFetch<HistoryMutateResponse>('/api/scan-history', {
