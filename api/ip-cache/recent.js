@@ -94,17 +94,19 @@ module.exports = async function handler(req, res) {
 
   if (error) return serverError(res, error, 'ip-cache recent');
 
-  // Get total count + verdict breakdown (not limited by fetch).
-  const timelineQuery = supabase.from('vt_ip_cache').select('first_scanned_at');
-  if (from) timelineQuery.gte('first_scanned_at', from.toISOString());
-  if (to) timelineQuery.lt('first_scanned_at', to.toISOString());
+  // Get range-bound total count + verdict breakdown (not limited by fetch).
+  const inRange = (query) => {
+    if (from) query.gte('first_scanned_at', from.toISOString());
+    if (to) query.lt('first_scanned_at', to.toISOString());
+    return query;
+  };
 
   const [totalRes, malRes, susRes, cleanRes, timelineRes] = await Promise.all([
-    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }),
-    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'malicious'),
-    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'suspicious'),
-    supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'clean'),
-    timelineQuery,
+    inRange(supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true })),
+    inRange(supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'malicious')),
+    inRange(supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'suspicious')),
+    inRange(supabase.from('vt_ip_cache').select('id', { count: 'exact', head: true }).eq('vt_verdict', 'clean')),
+    inRange(supabase.from('vt_ip_cache').select('first_scanned_at')),
   ]);
   const countError = firstQueryError([totalRes, malRes, susRes, cleanRes]);
   if (countError) return serverError(res, countError, 'ip-cache verdict counts');
