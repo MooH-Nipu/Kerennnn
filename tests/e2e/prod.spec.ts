@@ -38,7 +38,7 @@ test.describe('read-only production smoke', () => {
     expect(await health.json()).toEqual({ ok: true });
 
     await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await page.getByLabel('Settings').click();
     const team = page.getByLabel('Active Team Filter context');

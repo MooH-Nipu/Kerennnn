@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 
 const app = express();
@@ -32,6 +33,8 @@ app.use((_req, res, next) => {
   res.setHeader('Content-Security-Policy', CSP);
   next();
 });
+
+app.use(compression());
 
 // JSON body parsing — skip multipart so busboy handlers read the raw stream directly
 app.use((req, res, next) => {
@@ -92,7 +95,7 @@ app.use(express.static(dist, {
     if (filePath.includes(`${path.sep}assets${path.sep}`)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (filePath.includes(`${path.sep}fonts${path.sep}`)) {
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache');
     } else {

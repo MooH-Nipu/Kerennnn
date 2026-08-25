@@ -5,7 +5,7 @@ export async function login(page: Page, username: string, password: string) {
   await page.getByLabel('Username').fill(username);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 }
 
 export async function installSession(context: BrowserContext, baseURL: string, token: string) {

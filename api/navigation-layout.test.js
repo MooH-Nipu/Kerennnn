@@ -100,6 +100,8 @@ test('header and notification actions declare safe button semantics', () => {
   const toast = source('src/components/shared/SessionExpiredToast.tsx');
 
   assert.match(header, /type="button" className="logout-btn"/);
+  assert.match(header, /aria-label="Logout"/);
+  assert.doesNotMatch(header, /aria-label="Sign out"/);
   assert.equal((toast.match(/type="button"/g) || []).length, 2);
 });
 
