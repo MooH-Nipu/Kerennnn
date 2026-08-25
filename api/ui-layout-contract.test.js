@@ -18,6 +18,7 @@ test('live-audited layouts preserve readable proportions at desktop and 700px', 
   const css = source('src/styles/ui-improvements.css');
   const logs = source('src/pages/AdminLogsTab.tsx');
   const dashboard = source('src/pages/DashboardTab.tsx');
+  const charts = source('src/components/dashboard/DashboardCharts.tsx');
   assert.match(css, /\.history-layout\s*\{[^}]*grid-template-columns:\s*minmax\(320px, 36%\) 1fr;/s);
   assert.match(css, /\.history-placeholder\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s);
   assert.match(css, /\.history-item__preview\s*\{[^}]*-webkit-line-clamp:\s*2;/s);
@@ -29,7 +30,7 @@ test('live-audited layouts preserve readable proportions at desktop and 700px', 
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.admin-log-row\s*\{[^}]*grid-template-columns:\s*1fr;/);
   assert.match(css, /\.ioc-scan-results\s*>\s*\.ioc-scan-empty\s*\{[^}]*min-height:\s*280px;/s);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.merger-grid\s*\{[^}]*grid-template-columns:\s*1fr;/);
-  assert.match(dashboard, /className="dash-analysis-grid"/);
+  assert.match(`${dashboard}\n${charts}`, /className="dash-analysis-grid(?: dash-analysis-grid--stable)?"/);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.dash-analysis-grid\s*\{[^}]*grid-template-columns:\s*1fr;/);
 });
 
@@ -149,6 +150,7 @@ test('dynamic loading and scan progress remain visibly active and accessible', (
 
 test('Dashboard centers charts and caps per-user bars at six users plus Other', () => {
   const dashboard = source('src/pages/DashboardTab.tsx');
+  const charts = source('src/components/dashboard/DashboardCharts.tsx');
   const helper = source('src/lib/dashboard-data.ts');
   const css = source('src/styles/ui-improvements.css');
   assert.match(dashboard, /import \{ aggregateUserScans \}/);
@@ -156,10 +158,40 @@ test('Dashboard centers charts and caps per-user bars at six users plus Other', 
   assert.match(helper, /\.slice\(6\)\.reduce/);
   assert.match(helper, /username: 'Other'/);
   assert.match(dashboard, /const userScanChartData = aggregateUserScans\(ipScanData\?\.byUser \?\? \[\]\)/);
-  assert.match(dashboard, /data=\{userScanChartData\}/);
-  assert.match(dashboard, /userScanChartData\.length \* 34/);
-  assert.match(dashboard, /className="card__body dash-chart-body"/);
+  assert.match(charts, /data=\{userScanChartData\}/);
+  assert.match(charts, /userScanChartData\.length \* 34/);
+  assert.match(charts, /className="card__body dash-chart-body"/);
   assert.match(css, /\.dash-chart-body\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*min-height:\s*286px;/s);
+});
+
+test('Dashboard defers chart runtime and preserves loading geometry', () => {
+  const dashboard = source('src/pages/DashboardTab.tsx');
+  const charts = source('src/components/dashboard/DashboardCharts.tsx');
+  const css = source('src/styles/ui-improvements.css');
+
+  assert.doesNotMatch(dashboard, /from 'recharts'/);
+  assert.match(dashboard, /lazy\(\(\) => import\('\.\.\/components\/dashboard\/DashboardCharts'\)\)/);
+  assert.match(charts, /from 'recharts'/);
+  assert.match(dashboard, /className="dash-analysis-grid dash-analysis-grid--stable"/);
+  assert.match(dashboard, /className="card dash-quota-slot"/);
+  assert.match(`${dashboard}\n${charts}`, /className="card dash-usage-slot"/);
+  assert.match(dashboard, /section="analysis"[\s\S]*className="card dash-quota-slot"[\s\S]*section="usage"/);
+  assert.match(dashboard, /const chartsLoading = usageLoading && !usageData && !ipScanData;/);
+  assert.match(dashboard, /chartsLoading \? <DashboardChartSkeleton section="analysis"/);
+  assert.match(dashboard, /usageLoading && !usageData && \(/);
+  assert.match(dashboard, /className="dash-tables-grid"/);
+  assert.match(css, /\.dash-analysis-grid--stable\s*>\s*\.card\s*\{[^}]*min-height:\s*348px;/s);
+  assert.match(css, /\.dash-quota-slot\s*\{[^}]*min-height:\s*160px;/s);
+  assert.match(css, /\.dash-usage-slot\s*\{[^}]*min-height:\s*326px;/s);
+  assert.match(css, /\.dash-table-card\s*\{[^}]*min-height:\s*690px;/s);
+});
+
+test('measured header, navigation, and success badge colors meet contrast fixes', () => {
+  const css = source('src/styles/ui-improvements.css');
+  assert.match(css, /\.app-header__title em\s*\{[^}]*color:\s*#6ea8fe;/s);
+  assert.match(css, /\.tab-nav__section-label\s*\{[^}]*color:\s*var\(--text-secondary, #a3b3cc\);/s);
+  assert.match(css, /\.badge--success\.badge--soft\s*\{[^}]*color:\s*#4ade80;/s);
+  assert.match(css, /\.update-toast__badge\s*\{[^}]*color:\s*#6ea8fe;/s);
 });
 
 test('Team Filter warnings are not styled as success', () => {

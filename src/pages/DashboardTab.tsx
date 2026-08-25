@@ -1,10 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  ResponsiveContainer,
-  BarChart, Bar,
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-} from 'recharts';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import { fmtWhen } from '../lib/utils';
 import { aggregateUserScans } from '../lib/dashboard-data';
@@ -12,32 +6,12 @@ import { Spinner } from '../components/shared/Spinner';
 import { StatusMessage } from '../components/shared/StatusMessage';
 import type { RecentIp, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
 
+const DashboardCharts = lazy(() => import('../components/dashboard/DashboardCharts'));
+
 interface Props {
   onScanIp?: (ip: string) => void;
 }
 
-/* ── Usage helpers ─────────────────────────────────────────── */
-const SERVICE_COLORS: Record<string, string> = {
-  'VirusTotal':     'var(--color-primary)',
-  'AbuseIPDB':      'var(--color-danger)',
-  'Abuse.ch':       'var(--color-warning)',
-  'MalwareBazaar':  '#f472b6',
-  'AlienVault OTX': '#a78bfa',
-  'URLScan.io':     'var(--color-success)',
-  'Enrichment':     'var(--color-info)',
-  'Passive DNS':    '#fb923c',
-  'crt.sh':         '#a3e635',
-};
-const FALLBACK_PALETTE = ['var(--color-primary)', 'var(--color-danger)', 'var(--color-warning)', '#a78bfa', 'var(--color-success)', 'var(--color-info)', '#fb923c', '#a3e635', '#c084fc', '#f472b6'];
-
-const TOOLTIP_STYLE = {
-  background: 'var(--color-surface)',
-  border: '1px solid var(--color-border)',
-  borderRadius: 8,
-  color: 'var(--color-foreground)',
-  fontSize: 12,
-};
-const AXIS_STYLE = { fill: 'var(--color-muted-foreground)', fontSize: 11 };
 const RANGE_HOURS: Record<string, number> = {
   '15m': 0.25,
   '1h': 1,
@@ -65,6 +39,27 @@ function verdictBadge(v: string | null): string {
   if (s === 'suspicious') return 'badge badge--warning badge--soft';
   if (s === 'clean')      return 'badge badge--success badge--soft';
   return 'badge badge--soft';
+}
+
+function DashboardChartSkeleton({ section }: { section: 'analysis' | 'usage' }) {
+  if (section === 'usage') {
+    return (
+      <div className="card dash-usage-slot" aria-busy="true">
+        <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
+        <div className="card__body dash-chart-body"><Spinner size={16} /></div>
+      </div>
+    );
+  }
+  return (
+    <div className="dash-analysis-grid dash-analysis-grid--stable" aria-busy="true">
+      {['IP scans over time', 'IP scans per user'].map(title => (
+        <div className="card" key={title}>
+          <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>{title}</h3></div>
+          <div className="card__body dash-chart-body"><Spinner size={16} /></div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function DashboardTab({ onScanIp }: Props) {
@@ -105,7 +100,7 @@ export function DashboardTab({ onScanIp }: Props) {
   const [to, setTo] = useState(() => toLocalDatetime(now));
   const [activePreset, setActivePreset] = useState('7d');
   const [usageLoading, setUsageLoading] = useState(true);
-  const [, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [usageData, setUsageData] = useState<ApiUsageResponse | null>(null);
   const [ipScanData, setIpScanData] = useState<IpScanAnalyticsResponse | null>(null);
   const [vtQuota, setVtQuota] = useState<VtQuotaResponse | null>(null);
@@ -183,7 +178,8 @@ export function DashboardTab({ onScanIp }: Props) {
     : {};
   const userScanChartData = aggregateUserScans(ipScanData?.byUser ?? []);
 
-  const loading = ipLoading || usageLoading;
+  const loading = ipLoading || usageLoading || refreshing;
+  const chartsLoading = usageLoading && !usageData && !ipScanData;
 
   return (
     <div className="tab-content dashboard-tab">
@@ -266,73 +262,27 @@ export function DashboardTab({ onScanIp }: Props) {
         </div>
       )}
 
-      {/* ── Loading skeleton ───────────────────────────────── */}
-      {loading && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card__body" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1.5rem' }}>
-            <Spinner size={16} />
-            <span style={{ color: 'var(--color-muted-foreground)', fontSize: '0.85rem' }}>Loading dashboard data…</span>
-          </div>
-        </div>
+      {/* Keep chart and analytics geometry stable while data and chart runtime load. */}
+      {chartsLoading ? <DashboardChartSkeleton section="analysis" /> : (
+        <Suspense fallback={<DashboardChartSkeleton section="analysis" />}>
+          <DashboardCharts
+            section="analysis"
+            scanTimeline={scanTimeline}
+            scanTimelineBucket={scanTimelineBucket}
+            userScanChartData={userScanChartData}
+            usageData={usageData}
+          />
+        </Suspense>
       )}
 
-      {/* ── Scan activity + outcome quality ────────────────── */}
-      {!loading && (
-        <div className="dash-analysis-grid">
-          <div className="card">
-            <div className="card__header">
-              <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans over time</h3>
-              <span className="badge badge--soft" style={{ marginLeft: 'auto' }}>{scanTimelineBucket ?? '—'} buckets</span>
-            </div>
-            <div className="card__body dash-chart-body">
-              {scanTimeline.length > 0 ? (
-                <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={scanTimeline} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
-                      <defs><linearGradient id="scan-timeline-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.45} /><stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                      <XAxis dataKey="time" tick={AXIS_STYLE} stroke="var(--color-border)" minTickGap={28} />
-                      <YAxis tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'var(--color-primary)' }} formatter={(value, _name, item) => [value as number, item.payload.source ?? 'tracked scans']} />
-                      <Area type="monotone" dataKey="scans" name="IP scans" stroke="var(--color-primary)" strokeWidth={2} fill="url(#scan-timeline-gradient)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : <div className="empty-state"><p className="empty-state__text">No IP scans in this window.</p></div>}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>IP scans per user</h3></div>
-            <div className="card__body dash-chart-body">
-              {userScanChartData.length > 0 ? (
-                <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-                  <ResponsiveContainer width="100%" height={Math.max(200, userScanChartData.length * 34 + 48)}>
-                    <BarChart data={userScanChartData} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                      <XAxis type="number" tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
-                      <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--color-border)" width={96} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'color-mix(in oklch, var(--color-primary) 8%, transparent)' }} />
-                      <Bar dataKey="scans" name="IP scans" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : <div className="empty-state"><p className="empty-state__text">No user IP scans in this window.</p></div>}
-            </div>
-          </div>
+      <div className="card dash-quota-slot">
+        <div className="card__header">
+          <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>API quota tracker</h3>
+          {vtQuota && <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-muted-foreground)' }}>Resets {new Date(vtQuota.resetAt).toLocaleString()}</span>}
         </div>
-      )}
-
-      {vtQuota && (vtQuota.services ?? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }]).some(service => service.keys.length > 0) && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card__header">
-            <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>API quota tracker</h3>
-            <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-muted-foreground)' }}>
-              Resets {new Date(vtQuota.resetAt).toLocaleString()}
-            </span>
-          </div>
-          <div className="card__body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-            {(vtQuota.services ?? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }]).map(service => (
+        <div className="card__body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
+          {usageLoading && !vtQuota ? <Spinner size={16} /> : (vtQuota?.services ?? (vtQuota ? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }] : [])).some(service => service.keys.length > 0) ? (
+            (vtQuota?.services ?? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota?.dailyLimit ?? 0, keys: vtQuota?.keys ?? [] }]).map(service => (
               <section key={service.id} style={{ display: 'grid', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <strong style={{ fontSize: '0.8rem' }}>{service.name}</strong>
@@ -353,57 +303,27 @@ export function DashboardTab({ onScanIp }: Props) {
                   </div>
                 ))}
               </section>
-            ))}
-          </div>
+            ))
+          ) : <div className="empty-state"><p className="empty-state__text">No quota data available.</p></div>}
         </div>
-      )}
+      </div>
 
-      {/* ── TI usage over time (full width) ─────────────────── */}
-      {!loading && usageData && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card__header"><h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>TI usage over time</h3></div>
-          <div className="card__body" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '0 1rem 0.5rem 0.25rem' }}>
-              {(() => {
-                const svcSet = new Set<string>();
-                for (const d of usageData.byDay) {
-                  for (const k of Object.keys(d)) { if (k !== 'day' && k !== 'Unknown') svcSet.add(k); }
-                }
-                const services = [...svcSet].sort();
-                if (services.length === 0) return <div className="empty-state"><p className="empty-state__text">No threat-intel calls in this window.</p></div>;
-                function svcColor(svc: string, i: number) { return SERVICE_COLORS[svc] || FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]; }
-                return (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <AreaChart data={usageData.byDay} margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
-                      <defs>
-                        {services.map(svc => (
-                          <linearGradient key={svc} id={`byDay-grad-${svc.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={svcColor(svc, 0)} stopOpacity={0.45} />
-                            <stop offset="100%" stopColor={svcColor(svc, 0)} stopOpacity={0} />
-                          </linearGradient>
-                        ))}
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                      <XAxis dataKey="day" tick={AXIS_STYLE} stroke="var(--color-border)" />
-                      <YAxis tick={AXIS_STYLE} stroke="var(--color-border)" allowDecimals={false} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'var(--color-primary)' }} />
-                      <Legend wrapperStyle={{ fontSize: 11, color: 'var(--color-muted-foreground)' }} />
-                      {services.map((svc, i) => (
-                        <Area key={svc} type="monotone" dataKey={svc} name={svc} stroke={svcColor(svc, i)} strokeWidth={2} fill={`url(#byDay-grad-${svc.replace(/\s+/g, '-')})`} />
-                      ))}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
+      {chartsLoading ? <DashboardChartSkeleton section="usage" /> : (
+        <Suspense fallback={<DashboardChartSkeleton section="usage" />}>
+          <DashboardCharts
+            section="usage"
+            scanTimeline={scanTimeline}
+            scanTimelineBucket={scanTimelineBucket}
+            userScanChartData={userScanChartData}
+            usageData={usageData}
+          />
+        </Suspense>
       )}
 
       {/* ── Two-column tables ──────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
+      <div className="dash-tables-grid">
         {/* Recent IPs */}
-        <div className="card">
+        <div className="card dash-table-card">
           <div className="card__header">
             <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Recent IP Scans</h3>
             <span className="badge badge--soft" style={{ marginLeft: 'auto' }}>{items.length}</span>
@@ -446,7 +366,7 @@ export function DashboardTab({ onScanIp }: Props) {
         </div>
 
         {/* Recent API calls */}
-        <div className="card">
+        <div className="card dash-table-card">
           <div className="card__header">
             <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Recent API Calls</h3>
             <span className="badge badge--soft" style={{ marginLeft: 'auto' }}>{usageData?.recent.length || 0}</span>
@@ -474,7 +394,7 @@ export function DashboardTab({ onScanIp }: Props) {
                     <div className="empty-state"><p className="empty-state__text">No API calls in this window</p></div>
                   </td></tr>
                 )}
-                {loading && (
+                {usageLoading && !usageData && (
                   [0,1,2].map(i => (
                     <tr key={i}>
                       <td><span className="placeholder placeholder--glow" style={{ width: '50%', height: '0.75rem' }}>&nbsp;</span></td>
