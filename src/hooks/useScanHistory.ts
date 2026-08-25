@@ -10,7 +10,7 @@ import { useAuthState } from '../context/AuthContext';
 // of any pre-cloud localStorage history has already run.
 const LS_KEY = 'socToolboxScanHistory';
 const LS_IMPORTED_KEY = 'socToolboxScanHistoryImported';
-const MAX = 50;
+const MAX = 20;
 
 export interface HistoryEntry {
   id: string;
@@ -25,11 +25,15 @@ function fromServer(row: ScanHistoryEntry): HistoryEntry {
   return { id: row.id, ts: row.created_at, input: row.input, count: row.count, items: row.items ?? [] };
 }
 
-function loadLocal(): HistoryEntry[] {
+export function parseLocalHistory(raw: string | null): HistoryEntry[] {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, MAX) : [];
   } catch { return []; }
+}
+
+function loadLocal(): HistoryEntry[] {
+  return parseLocalHistory(localStorage.getItem(LS_KEY));
 }
 
 function saveLocal(entries: HistoryEntry[]) {
