@@ -69,10 +69,10 @@ describe('bulk IOC preview parser', () => {
     assert.equal(rows.some(row => row.normalized === 'example.com'), false);
   });
 
-  test('selects at most 100 rows and 25 domains by default', async () => {
-    const { parseBulkIocs } = await parser();
-    const rows = parseBulkIocs([...Array.from({ length: 30 }, (_, i) => `domain${i}.example.com`), ...Array.from({ length: 80 }, (_, i) => `192.0.2.${i % 255}`)].join('\n'));
-    assert.equal(rows.filter(row => row.selected && row.type === 'domain').length, 25);
+  test('selects at most 100 rows and 100 domains by default', async () => {
+    const { parseBulkIocs, MAX_SELECTED_DOMAINS } = await parser();
+    const rows = parseBulkIocs([...Array.from({ length: 120 }, (_, i) => `domain${i}.example.com`), ...Array.from({ length: 80 }, (_, i) => `192.0.2.${i % 255}`)].join('\n'));
+    assert.equal(rows.filter(row => row.selected && row.type === 'domain').length, MAX_SELECTED_DOMAINS);
     assert.equal(rows.filter(row => row.selected).length, 100);
   });
 });

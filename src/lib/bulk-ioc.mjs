@@ -2,7 +2,7 @@ export const MAX_BULK_IOCS = 1000;
 export const MAX_BULK_INPUT_CHARS = 256 * 1024;
 export const MAX_BULK_LINES = 5000;
 export const MAX_SELECTED_IOCS = 100;
-export const MAX_SELECTED_DOMAINS = 25;
+export const MAX_SELECTED_DOMAINS = 100;
 
 function normalize(raw) {
   let value = String(raw ?? '').trim().replace(/^\[|\]$/g, '');

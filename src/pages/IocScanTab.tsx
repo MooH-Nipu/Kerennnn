@@ -5,7 +5,7 @@ import { VtCard } from '../components/vt/VtCard';
 import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { CountryFilter } from '../components/vt/CountryFilter';
 import { CopyButton } from '../components/shared/CopyButton';
-import { MAX_BULK_INPUT_CHARS, MAX_BULK_IOCS, parseBulkIocs, type BulkIocRow } from '../lib/bulk-ioc.mjs';
+import { MAX_BULK_INPUT_CHARS, MAX_BULK_IOCS, MAX_SELECTED_DOMAINS, parseBulkIocs, type BulkIocRow } from '../lib/bulk-ioc.mjs';
 
 interface Props {
   pendingIoc?: string;
@@ -58,7 +58,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const selectedPreviewRows = previewRows.filter(row => isSelected(row) && row.valid && !row.duplicate);
   const selectedDomainCount = selectedPreviewRows.filter(row => row.type === 'domain' || row.type === 'url').length;
   const selectionFull = selectedPreviewRows.length >= 100;
-  const domainSelectionFull = selectedDomainCount >= 25;
+  const domainSelectionFull = selectedDomainCount >= MAX_SELECTED_DOMAINS;
 
   async function handleFile(file?: File) {
     if (!file) return;
