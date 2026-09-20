@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useRef } from 'react';
-import { parseIocList, confToVerdict } from '../lib/ioc';
+import { parseIocList, calcVerdict, operationalVerdict } from '../lib/ioc';
 import { api } from '../lib/api';
 import type { ScanItem } from '../types/vt';
 import type { IocType } from '../types/vt';
@@ -27,6 +27,7 @@ async function fetchVtKeyCount(): Promise<number> {
 
 export interface ScanFilters {
   clean: boolean;
+  unknown: boolean;
   lowrisk: boolean;
   suspicious: boolean;
   malicious: boolean;
@@ -61,7 +62,7 @@ type Action =
 
 const initial: VtScanState = {
   items: [],
-  filters: { clean: true, lowrisk: true, suspicious: true, malicious: true },
+  filters: { clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true },
   countryFilters: [],
   scanning: false,
   progress: { done: 0, total: 0 },
@@ -82,25 +83,26 @@ function getItemCountry(item: ScanItem): string {
 function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
   if (item.pending || item.error) return true;
   if (item.correlationLoading) return true;
-  if (item.correlation !== null) {
-    const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
-    const { label } = confToVerdict(conf);
-    if (label === 'MALICIOUS') return filters.malicious;
-    if (label === 'SUSPICIOUS') return filters.suspicious;
-    if (label === 'LOW RISK') return filters.lowrisk;
-    return filters.clean; // CLEAN / UNKNOWN
-  }
-  // Fallback: VT-only verdict when correlation unavailable.
   const result = item.result as Record<string, unknown> | null;
   const attrs = result?.data as Record<string, unknown> | null;
   const stats = (attrs?.attributes as Record<string, unknown>)?.last_analysis_stats as Record<string, number> | undefined;
   const mal = stats?.malicious ?? 0;
   const sus = stats?.suspicious ?? 0;
   const total = Object.values(stats ?? {}).reduce((a, b) => a + b, 0);
-  if (!total) return filters.clean;
-  if (mal >= 5) return filters.malicious;
-  if (mal >= 1 || sus >= 3) return filters.suspicious;
-  return filters.clean;
+  const vtVerdict = calcVerdict(mal, sus, total);
+  if (item.correlation !== null) {
+    const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
+    const { label } = operationalVerdict(vtVerdict, conf, item.correlation.sources);
+    if (label === 'MALICIOUS') return filters.malicious;
+    if (label === 'SUSPICIOUS') return filters.suspicious;
+    if (label === 'LOW RISK') return filters.lowrisk;
+    if (label === 'CLEAN') return filters.clean;
+    return filters.unknown;
+  }
+  if (vtVerdict.label === 'MALICIOUS') return filters.malicious;
+  if (vtVerdict.label === 'SUSPICIOUS') return filters.suspicious;
+  if (vtVerdict.label === 'CLEAN') return filters.clean;
+  return filters.unknown;
 }
 
 function reducer(state: VtScanState, action: Action): VtScanState {

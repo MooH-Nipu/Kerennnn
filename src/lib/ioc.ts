@@ -80,6 +80,39 @@ export function confToVerdict(score: number | null): { label: string; cls: strin
   return { label: 'CLEAN', cls: 'verdict-clean' };
 }
 
+export type OperationalVerdict = { label: string; cls: string };
+type SourceVerdict = { verdict?: string; error?: string; skipped?: boolean };
+
+const OPERATIONAL_VERDICTS: Record<string, OperationalVerdict> = {
+  MALICIOUS:  { label: 'MALICIOUS', cls: 'verdict-malicious' },
+  SUSPICIOUS: { label: 'SUSPICIOUS', cls: 'verdict-suspicious' },
+  'LOW RISK': { label: 'LOW RISK', cls: 'verdict-unknown' },
+  CLEAN:      { label: 'CLEAN', cls: 'verdict-clean' },
+  UNKNOWN:    { label: 'UNKNOWN', cls: 'verdict-unknown' },
+};
+
+export function operationalVerdict(
+  vtVerdict: OperationalVerdict,
+  confidence: number | null | undefined,
+  sources?: SourceVerdict[],
+): OperationalVerdict {
+  const valid = (sources ?? []).filter(source => !source.error && !source.skipped);
+  const malicious = valid.filter(source => source.verdict === 'malicious').length;
+  const suspicious = valid.filter(source => source.verdict === 'suspicious').length;
+
+  if (vtVerdict.label === 'MALICIOUS' || (Number.isFinite(confidence) && confidence! >= 70) || malicious >= 2) {
+    return OPERATIONAL_VERDICTS.MALICIOUS;
+  }
+  if (vtVerdict.label === 'SUSPICIOUS' || (Number.isFinite(confidence) && confidence! >= 40) || malicious >= 1 || suspicious >= 1) {
+    return OPERATIONAL_VERDICTS.SUSPICIOUS;
+  }
+  if (Number.isFinite(confidence) && confidence! >= 15) return OPERATIONAL_VERDICTS['LOW RISK'];
+  if (vtVerdict.label === 'CLEAN' || valid.some(source => source.verdict === 'clean')) {
+    return OPERATIONAL_VERDICTS.CLEAN;
+  }
+  return OPERATIONAL_VERDICTS.UNKNOWN;
+}
+
 export function hashLabel(len: number): string {
   if (len === 32) return 'MD5';
   if (len === 40) return 'SHA1';

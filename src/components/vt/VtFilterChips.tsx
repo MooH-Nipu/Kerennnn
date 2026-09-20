@@ -10,6 +10,7 @@ const CHIPS: Array<{ key: keyof ScanFilters; label: string; cls: string }> = [
   { key: 'suspicious', label: 'Suspicious', cls: 'chip-suspicious' },
   { key: 'lowrisk',    label: 'Low Risk',   cls: 'chip-lowrisk' },
   { key: 'clean',      label: 'Clean',      cls: 'chip-clean' },
+  { key: 'unknown',    label: 'Unknown',    cls: 'chip-unknown' },
 ];
 
 export function VtFilterChips({ filters, onToggle }: Props) {

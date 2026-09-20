@@ -93,6 +93,96 @@ test.describe('authenticated admin smoke', () => {
     await expect(page.getByText(/Scan complete/)).toBeVisible();
     await expect(page.locator('.vt-ioc-val', { hasText: '192.0.2.10' })).toBeVisible();
   });
+
+  test('strongest valid IOC signal controls card verdict and filters', async ({ page }) => {
+    const cleanStats = { harmless: 80, malicious: 0, suspicious: 0, undetected: 10 };
+    const maliciousStats = { harmless: 70, malicious: 8, suspicious: 1, undetected: 11 };
+    await page.route('**/api/vt?*', route => {
+      const url = route.request().url();
+      if (url.includes('health=1')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ availableKeys: 100 }) });
+      }
+      const stats = url.includes('192.0.2.22')
+        ? {}
+        : url.includes('192.0.2.20') ? cleanStats : maliciousStats;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { attributes: { last_analysis_stats: stats } } }),
+      });
+    });
+    await page.route('**/api/correlate?*', route => {
+      const url = route.request().url();
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(url.includes('192.0.2.22')
+          ? { confidence: 0, sources: [] }
+          : url.includes('192.0.2.20')
+            ? { confidence: 74, sources: [{ source: 'AbuseIPDB', verdict: 'malicious' }] }
+            : { confidence: 0, sources: [{ source: 'AbuseIPDB', verdict: 'clean' }] }),
+      });
+    });
+    await page.getByRole('button', { name: /^(IoC Scan|IOC Review)$/ }).click();
+    await page.getByLabel(/IOC — one per line/i).fill('192.0.2.20\n192.0.2.21\n192.0.2.22');
+    await page.getByRole('button', { name: 'Scan 3', exact: true }).click();
+    await expect(page.getByText(/Scan complete/)).toBeVisible();
+    await expect(page.locator('.verdict', { hasText: 'MALICIOUS' })).toHaveCount(2);
+    await page.getByRole('button', { name: 'Malicious', exact: true }).click();
+    await expect(page.locator('.vt-ioc-val', { hasText: /192\.0\.2\.(20|21)/ })).toHaveCount(0);
+    await expect(page.locator('.verdict', { hasText: 'UNKNOWN' })).toBeVisible();
+    await page.getByRole('button', { name: 'Clean', exact: true }).click();
+    await expect(page.locator('.vt-ioc-val', { hasText: '192.0.2.22' })).toBeVisible();
+    await page.getByRole('button', { name: 'Unknown', exact: true }).click();
+    await expect(page.locator('.vt-ioc-val', { hasText: '192.0.2.22' })).toHaveCount(0);
+  });
+
+  test('Deep Analysis recommendations match Malicious, Low Risk, and Unknown', async ({ page }) => {
+    await page.route('**/api/ip-cache/by-id?*', route => {
+      const url = route.request().url();
+      const unknown = url.includes('unknown-case');
+      const lowRisk = url.includes('low-risk-case');
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ item: {
+          id: unknown ? 'unknown-case' : lowRisk ? 'low-risk-case' : 'disagreement-case',
+          ip: unknown ? '192.0.2.41' : lowRisk ? '192.0.2.40' : '192.0.2.30',
+          ioc_type: 'ip',
+          vt_verdict: unknown ? 'unknown' : 'clean',
+          vt_stats: unknown ? {} : { harmless: 80, malicious: 0, suspicious: 0, undetected: 10 },
+          vt_payload: {},
+          corr_confidence: unknown ? null : lowRisk ? 20 : 0,
+          corr_payload: unknown
+            ? {}
+            : lowRisk
+              ? { confidence: 20, sources: [{ source: 'Abuse.ch', verdict: 'clean' }] }
+              : { confidence: 0, sources: [
+                  { source: 'AbuseIPDB', verdict: 'malicious', score: 100 },
+                  { source: 'AlienVault OTX', verdict: 'malicious', score: 80 },
+                ] },
+          first_scanned_at: '2026-08-25T00:00:00.000Z',
+        } }),
+      });
+    });
+
+    await page.goto('/result/disagreement-case');
+    await expect(page.locator('.vt-card-header .verdict')).toHaveText(/MALICIOUS/);
+    await expect(page.getByText('This IP is flagged as malicious')).toBeVisible();
+    await expect(page.getByText(/High-confidence or corroborated threat intelligence flagged/)).toBeVisible();
+    await expect(page.getByText('This IP appears clean')).toHaveCount(0);
+
+    await page.goto('/result/low-risk-case');
+    await expect(page.locator('.vt-card-header .verdict')).toHaveText(/LOW RISK/);
+    await expect(page.getByText('This IP has low-risk signals')).toBeVisible();
+    await expect(page.getByText(/Low risk is not the same as confirmed clean/)).toBeVisible();
+
+    await page.goto('/result/unknown-case');
+    await expect(page.locator('.vt-card-header .verdict')).toHaveText(/UNKNOWN/);
+    await expect(page.getByText('This IP has no reliable verdict')).toBeVisible();
+    await expect(page.getByText(/Do not treat this indicator as clean/)).toBeVisible();
+    await expect(page.getByText('This IP appears clean')).toHaveCount(0);
+  });
 });
 
 for (const role of ['l1', 'pac'] as const) {

@@ -9,6 +9,34 @@ const {
 
 
 describe('VirusTotal IP verdict evidence', () => {
+  test('freshly fetched corroborated malicious evidence cannot be zeroed by a stale prior scan', () => {
+    const handlerSource = require('node:fs').readFileSync(require.resolve('./correlate'), 'utf8');
+    assert.match(handlerSource, /const hoursSinceLastSeen = 0;[\s\S]*calculateOptimizedConfidence/);
+    assert.doesNotMatch(handlerSource, /Date\.now\(\) - new Date\(scanMeta\.lastSeen\)/);
+
+    const results = [
+      buildVtResult(
+        { malicious: 12, suspicious: 2, harmless: 47, undetected: 30 },
+        '93.123.109.228',
+        'ip',
+        0
+      ),
+      {
+        source: 'AbuseIPDB', verdict: 'malicious', score: 100, weight: 0.20,
+        meta: { 'Total Reports': 3650, 'Last Reported': '2026-08-25' },
+      },
+      { source: 'Abuse.ch', verdict: 'clean', score: 0, weight: 0.20 },
+    ];
+    const scoring = calculateOptimizedConfidence(results, collectRiskFactors(results), {
+      iocType: 'ip',
+      hoursSinceLastSeen: 0,
+      scanCount: 1,
+    });
+
+    assert.ok(scoring.confidence >= 70, `expected malicious confidence, got ${scoring.confidence}`);
+    assert.equal(scoring.decay, 1);
+  });
+
   test('two malicious detections plus negative reputation cannot become clean', () => {
     const vt = buildVtResult(
       { malicious: 2, suspicious: 0, undetected: 68, harmless: 20 },
@@ -85,7 +113,7 @@ describe('cached correlation completeness', () => {
   });
 
   test('correlation with successful current-version sources can be reused', () => {
-    const payload = { scoring: { version: 3 }, sources: [
+    const payload = { scoring: { version: 4 }, sources: [
       { source: 'VirusTotal', verdict: 'clean' },
       { source: 'AbuseIPDB', verdict: 'clean' },
     ] };
@@ -96,6 +124,14 @@ describe('cached correlation completeness', () => {
     const payload = { sources: [
       { source: 'VirusTotal', verdict: 'suspicious' },
       { source: 'AbuseIPDB', verdict: 'clean' },
+    ] };
+    assert.equal(isCompleteCorrelationPayload(payload), false);
+  });
+
+  test('version 3 correlations affected by stale-scan decay are refreshed', () => {
+    const payload = { scoring: { version: 3 }, sources: [
+      { source: 'VirusTotal', verdict: 'malicious' },
+      { source: 'AbuseIPDB', verdict: 'malicious' },
     ] };
     assert.equal(isCompleteCorrelationPayload(payload), false);
   });

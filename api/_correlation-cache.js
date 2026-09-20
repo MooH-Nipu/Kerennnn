@@ -1,6 +1,6 @@
 'use strict';
 
-const SCORING_VERSION = 3;
+const SCORING_VERSION = 4;
 
 // Failed source rows stay visible to analysts, but must never make cache final.
 // Version mismatch forces one fresh correlation after methodology changes.
