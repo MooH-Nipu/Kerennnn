@@ -1,5 +1,6 @@
 const { extractIOC, detectType } = require('./_ioc');
 const { isCompleteCorrelationPayload } = require('./_correlation-cache');
+const { cacheTtlHours, isFreshCacheRow } = require('./_vt-cache-policy');
 const { getSupabase } = require('./_supabase');
 const { getVtKeys, getVtKeysForRequest, getVtAvailableKeyCount, getNextVtQuotaResetAt, getNextVtCooldownAt, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtKeyQuotaExceeded, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { httpGet } = require('./_http');
@@ -119,15 +120,13 @@ module.exports = async function handler(req, res) {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const cutoffIso = dateMinusDaysIso(15);
         const { data: cached } = await supabase
           .from('vt_ip_cache')
           .select('id,ip,vt_payload,vt_stats,vt_verdict,scan_count,first_scanned_at,last_scanned_at,corr_payload,corr_confidence')
           .eq('ip', ioc)
-          .gt('first_scanned_at', cutoffIso)
           .maybeSingle();
 
-        if (cached && cached.vt_payload) {
+        if (cached && cached.vt_payload && isFreshCacheRow(cached)) {
           return res.status(200).json({
             data: { attributes: cached.vt_payload },
             _meta: {
@@ -251,7 +250,7 @@ module.exports = async function handler(req, res) {
           };
           data._meta.cache = cacheMeta;
 
-          // Insert new IP only (best-effort); repeat lookups do not refresh this row
+          // Refresh stale rows in place so a newer verdict replaces stale cache evidence.
           const nowIso = new Date().toISOString();
           const vtPayload = {
             reputation: data?.data?.attributes?.reputation,
@@ -263,17 +262,34 @@ module.exports = async function handler(req, res) {
           };
           const vtStats = { malicious, suspicious, total, undetected: lastStats.undetected || 0 };
           try {
-            if (!existing) {
+            if (existing) {
+              const nextScanCount = Number(existing.scan_count || 0) + 1;
+              const { error: updateError } = await supabase
+                .from('vt_ip_cache')
+                .update({
+                  scan_count: nextScanCount,
+                  last_scanned_at: nowIso,
+                  vt_verdict: vtVerdict,
+                  vt_stats: vtStats,
+                  vt_payload: vtPayload,
+                  corr_confidence: null,
+                  corr_payload: {},
+                })
+                .eq('ip', ioc);
+              if (updateError) throw updateError;
+              data._meta.cache.scanCount = nextScanCount;
+              data._meta.cache.lastSeen = nowIso;
+            } else {
               const { data: inserted } = await supabase
                 .from('vt_ip_cache')
                 .insert({
-                ip: ioc,
-                scan_count: 1,
-                first_scanned_at: nowIso,
-                last_scanned_at: nowIso,
-                vt_verdict: vtVerdict,
-                vt_stats: vtStats,
-                vt_payload: vtPayload,
+                  ip: ioc,
+                  scan_count: 1,
+                  first_scanned_at: nowIso,
+                  last_scanned_at: nowIso,
+                  vt_verdict: vtVerdict,
+                  vt_stats: vtStats,
+                  vt_payload: vtPayload,
                 })
                 .select('id')
                 .maybeSingle();
@@ -430,3 +446,6 @@ module.exports = async function handler(req, res) {
     _debug: { keyAttempts },
   });
 };
+
+module.exports.cacheTtlHours = cacheTtlHours;
+module.exports.isFreshCacheRow = isFreshCacheRow;

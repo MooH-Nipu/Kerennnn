@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '../lib/api';
-import { calcVerdict, countryFlag, confLabel, confClass, hashLabel } from '../lib/ioc';
+import { calcVerdict, countryFlag, confLabel, confClass, operationalVerdict, hashLabel } from '../lib/ioc';
 import { DetectionBar } from '../components/vt/DetectionBar';
 import { CorrelationPanel } from '../components/vt/CorrelationPanel';
 import { Spinner } from '../components/shared/Spinner';
@@ -27,7 +27,7 @@ interface CorrPayload {
   baselineConfidence?: number | null;
   floor?: number;
   bonus?: number;
-  sources?: Array<{ source: string; meta?: Record<string, string | number> }>;
+  sources?: Array<{ source: string; verdict?: string; meta?: Record<string, string | number> }>;
   riskFactors?: unknown[];
 }
 
@@ -40,15 +40,23 @@ function buildTakeaway(type: IocType): Record<string, { title: string; body: str
   return {
     malicious: {
       title: `${subject} is flagged as malicious`,
-      body: `More than 3 AV engines flagged this indicator as malicious. We recommend blocking it and investigating any related connections or activity.`,
+      body: `High-confidence or corroborated threat intelligence flagged this indicator as malicious. We recommend blocking it and investigating any related connections or activity.`,
     },
     suspicious: {
       title: `${subject} looks suspicious`,
       body: `This indicator shows signs of suspicious activity. Investigate further before taking any blocking action.`,
     },
+    'low risk': {
+      title: `${subject} has low-risk signals`,
+      body: `Monitor this indicator and validate surrounding context before escalation. Low risk is not the same as confirmed clean.`,
+    },
     clean: {
       title: `${subject} appears clean`,
       body: `No AV engine flagged this indicator as harmful. Stay alert and keep monitoring related activity.`,
+    },
+    unknown: {
+      title: `${subject} has no reliable verdict`,
+      body: `No reliable threat-intelligence verdict is available yet. Do not treat this indicator as clean; gather more evidence or retry later.`,
     },
   };
 }
@@ -149,9 +157,7 @@ export function ResultPage({ id }: { id: string }) {
   const mal = stats.malicious ?? 0;
   const sus = stats.suspicious ?? 0;
   const total = Object.values(stats).reduce((a, b) => a + b, 0);
-  const v = calcVerdict(mal, sus, total);
-  const vKey = v.label.toLowerCase();
-  const takeaway = buildTakeaway(type)[vKey] ?? buildTakeaway(type).clean;
+  const vtVerdict = calcVerdict(mal, sus, total);
 
   // vt_payload is stored FLAT (the attribute subset), not nested under data.attributes.
   const vtAttrs = (data.vt_payload as Record<string, unknown> | null) ?? {};
@@ -168,6 +174,11 @@ export function ResultPage({ id }: { id: string }) {
     : null;
   const hasCorr = !!corr && (typeof corr.confidence === 'number' || (Array.isArray(corr.sources) && corr.sources.length > 0));
   const enrichment = corr?.sources?.find(s => s.source === 'Enrichment')?.meta ?? null;
+
+  const corrConfidence = typeof corr?.confidence === 'number' ? corr.confidence : data.corr_confidence;
+  const v = operationalVerdict(vtVerdict, corrConfidence, corr?.sources);
+  const vKey = v.label.toLowerCase();
+  const takeaway = buildTakeaway(type)[vKey] ?? buildTakeaway(type).unknown;
 
   // Fallback for legacy rows scanned before correlation was persisted.
   const corrConf = data.corr_confidence;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScanItem } from '../../types/vt';
-import { calcVerdict, confToVerdict, countryFlag, hashLabel } from '../../lib/ioc';
+import { calcVerdict, operationalVerdict, countryFlag, hashLabel } from '../../lib/ioc';
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
 import { CorrelationPanel } from './CorrelationPanel';
@@ -110,7 +110,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
   const blendedV = (!item.correlationLoading && item.correlation !== null)
-    ? confToVerdict(item.correlation.confidence)
+    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
     : v;
   const flag = countryFlag(String(a.country ?? ''));
   const ctry = String(a.country ?? '—');
@@ -177,7 +177,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
   const blendedV = (!item.correlationLoading && item.correlation !== null)
-    ? confToVerdict(item.correlation.confidence)
+    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
     : v;
 
   const names = ((a.names as string[] | undefined) ?? []).slice(0, 3).join(', ') || '—';
@@ -243,7 +243,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
   const blendedV = (!item.correlationLoading && item.correlation !== null)
-    ? confToVerdict(item.correlation.confidence)
+    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
     : v;
 
   const registrar = String(a.registrar ?? '—');

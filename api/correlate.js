@@ -1,6 +1,7 @@
 'use strict';
 const { extractIOC, detectType } = require('./_ioc');
 const { isCompleteCorrelationPayload } = require('./_correlation-cache');
+const { isFreshCacheRow } = require('./_vt-cache-policy');
 const { httpGet, httpPost, withTimeout } = require('./_http');
 const { getVtKeysForRequest, markVtKeyRateLimited, markVtKeyQuotaExceeded, shouldTryNextVtKey, isVtTemporaryRateLimit, isVtQuotaExceeded, isVtBadKey } = require('./_vtkeys');
 const { getAbuseIPDBKeys } = require('./_abuseipdbkeys');
@@ -88,15 +89,13 @@ async function vtFromIpCache(ip) {
   const supabase = getSupabase();
   if (!supabase) return null;
   try {
-    const cutoffIso = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
     const { data: row } = await supabase
       .from('vt_ip_cache')
-      .select('vt_payload')
+      .select('vt_payload,vt_verdict,last_scanned_at,first_scanned_at')
       .eq('ip', ip)
-      .gt('first_scanned_at', cutoffIso)
       .maybeSingle();
     const stats = row?.vt_payload?.last_analysis_stats;
-    if (stats && Object.keys(stats).length > 0) {
+    if (isFreshCacheRow(row) && stats && Object.keys(stats).length > 0) {
       return buildVtResult(stats, ip, 'ip', row.vt_payload?.reputation);
     }
   } catch {
@@ -113,15 +112,13 @@ async function corrFromCache(ip) {
   const supabase = getSupabase();
   if (!supabase) return null;
   try {
-    const cutoffIso = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
     const { data: row } = await supabase
       .from('vt_ip_cache')
-      .select('corr_payload')
+      .select('corr_payload,vt_verdict,last_scanned_at,first_scanned_at')
       .eq('ip', ip)
-      .gt('first_scanned_at', cutoffIso)
       .maybeSingle();
     const p = row?.corr_payload;
-    if (isCompleteCorrelationPayload(p)) return p;
+    if (isFreshCacheRow(row) && isCompleteCorrelationPayload(p)) return p;
   } catch {
     // fall through to live correlation
   }
@@ -1002,21 +999,18 @@ module.exports = async function handler(req, res) {
 
   if (!consumeScanBudget(req, res, 'correlate')) return;
 
-  // Fetch scan metadata (last_seen, scan_count) for time decay + sighting boost.
-  // Runs in parallel with TI source checks — single PK lookup, negligible latency.
+  // Fetch scan count for sighting boost. Live source checks are a fresh sighting,
+  // so their evidence age is zero regardless of the previous cache timestamp.
   const supabase = getSupabase();
-  let scanMeta = { lastSeen: null, scanCount: 0 };
+  let scanMeta = { scanCount: 0 };
   if (supabase) {
     try {
       const table = type === 'ip' ? 'vt_ip_cache' : 'vt_ioc_cache';
-      const query = supabase.from(table).select('last_scanned_at,scan_count');
+      const query = supabase.from(table).select('scan_count');
       const { data } = type === 'ip'
         ? await query.eq('ip', ioc).maybeSingle()
         : await query.eq('ioc_type', type).eq('ioc', ioc).maybeSingle();
-      if (data) {
-        scanMeta.lastSeen = data.last_scanned_at || null;
-        scanMeta.scanCount = Number(data.scan_count) || 0;
-      }
+      if (data) scanMeta.scanCount = Number(data.scan_count) || 0;
     } catch { /* best-effort, don't block correlation */ }
   }
 
@@ -1073,10 +1067,9 @@ module.exports = async function handler(req, res) {
   const enrichmentResult = results.find(r => r.source === 'Enrichment' && !r.skipped && !r.error);
   const warningListResult = checkWarningList(ioc, enrichmentResult?.meta);
 
-  // Optimized confidence pipeline (v2)
-  const hoursSinceLastSeen = scanMeta.lastSeen
-    ? (Date.now() - new Date(scanMeta.lastSeen).getTime()) / 3_600_000
-    : null;
+  // Sources above just ran (or VT was accepted within cache TTL): current evidence
+  // is a fresh sighting. Previous scan age must not decay newly fetched evidence.
+  const hoursSinceLastSeen = 0;
   const optimized = calculateOptimizedConfidence(results, riskFactors, {
     iocType: type,
     enrichmentMeta: enrichmentResult?.meta,
@@ -1130,7 +1123,7 @@ module.exports = async function handler(req, res) {
     sources: visibleResults,
     // Versioned scoring metadata invalidates stale cached methodology.
     scoring: {
-      version: 3,
+      version: 4,
       bayesian: optimized.bayesian,
       evidenceFloor: optimized.evidenceFloor,
       corroboration: optimized.corroboration,
