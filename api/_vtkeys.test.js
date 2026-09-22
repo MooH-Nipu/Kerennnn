@@ -82,13 +82,15 @@ describe('VirusTotal limit classification', () => {
     assert.deepEqual(getVtKeysForRequest(), ['healthy-key']);
   });
 
-  test('quota-exhausted keys support unknown reset time', () => {
+  test('quota-exhausted keys default reset to next UTC midnight', () => {
     process.env.VT_API_KEY = 'unknown-reset-key';
     delete process.env.VT_API_KEY_2;
     const { getVtKeysForRequest, getVtKeyQuotaResetAt, isVtKeyQuotaExceeded, markVtKeyQuotaExceeded } = require('./_vtkeys');
     markVtKeyQuotaExceeded('unknown-reset-key');
+    const d = new Date();
+    const expectedReset = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
     assert.equal(isVtKeyQuotaExceeded('unknown-reset-key'), true);
-    assert.equal(getVtKeyQuotaResetAt('unknown-reset-key'), null);
+    assert.equal(getVtKeyQuotaResetAt('unknown-reset-key'), expectedReset);
     assert.deepEqual(getVtKeysForRequest(), []);
   });
 
