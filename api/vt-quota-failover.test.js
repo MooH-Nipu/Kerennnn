@@ -74,7 +74,8 @@ describe('VT quota failover contract', () => {
     assert.equal(res.statusCode, 429);
     assert.equal(res.body.error.code, 'VT_QUOTA_EXHAUSTED');
     assert.equal(res.body.error.retryable, false);
-    assert.equal(res.body.error.resetAt, undefined);
+    const d = new Date();
+    assert.equal(res.body.error.resetAt, new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)).toISOString());
     assert.equal(res.headers['Retry-After'], undefined);
     assert.equal(res.body._debug.keyAttempts.length, 6);
   });

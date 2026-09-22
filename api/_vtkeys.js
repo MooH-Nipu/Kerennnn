@@ -16,6 +16,13 @@ const keyQuotaResetAt = new Map();
 
 const VT_RATE_LIMIT_COOLDOWN_MS = 61_000; // 1s buffer over VT's 60s window
 
+/** ponytail: VT daily quota assumed to reset 00:00 UTC; if a key reports a
+ * different period the only cost is one probe after the assumed reset. */
+function nextUtcMidnight() {
+  const d = new Date();
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+}
+
 function keyId(key) {
   return crypto.createHash('sha256').update(String(key)).digest('hex');
 }
@@ -32,7 +39,7 @@ function syncState() {
     keyCooldownUntil.clear();
     keyQuotaResetAt.clear();
     for (const [id, until] of Object.entries(state.cooldown || {})) keyCooldownUntil.set(id, Number(until));
-    for (const [id, until] of Object.entries(state.quota || {})) keyQuotaResetAt.set(id, until === null ? null : Number(until));
+    for (const [id, until] of Object.entries(state.quota || {})) keyQuotaResetAt.set(id, until === null ? nextUtcMidnight() : Number(until));
   } catch (error) {
     if (error.code !== 'ENOENT') console.warn('[vt-keys] cannot read state:', error.message);
   }
@@ -107,7 +114,7 @@ function isVtKeyCoolingDown(key) {
 function markVtKeyQuotaExceeded(key, resetAt = null) {
   if (!key) return;
   syncState();
-  keyQuotaResetAt.set(keyId(key), resetAt === null ? null : Number(resetAt));
+  keyQuotaResetAt.set(keyId(key), resetAt === null ? nextUtcMidnight() : Number(resetAt));
   saveState();
 }
 
