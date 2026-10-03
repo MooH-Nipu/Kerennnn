@@ -68,7 +68,7 @@ export function DashboardTab({ onScanIp }: Props) {
   const [scanTimeline, setScanTimeline] = useState<Array<{ time: string; scans: number; source?: string }>>([]);
   const [scanTimelineBucket, setScanTimelineBucket] = useState<string | null>(null);
   const [totalIps, setTotalIps] = useState(0);
-  const [verdictCounts, setVerdictCounts] = useState({ malicious: 0, suspicious: 0, clean: 0 });
+  const [verdictCounts, setVerdictCounts] = useState({ malicious: 0, suspicious: 0, clean: 0, unknown: 0 });
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -86,6 +86,7 @@ export function DashboardTab({ onScanIp }: Props) {
         malicious: res.malicious ?? 0,
         suspicious: res.suspicious ?? 0,
         clean: res.clean ?? 0,
+        unknown: Math.max(0, (res.total ?? (res.items ?? []).length) - (res.malicious ?? 0) - (res.suspicious ?? 0) - (res.clean ?? 0)),
       });
       setLastRefreshed(new Date());
     } catch (error) {
@@ -204,22 +205,21 @@ export function DashboardTab({ onScanIp }: Props) {
       {ipError && <StatusMessage type="error" message={`IP cache unavailable: ${ipError}`} onDismiss={() => setIpError(null)} />}
 
 
-      {/* ── Unified stat cards ─────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      {/* ── Operational KPI cards ──────────────────────────── */}
+      <div className="dashboard-kpis" aria-label="Scan summary">
         {[
-          { label: 'Unique IPs Cached', value: totalIps, color: 'var(--color-foreground)' },
-          { label: 'Malicious',   value: verdictCounts.malicious,     color: 'var(--color-danger)' },
-          { label: 'Suspicious',  value: verdictCounts.suspicious,    color: 'var(--color-warning)' },
-          { label: 'Clean',       value: verdictCounts.clean,         color: 'var(--color-success)' },
-          { label: 'API Calls',   value: usageData ? usageData.total.toLocaleString() : '—', color: 'var(--color-primary)' },
-          { label: 'Errors',      value: usageTotals.error || 0, color: 'var(--color-muted-foreground)' },
+          { label: 'Total Scans', value: totalIps, tone: 'total', hint: 'scanned in range' },
+          { label: 'Malicious', value: verdictCounts.malicious, tone: 'malicious', hint: 'confirmed threat' },
+          { label: 'Suspicious', value: verdictCounts.suspicious, tone: 'suspicious', hint: 'needs review' },
+          { label: 'Clean', value: verdictCounts.clean, tone: 'clean', hint: 'no threat found' },
+          { label: 'Unknown', value: verdictCounts.unknown, tone: 'unknown', hint: 'insufficient evidence' },
+          { label: 'Provider Errors', value: usageTotals.error || 0, tone: 'errors', hint: 'failed calls' },
         ].map(stat => (
-          <div key={stat.label} className="card" style={{ boxShadow: 'none' }}>
-            <div className="card__body" style={{ textAlign: 'center', padding: '1.1rem 0.75rem' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: stat.color, lineHeight: 1.2 }}>{stat.value}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '0.25rem' }}>{stat.label}</div>
-            </div>
-          </div>
+          <article key={stat.label} className={`dashboard-kpi dashboard-kpi--${stat.tone}`}>
+            <div className="dashboard-kpi__label">{stat.label}</div>
+            <div className="dashboard-kpi__value">{ipLoading || usageLoading ? '—' : stat.value.toLocaleString()}</div>
+            <div className="dashboard-kpi__hint">{stat.hint}</div>
+          </article>
         ))}
       </div>
 
@@ -297,6 +297,18 @@ export function DashboardTab({ onScanIp }: Props) {
                       </span>
                       <span>{key.used.toLocaleString()} / {key.limit.toLocaleString()}</span>
                     </div>
+                    {service.sharedPool && key.poolPercent !== undefined ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.7rem', color: 'var(--color-muted-foreground)', marginBottom: '0.15rem' }}>
+                          <span>shared pool (all keys){service.poolLimit ? '' : ' — unconfigured'}</span>
+                          {service.poolLimit ? <span>{(key.poolUsed ?? 0).toLocaleString()} / {service.poolLimit.toLocaleString()} ({(key.poolRemaining ?? 0).toLocaleString()} left)</span> : <span>{(key.poolUsed ?? 0).toLocaleString()} used today</span>}
+                        </div>
+                        <div style={{ height: 7, borderRadius: 99, background: 'var(--color-border)', overflow: 'hidden', marginBottom: '0.3rem' }}>
+                          <div style={{ width: `${service.poolLimit ? service.poolPercent ?? 0 : 0}%`, height: '100%', background: (service.poolPercent ?? 0) >= 90 ? 'var(--color-danger)' : (service.poolPercent ?? 0) >= 70 ? 'var(--color-warning)' : 'var(--color-primary)', transition: 'width 0.2s ease' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: 'var(--color-muted-foreground)' }}>per-key pacing only: {key.percent}%</div>
+                      </>
+                    ) : null}
                     <div style={{ height: 7, borderRadius: 99, background: 'var(--color-border)', overflow: 'hidden' }}>
                       <div style={{ width: `${key.percent}%`, height: '100%', background: key.percent >= 90 ? 'var(--color-danger)' : key.percent >= 70 ? 'var(--color-warning)' : 'var(--color-primary)', transition: 'width 0.2s ease' }} />
                     </div>

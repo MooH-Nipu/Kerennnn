@@ -8,6 +8,12 @@
     <link rel="preload" href="/fonts/syne-latin-68b623f0.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
+    <script>
+      try {
+        var savedTheme = localStorage.getItem('kerennnn-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
+      } catch (_) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -5,8 +5,9 @@
    Kerennnn's unlayered CSS, so existing styles are safe.
    ============================================================ */
 
-/* ── Activate Stisla dark mode ─────────────────────────────── */
+/* ── Theme tokens ──────────────────────────────────────────── */
 :root {
+  color-scheme: dark;
   /* Pull Stisla's dark surface tokens closer to Kerennnn's palette */
   --color-background: oklch(15% 0.02 260);      /* #080d17-ish */
   --color-foreground: oklch(92% 0.01 260);      /* #d4e4ff-ish */
@@ -40,6 +41,26 @@
 
   /* Radius — Kerennnn uses 8-14px, Stisla default 1rem=16px is too round */
   --radius: 0.5rem;
+}
+
+/* Light mode keeps operational colors readable without changing component markup. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-background: oklch(97% 0.012 250);
+  --color-foreground: oklch(22% 0.035 255);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-2: oklch(96% 0.015 250);
+  --color-surface-3: oklch(93% 0.02 250);
+  --color-border: oklch(84% 0.025 255);
+  --color-border-strong: oklch(70% 0.04 255);
+  --color-muted-foreground: oklch(45% 0.04 255);
+  --color-primary: oklch(50% 0.19 257);
+  --color-primary-emphasis: oklch(44% 0.19 257);
+  --color-primary-foreground: oklch(100% 0 0);
+  --color-accent: oklch(94% 0.025 250);
+  --color-accent-foreground: oklch(22% 0.035 255);
+  --color-neutral: oklch(91% 0.02 255);
+  --color-neutral-foreground: oklch(22% 0.035 255);
 }
 
 /* ── Cross-reference: Kerennnn vars → Stisla tokens ────────── */
