@@ -247,10 +247,20 @@ export interface VtQuotaResponse {
   resetAt: string;
   dailyLimit: number;
   keys: QuotaKey[];
+  sharedPool?: boolean;
+  poolLimit?: number | null;
+  poolUsed?: number | null;
+  poolRemaining?: number | null;
+  poolPercent?: number | null;
   services?: Array<{
     id: string;
     name: string;
     dailyLimit: number;
+    sharedPool?: boolean;
+    poolLimit?: number | null;
+    poolUsed?: number | null;
+    poolRemaining?: number | null;
+    poolPercent?: number | null;
     keys: QuotaKey[];
   }>;
 }
@@ -262,9 +272,20 @@ export interface QuotaKey {
   limit: number;
   remaining: number;
   percent: number;
+  poolUsed?: number;
+  poolRemaining?: number;
+  poolPercent?: number;
   coolingDown: boolean;
   quotaExhausted?: boolean;
   quotaResetAt?: string | null;
+}
+
+export interface QuotaPool {
+  sharedPool: boolean;
+  poolLimit: number | null;
+  poolUsed: number | null;
+  poolRemaining: number | null;
+  poolPercent: number | null;
 }
 
 export interface IpScanAnalyticsResponse {

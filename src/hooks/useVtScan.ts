@@ -53,7 +53,6 @@ type Action =
   | { type: 'START'; total: number }
   | { type: 'ADD_PENDING'; id: string; ioc: string; iocType: IocType }
   | { type: 'RESOLVE'; id: string; result: ScanItem['result'] }
-  | { type: 'RESOLVE_ERROR'; id: string; error: string }
   | { type: 'UPDATE_CORR'; id: string; correlation: ScanItem['correlation'] }
   | { type: 'SET_FILTER'; key: keyof ScanFilters; value: boolean }
   | { type: 'SET_COUNTRY_FILTERS'; value: CountryFilterEntry[] }
@@ -70,13 +69,20 @@ const initial: VtScanState = {
   statusType: null,
 };
 
-/** Reads the 2-letter country code from a resolved VT result (IPs only). */
+/** Reads country from VT first, then successful Enrichment metadata. */
 function getItemCountry(item: ScanItem): string {
   const result = item.result as Record<string, unknown> | null;
   const data = result?.data as Record<string, unknown> | undefined;
   const attrs = data?.attributes as Record<string, unknown> | undefined;
-  const c = attrs?.country;
-  return typeof c === 'string' ? c.toUpperCase() : '';
+  const vtCountry = typeof attrs?.country === 'string' ? attrs.country.trim().toUpperCase() : '';
+  if (/^[A-Z]{2}$/.test(vtCountry)) return vtCountry;
+
+  const source = item.correlation?.sources?.find(s =>
+    s.source === 'Enrichment' && !s.error && !s.skipped
+  );
+  const enrichmentCountry = source?.meta?.Country ?? source?.meta?.['RIR Country'];
+  const code = typeof enrichmentCountry === 'string' ? enrichmentCountry.trim().toUpperCase() : '';
+  return /^[A-Z]{2}$/.test(code) ? code : '';
 }
 
 /** Whether an item passes the verdict (malicious/suspicious/clean) chips. */
@@ -128,12 +134,6 @@ function reducer(state: VtScanState, action: Action): VtScanState {
         ...state,
         progress: { ...state.progress, done: state.progress.done + 1 },
         items: state.items.map(it => it.id === action.id ? { ...it, result: action.result, pending: false } : it),
-      };
-    case 'RESOLVE_ERROR':
-      return {
-        ...state,
-        progress: { ...state.progress, done: state.progress.done + 1 },
-        items: state.items.map(it => it.id === action.id ? { ...it, error: action.error, pending: false } : it),
       };
     case 'UPDATE_CORR':
       return {
@@ -243,26 +243,36 @@ export function useVtScan() {
 
         dispatch({ type: 'ADD_PENDING', id, ioc, iocType: type });
 
-        // VT scan
-        let result: ScanItem['result'];
+        // VT is one enrichment source, not scan gate. If VT is unavailable,
+        // still run correlation so AbuseIPDB, OTX, Abuse.ch, and other sources work.
+        let result: ScanItem['result'] = null;
+        let vtFailed = false;
         try {
           result = await fetchVt(ioc);
         } catch (err) {
           if (abortRef.current) return;
-          dispatch({ type: 'RESOLVE_ERROR', id, error: err instanceof Error ? err.message : String(err) });
-          continue;
+          vtFailed = true;
+          // VT outage is non-fatal. Keep provider error visible while
+          // correlation providers remain authoritative for this scan.
+          result = { error: err instanceof Error ? err.message : String(err) } as ScanItem['result'];
         }
 
+        // Preserve VT result when available. On VT failure, correlation still runs
+        // below and returns whatever independent providers can answer.
+        let cachedCorr: ScanItem['correlation'] = null;
         dispatch({ type: 'RESOLVE', id, result });
+        if (!vtFailed) {
+          // If VT was served from cache and correlation was previously saved.
+          const meta = (result as unknown as Record<string, unknown>)?._meta as Record<string, unknown> | undefined;
+          const cacheMeta = meta?.cache as Record<string, unknown> | undefined;
+          cachedCorr = cacheMeta?.fromCache && cacheMeta?.corrPayload
+            ? cacheMeta.corrPayload as ScanItem['correlation']
+            : null;
+        }
 
-        // If VT was served from cache and correlation was previously saved, skip fresh API calls.
-        const meta = (result as unknown as Record<string, unknown>)?._meta as Record<string, unknown> | undefined;
-        const cacheMeta = meta?.cache as Record<string, unknown> | undefined;
-        const cachedCorr = cacheMeta?.fromCache && cacheMeta?.corrPayload
-          ? cacheMeta.corrPayload as ScanItem['correlation']
-          : null;
-
-        // Always bypass cache for domain IOCs so URLScan active scan runs
+        // Always bypass cache for domain IOCs so URLScan active scan runs.
+        // Also bypass cached correlation after VT failure: independent sources
+        // must get a chance to produce a usable result.
         if (cachedCorr && type !== 'domain') {
           dispatch({ type: 'UPDATE_CORR', id, correlation: cachedCorr });
         } else {

@@ -42,10 +42,10 @@ export function VtCard({ item, selected, onToggleSelect, forceExpanded }: Props)
     onToggleSelect,
   };
 
-  if (item.error)        return <ErrorCard  item={item} {...shellProps} />;
-  if (item.type === 'ip')     return <IpCard     item={item} {...shellProps} />;
-  if (item.type === 'hash')   return <HashCard   item={item} {...shellProps} />;
-  if (item.type === 'domain') return <DomainCard item={item} {...shellProps} />;
+  const providerError = item.error || String((item.result as Record<string, unknown> | null)?.error || '');
+  if (item.type === 'ip')     return <IpCard     item={item} providerError={providerError} {...shellProps} />;
+  if (item.type === 'hash')   return <HashCard   item={item} providerError={providerError} {...shellProps} />;
+  if (item.type === 'domain') return <DomainCard item={item} providerError={providerError} {...shellProps} />;
   return <ErrorCard item={item} {...shellProps} />;
 }
 
@@ -55,6 +55,11 @@ interface CardProps {
   onToggle: () => void;
   selected?: boolean;
   onToggleSelect?: () => void;
+  providerError?: string;
+}
+
+function ProviderErrorNotice({ error }: { error?: string }) {
+  return error ? <div className="vt-error-box">VT: {error}</div> : null;
 }
 
 function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggleSelect }: {
@@ -100,8 +105,14 @@ function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggle
   );
 }
 
-function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
+function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
+  const corrSources = item.correlation?.sources ?? [];
+  const enrichmentCountry = corrSources
+    .filter(source => source.source === 'Enrichment' && !source.error && !source.skipped)
+    .map(source => source.meta?.Country ?? source.meta?.['RIR Country'])
+    .map(value => typeof value === 'string' ? value.trim().toUpperCase() : '')
+    .find(value => /^[A-Z]{2}$/.test(value)) || '';
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
   const s = (a.last_analysis_stats as Record<string, number>) ?? {};
@@ -112,8 +123,9 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
   const blendedV = (!item.correlationLoading && item.correlation !== null)
     ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
     : v;
-  const flag = countryFlag(String(a.country ?? ''));
-  const ctry = String(a.country ?? '—');
+  const country = String(a.country ?? enrichmentCountry ?? '');
+  const flag = countryFlag(country);
+  const ctry = country || '—';
   const meta = raw?._meta as Record<string, unknown> | undefined;
   const cache = (meta?.cache as Record<string, unknown>) ?? {};
   const seenBefore = !!cache.seenBefore;
@@ -123,6 +135,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
     <>
       <span className="vt-type-badge badge-ip">IP ADDRESS</span>
       <span className="vt-ioc-val">{item.ioc}</span>
+      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       {flag && <span className="ctry-badge">{flag} {ctry}</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
@@ -147,12 +160,13 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
 
   const body = (
     <>
-      <DetectionBar malicious={mal} suspicious={sus} total={total} />
+      <ProviderErrorNotice error={providerError} />
+      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
       <MetaGrid items={[
-        { label: 'Malicious',  value: mal,                       color: mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: sus,                       color: sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: s.undetected ?? 0 },
-        { label: 'VT Verdict', value: v.label,                   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
+        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
+        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label,                   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'Country',    value: (flag ? flag + ' ' : '') + ctry, color: 'cyan' },
         { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
         { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
@@ -167,7 +181,7 @@ function IpCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardPro
   return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
+function HashCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
@@ -194,6 +208,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
     <>
       <span className={`vt-type-badge badge-hash`}>{hashLabel(item.ioc.length)}</span>
       <span className="vt-ioc-val">{item.ioc}</span>
+      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
@@ -214,12 +229,13 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
 
   const body = (
     <>
-      <DetectionBar malicious={mal} suspicious={sus} total={total} />
+      <ProviderErrorNotice error={providerError} />
+      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
       <MetaGrid items={[
-        { label: 'Malicious',  value: mal,   color: mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: sus,   color: sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: s.undetected ?? 0 },
-        { label: 'VT Verdict', value: v.label, color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
+        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
+        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label, color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'File Type',  value: ftype, color: 'purple' },
         { label: 'Size',       value: size },
         { label: 'File Names', value: names },
@@ -233,7 +249,7 @@ function HashCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardP
   return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
+function DomainCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
   const raw = item.result as Record<string, unknown> | null;
   const d = (raw?.data as Record<string, unknown>) ?? {};
   const a = (d.attributes as Record<string, unknown>) ?? {};
@@ -261,6 +277,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
     <>
       <span className="vt-type-badge badge-domain">DOMAIN</span>
       <span className="vt-ioc-val">{item.ioc}</span>
+      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
@@ -281,12 +298,13 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
 
   const body = (
     <>
-      <DetectionBar malicious={mal} suspicious={sus} total={total} />
+      <ProviderErrorNotice error={providerError} />
+      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
       <MetaGrid items={[
-        { label: 'Malicious',  value: mal,       color: mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: sus,       color: sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: s.undetected ?? 0 },
-        { label: 'VT Verdict', value: v.label,   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
+        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
+        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label,   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
         { label: 'Registrar',  value: registrar, color: 'purple' },
         { label: 'Created',    value: created,   color: 'cyan' },
         { label: 'Updated',    value: updated },
@@ -302,7 +320,7 @@ function DomainCard({ item, collapsed, onToggle, selected, onToggleSelect }: Car
   return <CardShell header={header} body={body} corr={item} collapsed={collapsed} onToggle={onToggle} selected={selected} onToggleSelect={onToggleSelect} />;
 }
 
-function ErrorCard({ item, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
+function ErrorCard({ item, error, collapsed, onToggle, selected, onToggleSelect }: CardProps & { error?: string }) {
   const type = item.type ?? 'unknown';
   const badgeCls = type === 'ip' ? 'badge-ip' : type === 'domain' ? 'badge-domain' : 'badge-hash';
 
@@ -319,7 +337,7 @@ function ErrorCard({ item, collapsed, onToggle, selected, onToggleSelect }: Card
 
   const body = (
     <div className="vt-error-box">
-      {item.error}
+      {error || item.error}
     </div>
   );
 
