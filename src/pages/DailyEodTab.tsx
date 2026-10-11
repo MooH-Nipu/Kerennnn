@@ -11,10 +11,9 @@ interface FileSlot {
 
 const SLOTS: FileSlot[] = [
   { id: 'dci',   label: 'DCI',   accept: '.csv', description: 'CSV from Kibana DCI' },
+  { id: 'ctbc',  label: 'CTBC',  accept: '.csv', description: 'CSV from Kibana CTBC' },
   { id: 'bprks', label: 'BPRKS', accept: '.csv', description: 'CSV from Kibana BPRKS' },
   { id: 'pac',   label: 'PAC',   accept: '.csv', description: 'CSV from Kibana PAC' },
-  { id: 'smi',   label: 'SMI',   accept: '.csv', description: 'CSV "Daily" from SMI' },
-  { id: 'mms',   label: 'MMS',   accept: '.csv', description: 'CSV "Daily" → MMS Daily Report (3-sheet)' },
 ];
 
 export function DailyEodTab() {
@@ -22,12 +21,6 @@ export function DailyEodTab() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [shiftName, setShiftName] = useState('');
   const [defaultAlarmTime, setDefaultAlarmTime] = useState('');
-  const [showMmsFields, setShowMmsFields] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [siemMemory, setSiemMemory] = useState('');
-  const [siemCpu, setSiemCpu] = useState('');
-  const [siemDisk, setSiemDisk] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -48,12 +41,6 @@ export function DailyEodTab() {
     setError(null);
     setSuccess(null);
     setDefaultAlarmTime('');
-    setShowMmsFields(false);
-    setProjectName('');
-    setCustomerName('');
-    setSiemMemory('');
-    setSiemCpu('');
-    setSiemDisk('');
     Object.values(inputRefs.current).forEach(ref => { if (ref) ref.value = ''; });
   }, []);
 
@@ -66,11 +53,6 @@ export function DailyEodTab() {
       fd.append('report_date', date);
       if (shiftName) fd.append('shift_name', shiftName);
       if (defaultAlarmTime) fd.append('default_alarm_time', defaultAlarmTime);
-      if (projectName) fd.append('project_name', projectName);
-      if (customerName) fd.append('customer_name', customerName);
-      if (siemMemory) fd.append('siem_memory', siemMemory);
-      if (siemCpu) fd.append('siem_cpu', siemCpu);
-      if (siemDisk) fd.append('siem_disk', siemDisk);
       for (const slot of SLOTS) {
         const f = files[slot.id];
         if (f) fd.append(slot.id, f, f.name);
@@ -148,42 +130,6 @@ export function DailyEodTab() {
           />
         </div>
       </div>
-
-      {files['mms'] && (
-        <div style={{ marginTop: '0.75rem' }}>
-          <button
-            className="btn btn-ghost"
-            style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
-            onClick={() => setShowMmsFields(v => !v)}
-          >
-            {showMmsFields ? '▾' : '▸'} MMS Options
-          </button>
-          {showMmsFields && (
-            <div className="eod-controls" style={{ marginTop: '0.5rem', alignItems: 'flex-end' }}>
-              <div className="form-group" style={{ flex: '1' }}>
-                <label className="form-label" htmlFor="mms-project">Project Name</label>
-                <input id="mms-project" type="text" className="form-input" placeholder="MMS" value={projectName} onChange={e => setProjectName(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: '1' }}>
-                <label className="form-label" htmlFor="mms-customer">Customer Name</label>
-                <input id="mms-customer" type="text" className="form-input" placeholder="MMS Resources" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: '0 0 120px' }}>
-                <label className="form-label" htmlFor="mms-mem">Memory %</label>
-                <input id="mms-mem" type="text" className="form-input" placeholder="e.g. 38.56%" value={siemMemory} onChange={e => setSiemMemory(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: '0 0 120px' }}>
-                <label className="form-label" htmlFor="mms-cpu">CPU %</label>
-                <input id="mms-cpu" type="text" className="form-input" placeholder="e.g. 9.74%" value={siemCpu} onChange={e => setSiemCpu(e.target.value)} />
-              </div>
-              <div className="form-group" style={{ flex: '0 0 120px' }}>
-                <label className="form-label" htmlFor="mms-disk">Disk %</label>
-                <input id="mms-disk" type="text" className="form-input" placeholder="e.g. 29.88%" value={siemDisk} onChange={e => setSiemDisk(e.target.value)} />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="eod-slots">
         {SLOTS.map(slot => {

@@ -22,7 +22,7 @@ test('live-audited layouts preserve readable proportions at desktop and 700px', 
   assert.match(css, /\.history-layout\s*\{[^}]*grid-template-columns:\s*minmax\(320px, 36%\) 1fr;/s);
   assert.match(css, /\.history-placeholder\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;/s);
   assert.match(css, /\.history-item__preview\s*\{[^}]*-webkit-line-clamp:\s*2;/s);
-  assert.match(css, /\.eod-slots\s*\{[^}]*grid-template-columns:\s*repeat\(5, 1fr\);/s);
+  assert.match(css, /\.eod-slots\s*\{[^}]*grid-template-columns:\s*repeat\(4, 1fr\);/s);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.admin-create-form\s*\{[^}]*grid-template-columns:\s*1fr;/);
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.user-grid\s*\{[^}]*grid-template-columns:\s*1fr;/);
   assert.match(logs, /className="admin-log-row"/);

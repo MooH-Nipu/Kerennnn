@@ -1,6 +1,7 @@
 /**
- * Combined DCI / BPRKS / PAC / SMI Excel export (port of coba.py subset).
- * POST multipart: dci, bprks, pac, daily (CSV); pic; reportDate (Y-m-d); defaultAlarmTime (HH:MM or HH:MM:SS) for rows without timestamp (DCI / BPRKS / PAC).
+ * Combined DCI / CTBC / BPRKS / PAC Excel export (port of coba.py subset).
+ * POST multipart: dci, ctbc, bprks, pac (CSV); shift_name; report_date (Y-m-d);
+ * default_alarm_time (HH:MM or HH:MM:SS) for rows without timestamp.
  */
 
 const busboy = require('busboy');
@@ -16,20 +17,22 @@ const OUTPUT_KEYS = ['Date', 'Alarm Name', 'Severity', 'Alarm Time', 'Alarm Take
 // Columns 3-7: Severity, Alarm Time, Alarm Taken, Min, Shift Name
 const EOD_CENTER_COLS = new Set([3, 4, 5, 6, 7]);
 
-const SMI_COLUMN_DEFS = [
-  { header: 'id',                  key: 'id',            width: 10 },
-  { header: 'fullDescription',     key: 'fullDescription', width: 40 },
-  { header: 'severity',            key: 'severity',      width: 12 },
-  { header: '',                    key: '_blank1',       width: 10 },
-  { header: 'attacker',            key: 'attacker',      width: 20 },
-  { header: 'target',              key: 'target',        width: 20 },
-  { header: '',                    key: '_na1',          width: 10 },
-  { header: 'usernameOrderBy',     key: 'usernameOrderBy', width: 20 },
-  { header: '',                    key: '_blank2',       width: 10 },
-  { header: '',                    key: '_blank3',       width: 10 },
-  { header: '',                    key: '_na2',          width: 10 },
-  { header: '',                    key: '_blank4',       width: 10 },
-  { header: 'startTime - endTime', key: 'timeRange',     width: 22 },
+// DCI export carries "signal.rule.name"; CTBC export carries "kibana.alert.rule.name".
+const DCI_RULE_CANDIDATES = [
+  'signal.rule.name: Ascending',
+  'Top values of signal.rule.name',
+  'signal.rule.name',
+];
+const CTBC_RULE_CANDIDATES = [
+  'kibana.alert.rule.name: Descending',
+  'Top values of kibana.alert.rule.name',
+  'kibana.alert.rule.name',
+];
+const EOD_SEVERITY_CANDIDATES = [
+  'signal.rule.severity: Descending',
+  'kibana.alert.severity: Descending',
+  'signal.rule.severity',
+  'kibana.alert.severity',
 ];
 
 const RULE_CANDIDATES = [
@@ -168,45 +171,20 @@ function addMinutesTime(d, mins) {
   return formatHHMMSS(x);
 }
 
-function processUsernameOrderBy(val) {
-  const s = String(val ?? '').trim();
-  return !s || s.toLowerCase() === 'null' ? 'N/A' : s;
-}
-
-function processSeverityLogic(severity) {
-  const n = parseFloat(severity);
-  if (!Number.isNaN(n)) {
-    if (n < 4) return 'LOW';
-    if (n <= 7) return 'MEDIUM';
-    return 'HIGH';
-  }
-  return String(severity ?? '').toUpperCase();
-}
-
-function extractTimeDaily(timestampStr) {
-  const m = String(timestampStr).match(/(\d{2}:\d{2}:\d{2})/);
-  return m ? m[1] : '00:00:00';
-}
-
-function sortDailyById(rows) {
-  if (!rows.length || rows[0].id === undefined) return rows;
-  return [...rows].sort((a, b) => {
-    const ia = Number(a.id);
-    const ib = Number(b.id);
-    if (!Number.isNaN(ia) && !Number.isNaN(ib)) return ia - ib;
-    return String(a.id).localeCompare(String(b.id));
-  });
-}
-
-function processDci(rows, picName, reportDate, fallbackAlarmTime) {
+/**
+ * DCI and CTBC share the same 7-column EOD layout; the only difference is the
+ * rule-name column in the Kibana CSV: "signal.rule.name" (DCI) vs
+ * "kibana.alert.rule.name" (CTBC).
+ */
+function processEodAlerts(rows, picName, reportDate, fallbackAlarmTime, ruleCandidates) {
   const today = reportDate;
   const out = [];
   const fb = fallbackAlarmTime || new Date(2000, 0, 1, 0, 0, 0);
   for (const row of rows) {
     const tsRaw = String(firstPresent(row, ['@timestamp: Descending']) || '');
     const ts = tsRaw.trim() ? parseTimestampToDate(tsRaw) : fb;
-    const name = firstPresent(row, ['signal.rule.name: Ascending']);
-    const sev = firstPresent(row, ['signal.rule.severity: Descending']);
+    const name = firstPresent(row, ruleCandidates);
+    const sev = firstPresent(row, EOD_SEVERITY_CANDIDATES);
     out.push({
       Date: today,
       'Alarm Name': name,
@@ -240,181 +218,6 @@ function processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime) {
     });
   }
   return out.sort((a, b) => a['Alarm Time'].localeCompare(b['Alarm Time']));
-}
-
-function processSmiFromDaily(rows) {
-  const sorted = sortDailyById(rows);
-  return sorted.map((row) => {
-    const tStart = extractTimeDaily(row.startTime ?? '00:00:00');
-    const tEnd   = extractTimeDaily(row.endTime   ?? '00:00:00');
-    return {
-      id:              row.id ?? '',
-      fullDescription: String(row.fullDescription ?? '').trim(),
-      severity:        processSeverityLogic(row.severity ?? ''),
-      _blank1:         '',
-      attacker:        String(row.attacker ?? '').trim(),
-      target:          String(row.target   ?? '').trim(),
-      _na1:            'N/A',
-      usernameOrderBy: processUsernameOrderBy(row.usernameOrderBy),
-      _blank2:         '',
-      _blank3:         '',
-      _na2:            'N/A',
-      _blank4:         '',
-      timeRange:       `${tStart} - ${tEnd}`,
-    };
-  });
-}
-
-/* MMS Daily Report: SMI CSV → 3-sheet Excel (Document Control, Offense List, Summary) */
-function processMmsFromSmi(rows) {
-  const sorted = sortDailyById(rows);
-  return sorted.map((row) => {
-    const rawSev = String(row.severity ?? '').trim();
-    const sevUpper = processSeverityLogic(rawSev);
-    const numSev = parseFloat(rawSev);
-    let magnitude = 2;
-    if (!Number.isNaN(numSev)) magnitude = Math.min(10, Math.max(1, Math.round(numSev)));
-    else if (sevUpper === 'HIGH') magnitude = 5;
-    else if (sevUpper === 'MEDIUM') magnitude = 4;
-    else magnitude = 2;
-
-    const tStart = extractTimeDaily(row.startTime ?? '00:00:00');
-    const tEnd = extractTimeDaily(row.endTime ?? '00:00:00');
-
-    return {
-      id: String(row.id ?? ''),
-      offenseName: String(row.fullDescription ?? '').trim(),
-      magnitude,
-      sourceIp: String(row.attacker ?? '').trim(),
-      destIp: String(row.target ?? '').trim(),
-      hostnameUser: processUsernameOrderBy(row.usernameOrderBy),
-      timestamp: `${tStart} - ${tEnd}`,
-      note: 'Autoblock no further escalation',
-    };
-  });
-}
-
-function addMmsSheets(wb, mmsData, fields) {
-  const reportDate = fields.report_date || new Date().toISOString().slice(0, 10);
-  const d = new Date(reportDate + 'T00:00:00');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
-
-  const M = { style: 'medium' };
-  const T = { style: 'thin' };
-  // Header: B-col (left of merge) = all 4 medium
-  // Header: C-col (right of merge) = top/bottom/right medium, NO left
-  const hdrB = { top: M, left: M, bottom: M, right: M };
-  const hdrC = { top: M, bottom: M, right: M };
-  // Data: B-col = bottom/left/right medium, NO top (merge bottom = row top)
-  // Data: C-col = bottom/right medium, NO top, NO left
-  const datB = { bottom: M, left: M, right: M };
-  const datC = { bottom: M, right: M };
-  // Summary B5 merged special: right=thin
-  const hdrBthinR  = { top: M, left: M, bottom: M, right: T };
-  const hdrCthinR  = { top: M, bottom: M, right: T };
-  // Summary data rows: all 4 medium on B, all 4 on C7, others no-left
-  const smDatB = { top: M, bottom: M, left: M, right: M };
-  const smDatC = { top: M, bottom: M, right: M };
-  const smDatC7 = { top: M, bottom: M, left: M, right: M };
-
-  const cambria = (size, bold = false) => ({ name: 'Cambria', size, bold });
-  const fillSection = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
-  const fillLabel   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9BC2E6' } };
-  const center = { horizontal: 'center', vertical: 'center' };
-  const centerV = { vertical: 'center' };
-  const centerH = { horizontal: 'center', vertical: 'center' };
-
-  // Helper: set cell value + font + border + align + optional fill
-  function sc(cell, { val, font, border, align, fill }) {
-    if (val !== undefined) cell.value = val;
-    if (font) cell.font = font;
-    if (border) cell.border = border;
-    if (align) cell.alignment = align;
-    if (fill) cell.fill = fill;
-  }
-
-  // --- Sheet 1: Document Control ---
-  const dc = wb.addWorksheet('Document Control');
-  dc.columns = [{ width: 5 }, { width: 30 }, { width: 30 }];
-
-  // B2:C2 merged — PROJECT INFORMATION
-  dc.mergeCells('B2:C2');
-  sc(dc.getCell('B2'), { val: 'PROJECT INFORMATION', font: cambria(10, true), border: hdrB, align: center, fill: fillSection });
-  sc(dc.getCell('C2'), { border: hdrC });
-
-  sc(dc.getCell('B3'), { val: 'Project Name', font: cambria(10), border: datB, align: centerV });
-  sc(dc.getCell('C3'), { val: fields.project_name || 'MMS', font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
-
-  sc(dc.getCell('B4'), { val: 'Customer Name', font: cambria(10), border: datB, align: centerV });
-  sc(dc.getCell('C4'), { val: fields.customer_name || 'MMS Resources', font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
-
-  // B6:C6 merged — DOCUMENT INFORMATION
-  dc.mergeCells('B6:C6');
-  sc(dc.getCell('B6'), { val: 'DOCUMENT INFORMATION', font: cambria(10, true), border: hdrB, align: center, fill: fillSection });
-  sc(dc.getCell('C6'), { border: hdrC });
-
-  sc(dc.getCell('B7'), { val: 'Document Name', font: cambria(10), border: datB, align: centerV });
-  sc(dc.getCell('C7'), { val: `MMS Daily Report - ${dateStr} ${fields.shift_name || ''}`.trim(), font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
-
-  sc(dc.getCell('B8'), { val: 'Document Date', font: cambria(10), border: datB, align: centerV });
-  sc(dc.getCell('C8'), { val: dateStr, font: cambria(10), border: datC, align: { ...centerV, horizontal: 'left' } });
-
-  // --- Sheet 2: Offense List ---
-  const ol = wb.addWorksheet('Offense List');
-  ol.columns = [
-    { header: 'ID',               key: 'id',           width: 10 },
-    { header: 'Offense Name',     key: 'offenseName',  width: 45 },
-    { header: 'Magnitude',        key: 'magnitude',    width: 12 },
-    { header: 'Source IP',        key: 'sourceIp',     width: 20 },
-    { header: 'Destination IP',   key: 'destIp',       width: 20 },
-    { header: 'Hostname/Username', key: 'hostnameUser', width: 22 },
-    { header: 'Timestamp',        key: 'timestamp',    width: 24 },
-    { header: 'Note',             key: 'note',         width: 40 },
-  ];
-
-  ol.getRow(1).eachCell((cell) => {
-    cell.font = cambria(10, true);
-    cell.border = { style: 'thin' };
-    cell.fill = fillSection;
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  mmsData.forEach((row) => ol.addRow(row));
-
-  for (let i = 2; i <= ol.rowCount; i++) {
-    ol.getRow(i).eachCell((cell) => {
-      cell.font = cambria(11);
-      cell.border = { style: 'thin' };
-    });
-    ol.getRow(i).getCell(3).alignment = { horizontal: 'center' };
-  }
-
-  // --- Sheet 3: Summary ---
-  const sm = wb.addWorksheet('Summary');
-  sm.columns = [{ width: 5 }, { width: 25 }, { width: 18 }];
-
-  // B2 — Total Offense (medium blue label)
-  sc(sm.getCell('B2'), { val: 'Total Offense', font: cambria(12, true), border: hdrB, align: centerH, fill: fillLabel });
-  sc(sm.getCell('C2'), { val: mmsData.length, font: cambria(12, true), border: hdrC, align: centerH });
-
-  // B5:C5 merged — SIEM Performance (light blue section)
-  sm.mergeCells('B5:C5');
-  sc(sm.getCell('B5'), { val: 'SIEM Performance', font: cambria(12, true), border: hdrBthinR, align: centerH, fill: fillSection });
-  sc(sm.getCell('C5'), { border: hdrCthinR });
-
-  // B6:C6 — Category / Percentage (medium blue labels)
-  sc(sm.getCell('B6'), { val: 'Category', font: cambria(12, true), border: hdrB, align: centerH, fill: fillLabel });
-  sc(sm.getCell('C6'), { val: 'Percentage', font: cambria(12, true), border: hdrC, align: centerH, fill: fillLabel });
-
-  sc(sm.getCell('B7'), { val: 'Memory Utilization', font: cambria(12), border: smDatB, align: centerV });
-  sc(sm.getCell('C7'), { val: fields.siem_memory || 'N/A', font: cambria(12, true), border: smDatC7, align: centerH });
-
-  sc(sm.getCell('B8'), { val: 'CPU Utilization', font: cambria(12), border: smDatB, align: centerV });
-  sc(sm.getCell('C8'), { val: fields.siem_cpu || 'N/A', font: cambria(12, true), border: smDatC, align: centerH });
-
-  sc(sm.getCell('B9'), { val: 'Disk Usage', font: cambria(12), border: smDatB, align: centerV });
-  sc(sm.getCell('C9'), { val: fields.siem_disk || 'N/A', font: cambria(12, true), border: smDatC, align: centerH });
 }
 
 function applySheetStyling(sheet, centerCols = new Set()) {
@@ -491,25 +294,30 @@ module.exports = async function handler(req, res) {
 
   const buffers = {
     dci: files.dci,
+    ctbc: files.ctbc,
     bprks: files.bprks,
     pac: files.pac,
-    smi: files.smi,
-    mms: files.mms,
   };
 
   const anyFile = Object.values(buffers).some((b) => b && b.length);
   if (!anyFile) {
     res.setHeader('Content-Type', 'application/json');
-    return res.status(400).json({ error: 'Unggah minimal satu file CSV (DCI, BPRKS, PAC, atau Daily untuk SMI).' });
+    return res.status(400).json({ error: 'Unggah minimal satu file CSV (DCI, CTBC, BPRKS, atau PAC).' });
   }
 
   const sheets = [];
 
   try {
-    if (buffers.dci && buffers.dci.length) {
-      const rows = parseCsvBuffer(buffers.dci);
-      const data = processDci(rows, picName, reportDate, fallbackAlarmTime);
-      if (data.length) sheets.push({ name: 'DCI', data, centerCols: EOD_CENTER_COLS });
+    const eodSources = [
+      ['dci', 'DCI', DCI_RULE_CANDIDATES],
+      ['ctbc', 'CTBC', CTBC_RULE_CANDIDATES],
+    ];
+    for (const [key, name, ruleCandidates] of eodSources) {
+      if (buffers[key] && buffers[key].length) {
+        const rows = parseCsvBuffer(buffers[key]);
+        const data = processEodAlerts(rows, picName, reportDate, fallbackAlarmTime, ruleCandidates);
+        if (data.length) sheets.push({ name, data, centerCols: EOD_CENTER_COLS });
+      }
     }
     if (buffers.bprks && buffers.bprks.length) {
       const rows = parseCsvBuffer(buffers.bprks);
@@ -521,29 +329,12 @@ module.exports = async function handler(req, res) {
       const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
       if (data.length) sheets.push({ name: 'PAC', data, centerCols: EOD_CENTER_COLS });
     }
-    if (buffers.smi && buffers.smi.length) {
-      const rows = parseCsvBuffer(buffers.smi);
-      const data = processSmiFromDaily(rows);
-      if (data.length) sheets.push({ name: 'SMI', data, columns: SMI_COLUMN_DEFS });
-    }
   } catch (e) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(400).json({ error: e.message || 'CSV processing failed.' });
   }
 
-  // Process MMS separately (uses its own sheet builder)
-  let mmsData = null;
-  try {
-    if (buffers.mms && buffers.mms.length) {
-      const rows = parseCsvBuffer(buffers.mms);
-      mmsData = processMmsFromSmi(rows);
-    }
-  } catch (e) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(400).json({ error: e.message || 'MMS CSV processing failed.' });
-  }
-
-  if (!sheets.length && !mmsData) {
+  if (!sheets.length) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(400).json({ error: 'Tidak ada baris data yang valid dari file yang diunggah.' });
   }
@@ -554,10 +345,6 @@ module.exports = async function handler(req, res) {
     sheet.columns = columns ?? OUTPUT_KEYS.map((k) => ({ header: k, key: k, width: 22 }));
     data.forEach((row) => sheet.addRow(row));
     applySheetStyling(sheet, centerCols);
-  }
-
-  if (mmsData && mmsData.length) {
-    addMmsSheets(wb, mmsData, fields);
   }
 
   const buf = await wb.xlsx.writeBuffer();
