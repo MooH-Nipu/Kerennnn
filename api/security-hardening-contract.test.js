@@ -49,3 +49,20 @@ test('README documents ordered migrations, verification, backup, and rollback', 
   assert.match(readme, /Rollback/);
   assert.match(readme, /team_filter_audit_immutable/);
 });
+
+test('CSP script-src stays self-only with no inline scripts in the shell', () => {
+  const server = source('server.js');
+  const html = source('index.html');
+  const themeInit = source('public/theme-init.js');
+
+  assert.match(server, /"script-src 'self'"/);
+  assert.doesNotMatch(server, /script-src[^"]*unsafe-inline/);
+  // Any inline <script> body would be blocked by script-src 'self' at runtime;
+  // keep the shell to external script tags only.
+  const inlineScripts = html.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi) || [];
+  assert.deepEqual(inlineScripts, [], `index.html must not contain inline scripts: ${inlineScripts.join('\n')}`);
+  // The theme bootstrap moved to a static file and must still run before the app bundle.
+  assert.match(html, /<head>[\s\S]*<script src="\/theme-init\.js"><\/script>/);
+  assert.match(themeInit, /kerennnn-theme/);
+  assert.match(themeInit, /dataset\.theme/);
+});

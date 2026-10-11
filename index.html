@@ -6,14 +6,11 @@
     <title>Charlie kerennnn</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/fonts/syne-latin-68b623f0.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Classic script, not a module: runs before the app bundle so the saved
+         theme applies without a flash, and stays same-origin for CSP script-src 'self'. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
-    <script>
-      try {
-        var savedTheme = localStorage.getItem('kerennnn-theme');
-        if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
-      } catch (_) {}
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
