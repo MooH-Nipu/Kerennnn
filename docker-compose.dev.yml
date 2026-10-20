@@ -15,6 +15,7 @@ services:
       - NODE_ENV=production
       - VT_KEY_STATE_FILE=/app/data/vt-key-state.json
       - COOKIE_SECURE=false
+      - KERENNNN_DEPLOY_ENV=dev
     volumes:
       - kerennnn-dev-data:/app/data
     read_only: true

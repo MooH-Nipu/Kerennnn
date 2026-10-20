@@ -4,7 +4,7 @@ import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
 import { Modal } from '../components/shared/Modal';
 import { CopyButton } from '../components/shared/CopyButton';
-import type { IrCase } from '../types/api';
+import type { IrCase, IrCasesListResponse } from '../types/api';
 import { useAuthState } from '../context/AuthContext';
 
 // ── Column alias mapping (bilingual EN/ID) ─────────────────────────────────
@@ -89,11 +89,32 @@ function parseCsv(text: string): { headers: string[]; rows: string[][] } {
   return { headers: split(lines[0]), rows: lines.slice(1).map(split) };
 }
 
+type Workspace = {
+  case: IrCase & { status: string; description: string };
+  notes: Array<{ id: string; body: string; author_id: string; created_at: string }>;
+  iocs: Array<{ id: string; ioc_type: string; value: string; created_at: string }>;
+  events: Array<{ id: number; event_type: string; detail: string; created_at: string }>;
+  hasMore: boolean[];
+};
+async function workspaceRequest<T>(id: string, method = 'GET', body?: Record<string, string>, offset = 0): Promise<T> {
+  const response = await fetch(method === 'GET'
+    ? `/api/ir-cases/workspace?id=${encodeURIComponent(id)}&offset=${offset}&_ts=${Date.now()}`
+    : '/api/ir-cases/workspace', {
+    method, credentials: 'include', cache: 'no-store',
+    headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
+    body: method === 'GET' ? undefined : JSON.stringify({ id, ...body }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Workspace request failed.');
+  return result as T;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 export function IrManagerTab() {
   // Auth / permissions
   const { role } = useAuthState();
-  const canDelete = role !== 'l1';
+  const [deployEnv, setDeployEnv] = useState<'prod' | 'dev' | null>(null);
+  const canDelete = deployEnv === 'prod' && role !== 'l1';
 
   // List state
   const [cases, setCases]           = useState<IrCase[]>([]);
@@ -106,6 +127,32 @@ export function IrManagerTab() {
   // Expand / edit
   const [expandedId, setExpandedId]       = useState<string | null>(null);
   const [expandedBody, setExpandedBody]   = useState('');
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspaceOffset, setWorkspaceOffset] = useState(0);
+  const [noteText, setNoteText] = useState('');
+  const [iocType, setIocType] = useState('ip');
+  const [iocValue, setIocValue] = useState('');
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const expansionRef = useRef<string | null>(null);
+
+  async function loadWorkspace(id: string, page = 0) {
+    const result = await workspaceRequest<Workspace>(id, 'GET', undefined, page);
+    if (expansionRef.current !== id) return;
+    setWorkspace(prev => page && prev ? {
+      ...result, notes: [...prev.notes, ...result.notes], iocs: [...prev.iocs, ...result.iocs], events: [...prev.events, ...result.events],
+    } : result);
+    setWorkspaceOffset(page);
+    if (!page) setExpandedBody(result.case.description);
+  }
+  async function mutateWorkspace(id: string, method: string, body: Record<string, string>) {
+    setWorkspaceBusy(true); setError(null);
+    try {
+      await workspaceRequest(id, method, body);
+      if (expansionRef.current === id) await loadWorkspace(id);
+      setNoteText(''); setIocValue('');
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setWorkspaceBusy(false); }
+  }
   const [expandLoading, setExpandLoading] = useState(false);
   const [editingId, setEditingId]         = useState<string | null>(null);
   const [editTitle, setEditTitle]         = useState('');
@@ -146,11 +193,14 @@ export function IrManagerTab() {
     if (append) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
-      const res = await api.irCases.list(q, newOffset);
+      const res: IrCasesListResponse & { deployEnv?: string } = await api.irCases.list(q, newOffset);
+      if (res.deployEnv !== 'prod' && res.deployEnv !== 'dev') throw new Error('Deployment environment is not configured.');
+      setDeployEnv(res.deployEnv);
       setCases(prev => append ? [...prev, ...res.cases] : res.cases);
       setTotal(res.total);
       setOffset(newOffset);
     } catch (e) {
+      setDeployEnv(null);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       if (append) setLoadingMore(false); else setLoading(false);
@@ -204,17 +254,23 @@ export function IrManagerTab() {
   // ── Expand / collapse ─────────────────────────────────────────────────
   async function handleExpand(id: string) {
     if (expandedId === id) {
+      expansionRef.current = null;
       setExpandedId(null);
       setEditingId(null);
       return;
     }
+    expansionRef.current = id;
     setExpandedId(id);
+    setWorkspace(null);
     setEditingId(null);
     setExpandedBody('');
     setExpandLoading(true);
     try {
-      const res = await api.irCases.detail(id);
-      setExpandedBody(res.case.description);
+      if (deployEnv === 'dev') await loadWorkspace(id);
+      else if (deployEnv === 'prod') {
+        const res = await api.irCases.detail(id);
+        if (expansionRef.current === id) setExpandedBody(res.case.description);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -224,6 +280,7 @@ export function IrManagerTab() {
 
   // ── Add ───────────────────────────────────────────────────────────────
   async function handleAdd() {
+    if (deployEnv !== 'prod' && deployEnv !== 'dev') { setError('Deployment environment is not configured.'); return; }
     if (!newTitle.trim()) { setError('Title is required.'); return; }
     setAdding(true);
     setError(null);
@@ -247,6 +304,7 @@ export function IrManagerTab() {
   }
 
   async function handleSave() {
+    if (deployEnv !== 'prod' && deployEnv !== 'dev') { setError('Deployment environment is not configured.'); return; }
     if (!editTitle.trim()) { setError('Title is required.'); return; }
     setSaving(true);
     setError(null);
@@ -265,7 +323,7 @@ export function IrManagerTab() {
 
   // ── Delete ────────────────────────────────────────────────────────────
   async function handleDelete() {
-    if (!deleteTarget) return;
+    if (deployEnv !== 'prod' || !deleteTarget) return;
     setDeleting(true);
     try {
       await api.irCases.delete(deleteTarget.id);
@@ -335,6 +393,7 @@ export function IrManagerTab() {
   }
 
   async function handleImportConfirm() {
+    if (deployEnv !== 'prod' && deployEnv !== 'dev') { setError('Deployment environment is not configured.'); return; }
     const toInsert = previewRows
       .filter(r => !r._removed && r.event_name.trim())
       .map(r => {
@@ -366,10 +425,10 @@ export function IrManagerTab() {
         <h2>IR Manager</h2>
         {total > 0 && <span className="line-count">{total} case{total !== 1 ? 's' : ''}</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => { setShowAdd(v => !v); setError(null); }}>
+          <button className="btn btn-secondary" onClick={() => { setShowAdd(v => !v); setError(null); }} disabled={!deployEnv}>
             {showAdd ? '✕ Cancel' : '+ Add Case'}
           </button>
-          <button className="btn btn-secondary" onClick={event => { importReturnFocusRef.current = event.currentTarget; fileRef.current?.click(); }}>
+          <button className="btn btn-secondary" onClick={event => { importReturnFocusRef.current = event.currentTarget; fileRef.current?.click(); }} disabled={!deployEnv}>
             ⬆ Import
           </button>
           <button className="btn btn-secondary" onClick={() => fetchCases(0, searchQ)} title="Refresh">
@@ -675,12 +734,29 @@ export function IrManagerTab() {
                     ) : (
                       <>
                         <div className="ir-case-body__actions">
-                          <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => startEdit(c)}>
+                          <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => startEdit(c)} disabled={!deployEnv}>
                             ✎ Edit
                           </button>
                           <CopyButton text={expandedBody} />
                         </div>
                         <pre className="ir-description">{expandedBody}</pre>
+                        {deployEnv === 'dev' && workspace && <section aria-label="Investigation workspace" style={{ display: 'grid', gap: '0.75rem', padding: '0.75rem 0' }}>
+                          <label>Status <select className="form-input" value={workspace.case.status} disabled={workspaceBusy} onChange={e => mutateWorkspace(c.id, 'PATCH', { status: e.target.value })}>
+                            {['open', 'investigating', 'contained', 'closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select></label>
+                          <div><h4>Notes</h4><ul>{workspace.notes.map(n => <li key={n.id}><time>{new Date(n.created_at).toLocaleString()}</time> · {n.body} <small>({n.author_id})</small></li>)}</ul>
+                            <label htmlFor="ir-note">Add note</label><textarea id="ir-note" className="form-textarea" maxLength={4000} value={noteText} onChange={e => setNoteText(e.target.value)} />
+                            <button className="btn btn-secondary" disabled={workspaceBusy || !noteText.trim()} onClick={() => mutateWorkspace(c.id, 'POST', { kind: 'note', body: noteText })}>Add note</button>
+                          </div>
+                          <div><h4>Linked IOCs</h4><ul>{workspace.iocs.map(i => <li key={i.id}>{i.ioc_type}: {i.value}</li>)}</ul>
+                            <label htmlFor="ir-ioc-type">IOC type</label><select id="ir-ioc-type" className="form-input" value={iocType} onChange={e => setIocType(e.target.value)}>{['ip','domain','url','hash'].map(t => <option key={t}>{t}</option>)}</select>
+                            <label htmlFor="ir-ioc-value">IOC value</label><input id="ir-ioc-value" className="form-input" value={iocValue} onChange={e => setIocValue(e.target.value)} />
+                            <button className="btn btn-secondary" disabled={workspaceBusy || !iocValue.trim()} onClick={() => mutateWorkspace(c.id, 'POST', { kind: 'ioc', ioc_type: iocType, value: iocValue })}>Link IOC</button>
+                          </div>
+                          <div><h4>Case timeline</h4><ul>{workspace.events.map(e => <li key={e.id}><time>{new Date(e.created_at).toLocaleString()}</time> · {e.event_type}: {e.detail}</li>)}</ul>
+                            {workspace.hasMore.some(Boolean) && <button className="btn btn-secondary" disabled={workspaceBusy} onClick={() => loadWorkspace(c.id, workspaceOffset + 25).catch(e => setError(String(e)))}>Load older</button>}
+                          </div>
+                        </section>}
                       </>
                     )}
                   </div>

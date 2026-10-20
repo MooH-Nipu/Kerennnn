@@ -8,6 +8,7 @@ services:
       - .env.local
     environment:
       - NODE_ENV=production
+      - KERENNNN_DEPLOY_ENV=prod
       - VT_KEY_STATE_FILE=/app/data/vt-key-state.json
       - COOKIE_SECURE=${COOKIE_SECURE:-true}
     volumes:

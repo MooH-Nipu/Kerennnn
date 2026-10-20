@@ -20,6 +20,7 @@ Apply SQL in this order:
 8. [supabase/multi_team_access.sql](supabase/multi_team_access.sql)
 9. [supabase/scan_history.sql](supabase/scan_history.sql)
 10. [supabase/storage_retention.sql](supabase/storage_retention.sql)
+11. [supabase/ir_case_workspace.sql](supabase/ir_case_workspace.sql) — creates base `ir_cases` on fresh installs; additive on existing databases. Apply before deploying Tier 1 IR workspace.
 
 `multi_team_access.sql` is additive: it keeps `app_users.role` and legacy RPC signatures intact while adding PAC/CHARLIE memberships. Apply it before deploying app code that reads `team_access`.
 

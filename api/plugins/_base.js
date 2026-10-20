@@ -15,7 +15,7 @@ class TIPlugin {
     this.supportedTypes = [];
   }
 
-  async check(ioc, type) {
+  async check() {
     throw new Error(`${this.constructor.name}: check() not implemented`);
   }
 

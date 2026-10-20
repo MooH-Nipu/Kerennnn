@@ -27,6 +27,7 @@ const ROUTES = [
   ['/api/ip-cache/cleanup', require('./ip-cache/cleanup.js')],
   ['/api/ip-cache/recent', require('./ip-cache/recent.js')],
   ['/api/ir-cases/detail', require('./ir-cases/detail.js')],
+  ['/api/ir-cases/workspace', require('./ir-cases/workspace.js')],
   ['/api/ir-cases', require('./ir-cases.js')],
 ];
 

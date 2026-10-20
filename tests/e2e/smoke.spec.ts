@@ -84,6 +84,26 @@ test.describe('authenticated admin smoke', () => {
     await expect(page.getByRole('button', { name: 'Scan 1' })).toBeEnabled();
   });
 
+  test('sample hashing stays local and scans only SHA-256', async ({ page }) => {
+    const hash = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+    const requested: string[] = [];
+    await page.route('**/api/vt?*', route => { requested.push(route.request().url()); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { id: hash }, _meta: { cache: { fromCache: true } } }) }); });
+    await page.route('**/api/correlate?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ confidence: 10, scoring: { confidence: 10 } }) }));
+    await page.getByRole('button', { name: /^(IoC Scan|IOC Review)$/ }).click();
+    await page.locator('#ioc-sample').setInputFiles({ name: 'abc.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('abc') });
+    await expect(page.locator('#ioc-input')).toHaveValue(hash);
+    await page.getByRole('button', { name: 'Scan 1', exact: true }).click();
+    await expect(page.getByText(/Scan complete/)).toBeVisible();
+    expect(requested.some(url => url.includes(hash))).toBeTruthy();
+    expect(requested.every(url => !url.includes('abc.bin'))).toBeTruthy();
+  });
+
+  test('dev IR list hides pre-existing shared production cases', async ({ page }) => {
+    const result = await page.request.get('/api/ir-cases');
+    expect(result.status()).toBe(200);
+    expect(await result.json()).toMatchObject({ cases: [], total: 0 });
+  });
+
   test('IOC scan submits without provider quota', async ({ page }) => {
     await page.route('**/api/vt?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { id: 'mock' }, _meta: { cache: { fromCache: true } } }) }));
     await page.route('**/api/correlate?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ confidence: 10, scoring: { confidence: 10 } }) }));

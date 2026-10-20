@@ -29,12 +29,15 @@ module.exports = async function handler(req, res) {
       { timeout: 10000 }
     );
     const body = String(text || '').trim();
-    logApiUsage(req, { service: 'Passive DNS', ioc_type: type, outcome: status === 200 ? 'ok' : 'error' }).catch(() => {});
-    if (status !== 200)
-      return res.status(502).json({ error: `Passive DNS upstream error (HTTP ${status}).` });
+    const quotaExceeded = /API count exceeded/i.test(body);
+    const upstreamError = status !== 200 || !body || (!body.includes(',') && /error|invalid|not found/i.test(body));
+    logApiUsage(req, { service: 'Passive DNS', ioc_type: type, outcome: quotaExceeded ? 'rate_limited' : upstreamError ? 'error' : 'ok' }).catch(() => {});
+    if (quotaExceeded)
+      return res.status(429).json({ error: 'Passive DNS provider quota exceeded. Try again later.' });
+    if (upstreamError)
+      return res.status(502).json({ error: status !== 200 ? `Passive DNS upstream error (HTTP ${status}).` : 'Passive DNS provider returned an error.' });
 
-    // HackerTarget reports problems as a plain-text 200 message (no commas / known phrases).
-    if (!body || (!body.includes(',') && /API count exceeded|error|no records|invalid|not found/i.test(body)))
+    if (/^no records/i.test(body))
       return res.status(200).json({ ok: true, ioc, type, records: [], note: body.slice(0, 160) });
 
     const records = body

@@ -1,12 +1,12 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { getAvailablePlugins, getPluginTimeout, DEFAULT_TIMEOUT_MS } = require('./plugins');
+const { PLUGINS, getAvailablePlugins, getPluginTimeout, DEFAULT_TIMEOUT_MS } = require('./index');
 
 describe('Plugin registry', () => {
-  test('getAvailablePlugins filters by type', () => {
-    const ipPlugins = getAvailablePlugins('ip');
-    const domainPlugins = getAvailablePlugins('domain');
-    const hashPlugins = getAvailablePlugins('hash');
+  test('registry declares supported types independently from configured keys', () => {
+    const ipPlugins = PLUGINS.filter(p => p.supportsType('ip'));
+    const domainPlugins = PLUGINS.filter(p => p.supportsType('domain'));
+    const hashPlugins = PLUGINS.filter(p => p.supportsType('hash'));
 
     // VT supports all types
     assert.ok(ipPlugins.some(p => p.name === 'VirusTotal'));

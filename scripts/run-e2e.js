@@ -21,6 +21,7 @@ function loadEnv() {
 
 function runPlaywright(projects, env) {
   const args = ['playwright', 'test', ...projects.flatMap(project => ['--project', project])];
+  if (process.env.E2E_GREP) args.push('--grep', process.env.E2E_GREP);
   const result = spawnSync('npx', args, { stdio: 'inherit', env: { ...process.env, ...env } });
   return result.status ?? 1;
 }

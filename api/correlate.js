@@ -8,7 +8,7 @@ const { getSupabase } = require('./_supabase');
 const { logApiUsage } = require('./_usage');
 const { consumeScanBudget } = require('./_scan-budget');
 const { assertSafeWebhookDestination } = require('./_webhook-security');
-const { getAvailablePlugins, getPluginTimeout } = require('./plugins');
+const { getAvailablePlugins, getPluginTimeout, PLUGINS } = require('./plugins');
 const { getTrustFactor, ispIsHighRiskHoster } = require('./plugins/_helpers');
 const { buildVtResult } = require('./plugins/virustotal');
 const { parseMalwareBazaar } = require('./plugins/malwarebazaar');
@@ -651,3 +651,5 @@ module.exports.calculateOptimizedConfidence = calculateOptimizedConfidence;
 // Source check helpers now live in ./plugins; re-export for backward compat.
 module.exports.buildVtResult = buildVtResult;
 module.exports.parseMalwareBazaar = parseMalwareBazaar;
+module.exports.checkEnrichment = (...args) => PLUGINS.find(p => p.name === 'Enrichment').check(...args);
+module.exports.checkURLScan = (...args) => PLUGINS.find(p => p.name === 'URLScan.io').check(...args);
