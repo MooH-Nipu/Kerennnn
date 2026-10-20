@@ -22,8 +22,11 @@ test('URLScan always runs for domain IOCs (no opt-in required)', () => {
   const source = fs.readFileSync(path.join(__dirname, 'correlate.js'), 'utf8');
   // Should NOT check for active query param — URLScan is now automatic for domains
   assert.doesNotMatch(source, /req\.query\.active/);
-  // Should still gate on type === 'domain'
-  assert.match(source, /type === 'domain'/);
+  // Plugin architecture: URLScan plugin declares domain support in supportedTypes
+  const { URLScanPlugin } = require('./plugins/urlscan');
+  const plugin = new URLScanPlugin();
+  assert.ok(plugin.supportedTypes.includes('domain'), 'URLScan.io plugin should declare domain support');
+  assert.ok(!plugin.supportedTypes.includes('ip'), 'URLScan.io plugin should not support IP');
 });
 
 test('frontend no longer requires URLScan opt-in checkbox', () => {
