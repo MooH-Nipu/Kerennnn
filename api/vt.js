@@ -193,6 +193,11 @@ module.exports = async function handler(req, res) {
           badKeyCount++;
           keyAttempts.push({ key: keyPrefix, status, result: 'bad_key' });
         }
+        // Every failed attempt is a real outbound VT request: log it so the
+        // dashboard pool count matches what VT actually consumed.
+        const failOutcome = isVtQuotaExceeded(status, data) ? 'quota_exhausted'
+          : isVtTemporaryRateLimit(status, data) ? 'rate_limited' : 'bad_key';
+        logApiUsage(req, { service: 'VirusTotal', ioc_type: type, outcome: failOutcome, api_key: keyPrefix }).catch(() => {});
         continue;
       }
       keyAttempts.push({ key: keyPrefix, status, result: 'ok' });
