@@ -422,10 +422,13 @@ export function IrManagerTab() {
   return (
     <div className="tab-content ir-manager-tab">
       <div className="section-header">
-        <h2>IR Manager</h2>
+        <div>
+          <h2>IR Manager</h2>
+          <p className="page-desc">Incident response cases and their status.</p>
+        </div>
         {total > 0 && <span className="line-count">{total} case{total !== 1 ? 's' : ''}</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => { setShowAdd(v => !v); setError(null); }} disabled={!deployEnv}>
+          <button className="btn btn-primary" onClick={() => { setShowAdd(v => !v); setError(null); }} disabled={!deployEnv}>
             {showAdd ? '✕ Cancel' : '+ Add Case'}
           </button>
           <button className="btn btn-secondary" onClick={event => { importReturnFocusRef.current = event.currentTarget; fileRef.current?.click(); }} disabled={!deployEnv}>

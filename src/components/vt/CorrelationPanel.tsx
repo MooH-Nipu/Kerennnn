@@ -97,15 +97,15 @@ export function CorrelationPanel({ loading, data }: Props) {
       <div className="corr-header">
         <span className="corr-title">Threat Intelligence</span>
         <span className={`corr-badge ${cls}`}>{label}</span>
-        <span className="corr-score">{data.confidence}%</span>
+        {data.confidence > 0 && <span className="corr-score">{data.confidence}%</span>}
       </div>
 
-      <div className="corr-bar-bg">
+      {data.confidence > 0 && <div className="corr-bar-bg">
         <div
           className="corr-bar-fill"
           style={{ width: `${Math.min(data.confidence, 100)}%`, background: barColor }}
         />
-      </div>
+      </div>}
 
       {data.riskFactors && data.riskFactors.length > 0 && (
         <div className="risk-factors-section">

@@ -126,7 +126,10 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   return (
     <div className="tab-content ioc-scan-tab">
       <div className="section-header">
-        <h2>IoC Scan</h2>
+        <div>
+          <h2>IoC Scan</h2>
+          <p className="page-desc">Check IPs, domains, URLs and file hashes.</p>
+        </div>
         {lineCount > 0 && !scanning && <span className="line-count">{lineCount} IOC</span>}
         {scanning && <span className="line-count">{progress.done}/{progress.total} done</span>}
       </div>
@@ -218,7 +221,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
           {hasResults && (
             <>
               <div className="scan-results-header">
-                <span className="scan-results-count">{visibleItems.length} / {items.length} results</span>
+                <span className="scan-results-count">{visibleItems.filter(i => !i.pending).length} / {items.filter(i => !i.pending).length} results</span>
                 <div className="scan-results-filters">
                   <button
                     type="button"

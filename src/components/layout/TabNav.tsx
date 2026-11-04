@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type { Role, Team } from '../../types/api';
 import type { TabId } from '../../lib/permissions';
 import { TAB_ACCESS } from '../../lib/permissions';
@@ -7,7 +7,7 @@ import { DEFAULT_NAV_LAYOUT, type NavGroup, type TabSectionId } from '../../hook
 export interface TabDef {
   id: TabId;
   label: string;
-  icon: string;
+  icon: ReactNode;
 }
 
 export interface TabSectionDef {
@@ -18,22 +18,26 @@ export interface TabSectionDef {
 
 export const TAB_SECTIONS: TabSectionDef[] = DEFAULT_NAV_LAYOUT;
 
+const Icon = ({ children }: { children: ReactNode }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+
 export const ALL_TABS: TabDef[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▦' },
-  { id: 'formatter', label: 'Formatter', icon: '≋' },
-  { id: 'merger', label: 'Merger', icon: '⇄' },
-  { id: 'ioc-scan', label: 'IoC Scan', icon: '◎' },
-  { id: 'history', label: 'History', icon: '≡' },
-  { id: 'pac-filter', label: 'Team Filter', icon: '⬡' },
-  { id: 'daily-eod', label: 'Daily EOD', icon: '▨' },
-  { id: 'admin-users', label: 'Users', icon: '⊕' },
-  { id: 'admin-logs', label: 'Logs', icon: '☰' },
-  { id: 'ir-manager', label: 'IR Manager', icon: '⚑' },
-  { id: 'json', label: 'Log Formatter', icon: '{}' },
-  { id: 'cve', label: 'CVE Lookup', icon: '◇' },
-  { id: 'attack', label: 'ATT&CK', icon: '◉' },
+  { id: 'dashboard', label: 'Dashboard', icon: <Icon><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></Icon> },
+  { id: 'formatter', label: 'Formatter', icon: <Icon><path d="M15 12H3M17 18H3M21 6H3"/></Icon> },
+  { id: 'merger', label: 'Merger', icon: <Icon><path d="m8 6 4-4 4 4M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22M20 22l-5-5"/></Icon> },
+  { id: 'ioc-scan', label: 'IoC Scan', icon: <Icon><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></Icon> },
+  { id: 'history', label: 'History', icon: <Icon><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></Icon> },
+  { id: 'pac-filter', label: 'Team Filter', icon: <Icon><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></Icon> },
+  { id: 'daily-eod', label: 'Daily EOD', icon: <Icon><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></Icon> },
+  { id: 'admin-users', label: 'Users', icon: <Icon><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></Icon> },
+  { id: 'admin-logs', label: 'Logs', icon: <Icon><path d="M15 12h-5M15 8h-5M19 17V5a2 2 0 0 0-2-2H4"/></Icon> },
+  { id: 'ir-manager', label: 'IR Manager', icon: <Icon><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></Icon> },
+  { id: 'json', label: 'Log Formatter', icon: <Icon><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></Icon> },
+  { id: 'cve', label: 'CVE Lookup', icon: <Icon><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></Icon> },
+  { id: 'attack', label: 'ATT&CK', icon: <Icon><circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></Icon> },
   { id: 'settings', label: 'Settings', icon: '⚙' },
-  { id: 'admin-usage', label: 'API Usage', icon: '⌁' },
+  { id: 'admin-usage', label: 'API Usage', icon: <Icon><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></Icon> },
 ];
 
 export function isTabVisible(tab: TabDef, role: Role, allowedTeams: Team[] = []): boolean {

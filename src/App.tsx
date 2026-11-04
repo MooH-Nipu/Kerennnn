@@ -161,6 +161,7 @@ function AppInner() {
         username={username}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onScanIoc={handleQuickScan}
         pacFilterCount={pacFilterCount}
         hiddenTabs={hiddenTabs}
         tabLabels={tabLabels}

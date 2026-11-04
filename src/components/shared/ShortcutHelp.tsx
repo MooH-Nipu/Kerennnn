@@ -41,6 +41,7 @@ export function ShortcutHelp({ onClose }: Props) {
           <tbody>
             <tr><td><kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd></td><td>Switch to tab 1–9</td></tr>
             <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run IoC scan</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Paste an IOC to scan</td></tr>
             <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
           </tbody>
         </table>

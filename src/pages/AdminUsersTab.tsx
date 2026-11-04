@@ -193,7 +193,10 @@ export function AdminUsersTab() {
   return (
     <div className="tab-content admin-tab">
       <div className="section-header">
-        <h2>User Management</h2>
+        <div>
+          <h2>User Management</h2>
+          <p className="page-desc">Create accounts and set roles and team access.</p>
+        </div>
         <button className="btn btn-ghost" onClick={fetchUsers} disabled={loading} style={{ marginLeft: 'auto' }}>
           {loading ? <Spinner size={14} /> : '↻'} Refresh
         </button>

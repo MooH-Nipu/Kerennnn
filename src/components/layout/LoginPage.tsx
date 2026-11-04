@@ -19,12 +19,6 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-layout">
-        <section className="login-intro" aria-label="Product introduction">
-          <div className="login-kicker">SECURITY OPERATIONS PLATFORM</div>
-          <h1>Investigate faster.<br /><span>Respond with confidence.</span></h1>
-          <p>One workspace for IOC triage, threat intelligence, and operational reporting.</p>
-          <div className="login-intro__status"><span /> Systems ready for analyst access</div>
-        </section>
         <div className="login-card">
           <div className="login-logo">
             <span className="login-logo__icon">◈</span>
@@ -34,8 +28,7 @@ export function LoginPage() {
             </div>
           </div>
           <div className="login-heading">
-            <h2>Welcome back</h2>
-            <p>Sign in to continue to your operations workspace.</p>
+            <p>Sign in to your SOC workspace.</p>
           </div>
 
         <form className="login-form" onSubmit={handleSubmit}>

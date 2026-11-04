@@ -186,7 +186,10 @@ export function DashboardTab({ onScanIp }: Props) {
     <div className="tab-content dashboard-tab">
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="section-header">
-        <h2>Dashboard</h2>
+        <div>
+          <h2>Dashboard</h2>
+          <p className="page-desc">Scan activity for the selected time range.</p>
+        </div>
         {lastRefreshed && (
           <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>
             Updated {fmtWhen(lastRefreshed.toISOString())}
@@ -205,53 +208,65 @@ export function DashboardTab({ onScanIp }: Props) {
       {ipError && <StatusMessage type="error" message={`IP cache unavailable: ${ipError}`} onDismiss={() => setIpError(null)} />}
 
 
-      {/* ── Operational KPI cards ──────────────────────────── */}
-      <div className="dashboard-kpis" aria-label="Scan summary">
-        {[
-          { label: 'Total Scans', value: totalIps, tone: 'total', hint: 'scanned in range' },
-          { label: 'Malicious', value: verdictCounts.malicious, tone: 'malicious', hint: 'confirmed threat' },
-          { label: 'Suspicious', value: verdictCounts.suspicious, tone: 'suspicious', hint: 'needs review' },
-          { label: 'Clean', value: verdictCounts.clean, tone: 'clean', hint: 'no threat found' },
-          { label: 'Unknown', value: verdictCounts.unknown, tone: 'unknown', hint: 'insufficient evidence' },
-          { label: 'Provider Errors', value: usageTotals.error || 0, tone: 'errors', hint: 'failed calls' },
-        ].map(stat => (
-          <article key={stat.label} className={`dashboard-kpi dashboard-kpi--${stat.tone}${stat.value ? '' : ' dashboard-kpi--zero'}`}>
-            <div className="dashboard-kpi__label">{stat.label}</div>
-            <div className="dashboard-kpi__value">{ipLoading || usageLoading ? '—' : stat.value.toLocaleString()}</div>
-            <div className="dashboard-kpi__hint">{stat.hint}</div>
-          </article>
-        ))}
-      </div>
+      {/* ── Summary strip ──────────────────────────────────── */}
+      {(() => {
+        const verdicts = [
+          { key: 'malicious', label: 'Malicious', value: verdictCounts.malicious },
+          { key: 'suspicious', label: 'Suspicious', value: verdictCounts.suspicious },
+          { key: 'clean', label: 'Clean', value: verdictCounts.clean },
+          { key: 'unknown', label: 'Unknown', value: verdictCounts.unknown },
+        ];
+        const shown = verdicts.reduce((sum, v) => sum + v.value, 0);
+        const busy = ipLoading || usageLoading;
+        const errors = usageTotals.error || 0;
+        return (
+          <section className="dash-summary" aria-label="Scan summary">
+            <div className="dash-summary__total">
+              <span className="dash-summary__label">Scans in range</span>
+              <span className="dash-summary__num">{busy ? '—' : totalIps.toLocaleString()}</span>
+            </div>
+            <div className="dash-summary__breakdown">
+              <div className="verdict-bar" role="img" aria-label={verdicts.map(v => `${v.label} ${v.value}`).join(', ')}>
+                {shown > 0 && verdicts.filter(v => v.value > 0).map(v => (
+                  <span key={v.key} className={`verdict-bar__seg verdict-bar__seg--${v.key}`} style={{ flexGrow: v.value }} />
+                ))}
+              </div>
+              <ul className="verdict-legend">
+                {verdicts.map(v => (
+                  <li key={v.key}>
+                    <span className={`verdict-dot verdict-dot--${v.key}`} aria-hidden="true" />
+                    {v.label} <b>{busy ? '—' : v.value.toLocaleString()}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={`dash-summary__errors${errors ? ' dash-summary__errors--on' : ''}`}>
+              <span className="dash-summary__label">Provider errors</span>
+              <span className="dash-summary__err-num">{busy ? '—' : errors.toLocaleString()}</span>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── Usage time range ───────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', fontWeight: 600, marginRight: '0.25rem' }}>Range:</span>
-        {[{l:'15m',h:0.25},{l:'1h',h:1},{l:'6h',h:6},{l:'24h',h:24},{l:'7d',h:168},{l:'30d',h:720}].map(r => (
-          <button
-            key={r.l}
-            onClick={() => applyQuickRange(r.l, r.h)}
-            disabled={loading}
-            style={{
-              padding: '0.3rem 0.65rem',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              border: '1px solid ' + (activePreset === r.l ? 'var(--color-primary)' : 'var(--color-border)'),
-              borderRadius: 'var(--radius-sm)',
-              background: activePreset === r.l ? 'var(--color-primary)' : 'transparent',
-              color: activePreset === r.l ? 'var(--color-primary-foreground)' : 'var(--color-muted-foreground)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {r.l}
-          </button>
-        ))}
-        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)', margin: '0 0.25rem' }}>|</span>
-        <input aria-label="Dashboard range start" type="datetime-local" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading}
-          style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
-        <span style={{ fontSize: '0.78rem', color: 'var(--color-muted-foreground)' }}>→</span>
-        <input aria-label="Dashboard range end" type="datetime-local" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading}
-          style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-foreground)' }} />
+      <div className="dash-range">
+        <div className="seg" role="group" aria-label="Time range">
+          {[{l:'15m',h:0.25},{l:'1h',h:1},{l:'6h',h:6},{l:'24h',h:24},{l:'7d',h:168},{l:'30d',h:720}].map(r => (
+            <button
+              key={r.l}
+              type="button"
+              className={`seg__btn${activePreset === r.l ? ' seg__btn--on' : ''}`}
+              aria-pressed={activePreset === r.l}
+              onClick={() => applyQuickRange(r.l, r.h)}
+              disabled={loading}
+            >
+              {r.l}
+            </button>
+          ))}
+        </div>
+        <input aria-label="Dashboard range start" type="datetime-local" className="form-input dash-range__input" value={from} onChange={e => { setFrom(e.target.value); setActivePreset(''); }} disabled={loading} />
+        <span className="dash-range__sep" aria-hidden="true">→</span>
+        <input aria-label="Dashboard range end" type="datetime-local" className="form-input dash-range__input" value={to} onChange={e => { setTo(e.target.value); setActivePreset(''); }} disabled={loading} />
         <button type="button" className="button button--primary button--sm" onClick={applyCustomRange} disabled={loading || !from || !to || new Date(from) >= new Date(to)}>Apply</button>
       </div>
 
@@ -278,7 +293,7 @@ export function DashboardTab({ onScanIp }: Props) {
       <div className="card dash-quota-slot">
         <div className="card__header">
           <h3 className="card__title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>API quota tracker</h3>
-          {vtQuota && <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-muted-foreground)' }}>Resets {new Date(vtQuota.resetAt).toLocaleString()}</span>}
+          {vtQuota && !Number.isNaN(new Date(vtQuota.resetAt).getTime()) && <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-muted-foreground)' }}>Resets {new Date(vtQuota.resetAt).toLocaleString()}</span>}
         </div>
         <div className="card__body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
           {usageLoading && !vtQuota ? <Spinner size={16} /> : (vtQuota?.services ?? (vtQuota ? [{ id: 'virustotal', name: 'VirusTotal', dailyLimit: vtQuota.dailyLimit, keys: vtQuota.keys }] : [])).some(service => service.keys.length > 0) ? (

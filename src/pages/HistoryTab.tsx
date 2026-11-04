@@ -43,7 +43,10 @@ export function HistoryTab({ onReScan, onGoToScan }: Props) {
   return (
     <div className="tab-content history-tab">
       <div className="section-header">
-        <h2>Scan History</h2>
+        <div>
+          <h2>Scan History</h2>
+          <p className="page-desc">Past scans, saved per user.</p>
+        </div>
         {allEntries.length > 0 && (
           <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '0.25rem 0.5rem' }} onClick={clearAll}>
             Clear all
