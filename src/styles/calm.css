@@ -1,0 +1,150 @@
+/* Calm layer: warm stone neutrals, one muted sage accent, serif display type.
+   Loaded last; overrides tokens from stisla-bridge/instrument-panel instead of rewriting them. */
+@font-face { font-family: 'Instrument Serif'; src: url('/fonts/instrument-serif-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/inter-var.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --color-background: #161614; --color-surface: #1c1c1a; --color-surface-2: #222220; --color-surface-3: #131311;
+  --color-border: #2c2b28; --color-border-strong: #3d3c37;
+  --color-foreground: #e8e4dc; --color-muted-foreground: #9a958a;
+  --color-primary: #8fb3a6; --color-primary-emphasis: #a8c8bb; --color-primary-foreground: #141413;
+  --color-success: #9bb27a; --color-danger: #d17b72; --color-warning: #d4a95f; --color-info: #8aa9b8;
+  --color-accent: #24241f; --color-accent-foreground: #e8e4dc;
+  --color-neutral: #262623; --color-neutral-foreground: #e8e4dc;
+  --bg-base: #161614; --bg-card: #1c1c1a; --bg-input: #131311; --bg-surface: #1c1c1a;
+  --border: #2c2b28; --border-hl: #8fb3a6;
+  --text-pri: #e8e4dc; --text-primary: #e8e4dc; --text-sec: #9a958a; --text-secondary: #9a958a; --text-muted: #8a857a;
+  --text-code: #b9cdc4; --accent: #8fb3a6; --accent-hl: #a8c8bb;
+  --green: #9bb27a; --red: #d17b72; --yellow: #d4a95f; --cyan: #8aa9b8;
+  --shadow-panel: none; --radius-panel: 8px; --radius: 0.4rem;
+}
+:root[data-theme='light'] {
+  --color-background: #f4f1ea; --color-surface: #fbf9f5; --color-surface-2: #f0ece3; --color-surface-3: #f0ece3;
+  --color-border: #ddd7ca; --color-border-strong: #c4bdac;
+  --color-foreground: #2a2824; --color-muted-foreground: #6f6a5f;
+  --color-primary: #3f6b60; --color-primary-emphasis: #2f574d; --color-primary-foreground: #fbf9f5;
+  --color-success: #5f7c3d; --color-danger: #b4493f; --color-warning: #8f6a1c; --color-info: #4d6f80;
+  --color-accent: #ebe6da; --color-accent-foreground: #2a2824;
+  --color-neutral: #e8e3d7; --color-neutral-foreground: #2a2824;
+  --bg-base: #f4f1ea; --bg-card: #fbf9f5; --bg-input: #f0ece3; --bg-surface: #fbf9f5;
+  --border: #ddd7ca; --border-hl: #3f6b60;
+  --text-pri: #2a2824; --text-primary: #2a2824; --text-sec: #6f6a5f; --text-secondary: #6f6a5f; --text-muted: #7d786c;
+  --text-code: #2f574d; --accent: #3f6b60; --accent-hl: #2f574d;
+  --green: #5f7c3d; --red: #b4493f; --yellow: #8f6a1c; --cyan: #4d6f80;
+}
+
+body, button, input, select, textarea { font-family: var(--font-sans); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
+body { font-size: 14px; }
+
+/* Display type */
+.app-header__title, .login-logo__title, .login-intro h1, .login-heading h2,
+.tab-content h1, .tab-content h2, .section-header h2 {
+  font-family: var(--font-serif); font-weight: 400; letter-spacing: -.01em;
+}
+.app-header__title { font-size: 1.5rem; }
+.app-header__title em { font-style: italic; color: var(--accent); }
+.tab-content h1, .tab-content h2 { font-size: 2rem; line-height: 1.1; }
+.login-intro h1 { font-size: clamp(2.8rem, 5.5vw, 5rem); line-height: 1; letter-spacing: -.02em; }
+.login-intro h1 span { font-style: italic; color: var(--accent); }
+.login-heading h2 { font-size: 2rem; }
+
+/* Quiet labels: sentence-case sans instead of mono caps */
+.app-header__subtitle, .login-kicker, .login-logo__sub, .tab-nav__section-label, .dashboard-kpi__label {
+  font-family: var(--font-sans); font-weight: 500; letter-spacing: .02em; text-transform: none; font-size: .78rem; color: var(--text-sec);
+}
+.tab-nav__section-label { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.login-kicker { color: var(--accent); }
+
+/* Surfaces: hairlines, no shadows, no glow */
+.app-header { background: var(--bg-base); box-shadow: none; border-bottom: 1px solid var(--border); }
+.tab-nav--sidebar { background: var(--bg-base); }
+.tab-nav--sidebar .tab-btn { border-radius: 6px; border: 1px solid transparent; }
+.tab-nav--sidebar .tab-btn:hover { background: color-mix(in srgb, var(--text-pri) 5%, transparent); }
+.tab-nav--sidebar .tab-btn--active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: transparent; box-shadow: none; color: var(--text-pri); }
+.card, .usage-chart-card, .usage-stat, .settings-panel, .login-card, .cve-card, .attack-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-panel); box-shadow: none;
+}
+.card:hover { border-color: var(--color-border-strong); }
+.card-title .dot { display: none; }
+.btn, .form-input, .form-textarea, .settings-select { border-radius: 6px; }
+.btn-primary { background: var(--accent); color: var(--color-primary-foreground); border-color: var(--accent); box-shadow: none; font-weight: 500; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hl); border-color: var(--accent-hl); }
+.form-input:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.badge, .verdict, .source-verdict { border-radius: 999px; }
+
+/* KPI tiles: flat, serif numerals, status shown by the number only */
+.dashboard-kpi { border: 1px solid var(--border); border-top-width: 1px; border-radius: 8px; box-shadow: none; padding: 1.1rem 1.2rem; }
+.dashboard-kpi__value { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2rem, 3vw, 2.75rem); letter-spacing: -.01em; }
+.dashboard-kpi--malicious, .dashboard-kpi--suspicious, .dashboard-kpi--clean, .dashboard-kpi--unknown, .dashboard-kpi--errors { border-top-color: var(--border); }
+.dashboard-kpi__hint { font-size: .75rem; }
+
+/* Login */
+.login-logo__icon { color: var(--accent); }
+.login-intro__status span { box-shadow: none; }
+.settings-feature-bubble { box-shadow: 0 8px 24px rgba(0,0,0,.18); border-radius: 8px; }
+.settings-feature-bubble__badge { background: var(--accent); color: var(--color-primary-foreground); }
+
+/* Controls inherit the page font; native pickers follow the theme */
+button, input, select, textarea { font: inherit; }
+:root { color-scheme: dark; } :root[data-theme='light'] { color-scheme: light; }
+.btn-primary { background-image: none; }
+.form-input::placeholder, .form-textarea::placeholder { font-family: var(--font-sans); color: var(--text-muted); opacity: .8; }
+.form-label { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: .8rem; color: var(--text-sec); }
+
+/* Toasts: same surface as cards, quiet dismiss */
+.update-toast { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
+.update-toast__badge { color: var(--accent); font-weight: 500; letter-spacing: .02em; text-transform: none; }
+.update-toast__title { font-weight: 500; color: var(--text-pri); }
+.update-toast__list { list-style: none; padding-left: 0; color: var(--text-sec); }
+.update-toast__ok { width: auto; background: transparent; color: var(--text-pri); border: 1px solid var(--border); }
+.update-toast__ok:hover:not(:disabled) { background: var(--color-accent); border-color: var(--color-border-strong); }
+
+/* Login card rhythm */
+.login-logo { margin-bottom: 1.5rem; }
+.login-card { padding: clamp(2rem, 4vw, 3rem); }
+.login-intro > p { color: var(--text-sec); }
+.login-intro__status { font-family: var(--font-sans); font-size: .8rem; }
+
+/* Stisla buttons (Apply, Refresh) follow the same palette */
+.button { font-weight: 500; border-radius: 6px; box-shadow: none; }
+.button--primary { background: var(--accent); color: var(--color-primary-foreground); border: 1px solid var(--accent); padding-inline: .9rem; }
+.button--primary:hover:not(:disabled) { background: var(--accent-hl); }
+.button--ghost { color: var(--text-sec); }
+/* Sign in / Scan: enough contrast to read as the primary action */
+:root:not([data-theme='light']) .btn-primary, :root:not([data-theme='light']) .button--primary { background: #a3c4b8; color: #12130f; }
+:root[data-theme='light'] .btn-primary, :root[data-theme='light'] .button--primary { background: #2f574d; color: #fbf9f5; border-color: #2f574d; }
+
+/* "New" popover uses card surface, not the old navy elevation */
+.settings-feature-bubble, .settings-feature-bubble::after { background: var(--bg-card); border-color: var(--border); color: var(--text-pri); }
+.settings-feature-bubble strong { font-family: var(--font-sans); font-weight: 500; color: var(--text-pri); }
+.settings-feature-bubble > span:last-child { color: var(--text-sec); }
+
+/* Empty states: inline text instead of flex-split words */
+.history-placeholder-box, [class*='empty'] { color: var(--text-sec); }
+.history-placeholder-box strong, [class*='empty'] strong { display: inline; font-weight: 500; color: var(--text-pri); }
+
+/* Zero counts stay neutral; color appears only when there is something to see */
+.dashboard-kpi__value { color: var(--text-pri); }
+.dashboard-kpi--malicious .dashboard-kpi__value { color: var(--red); }
+.dashboard-kpi--suspicious .dashboard-kpi__value { color: var(--yellow); }
+.dashboard-kpi--clean .dashboard-kpi__value { color: var(--green); }
+.dashboard-kpi--errors .dashboard-kpi__value { color: var(--red); }
+
+/* Zero means nothing to report: keep it neutral */
+.dashboard-kpi--zero .dashboard-kpi__value { color: var(--text-sec) !important; }
+.dashboard-kpi--errors .dashboard-kpi__value { color: var(--yellow); }
+
+/* Empty states read as one centered sentence */
+.ioc-scan-results > .ioc-scan-empty { display: block; padding-block: 6rem; line-height: 1.6; border-radius: 8px; }
+.empty-state { width: 100%; text-align: center; }
+.empty-state__text, .ioc-scan-empty { color: var(--text-sec); font-family: var(--font-sans); }
+
+/* Native file picker matches secondary buttons */
+input[type='file'] { font-family: var(--font-sans); color: var(--text-sec); font-size: .8rem; }
+input[type='file']::file-selector-button { font: inherit; margin-right: .75rem; padding: .35rem .8rem; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-pri); cursor: pointer; }
+input[type='file']::file-selector-button:hover { background: var(--color-accent); }
+.ioc-scan-note, [class*='ioc-scan'] small, [class*='ioc-scan'] p { font-family: var(--font-sans); }
+.empty-state { flex: 1 1 100%; grid-column: 1 / -1; }
+.tab-btn__icon { opacity: .75; }

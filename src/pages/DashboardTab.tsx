@@ -215,7 +215,7 @@ export function DashboardTab({ onScanIp }: Props) {
           { label: 'Unknown', value: verdictCounts.unknown, tone: 'unknown', hint: 'insufficient evidence' },
           { label: 'Provider Errors', value: usageTotals.error || 0, tone: 'errors', hint: 'failed calls' },
         ].map(stat => (
-          <article key={stat.label} className={`dashboard-kpi dashboard-kpi--${stat.tone}`}>
+          <article key={stat.label} className={`dashboard-kpi dashboard-kpi--${stat.tone}${stat.value ? '' : ' dashboard-kpi--zero'}`}>
             <div className="dashboard-kpi__label">{stat.label}</div>
             <div className="dashboard-kpi__value">{ipLoading || usageLoading ? '—' : stat.value.toLocaleString()}</div>
             <div className="dashboard-kpi__hint">{stat.hint}</div>

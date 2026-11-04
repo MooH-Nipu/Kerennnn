@@ -5,6 +5,7 @@ import '../styles.css';
 import './styles/ui-improvements.css';
 import './styles/stisla-bridge.css';
 import './styles/instrument-panel.css';
+import './styles/calm.css';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { App } from './App';
 
