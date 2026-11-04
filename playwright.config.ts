@@ -18,12 +18,12 @@ export default defineConfig({
   projects: [
     {
       name: 'dev-desktop',
-      testMatch: ['smoke.spec.ts', 'dev.spec.ts'],
+      testMatch: ['smoke.spec.ts', 'dev.spec.ts', 'syslog.spec.ts'],
       use: { ...devices['Desktop Chrome'], baseURL: devBaseURL },
     },
     {
       name: 'dev-narrow',
-      testMatch: 'responsive.spec.ts',
+      testMatch: ['responsive.spec.ts', 'syslog.spec.ts'],
       use: { ...devices['Desktop Chrome'], baseURL: devBaseURL, viewport: { width: 390, height: 844 } },
     },
     {

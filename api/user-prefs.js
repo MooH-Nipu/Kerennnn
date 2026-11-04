@@ -14,13 +14,14 @@ const GROUP_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 function sanitizeIds(arr) {
   if (!Array.isArray(arr)) return [];
   const seen = new Set();
-  return arr.filter(id => typeof id === 'string' && KNOWN_TABS.includes(id) && !seen.has(id) && seen.add(id));
+  return arr.map(id => id === 'syslog' ? 'json' : id).filter(id => typeof id === 'string' && KNOWN_TABS.includes(id) && !seen.has(id) && seen.add(id));
 }
 
 function sanitizeLabels(value, allowedIds) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out = {};
-  for (const [id, raw] of Object.entries(value)) {
+  const labels = allowedIds === KNOWN_TABS && 'syslog' in value ? { ...value, json: value.json ?? value.syslog } : value;
+  for (const [id, raw] of Object.entries(labels)) {
     if (!allowedIds.includes(id) || typeof raw !== 'string' || [...raw].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) continue;
     const label = raw.trim().slice(0, 24);
     if (label) out[id] = label;
@@ -72,9 +73,9 @@ module.exports = async function handler(req, res) {
     if (error) return serverError(res, error, 'user-prefs GET');
     return res.status(200).json({
       ok: true,
-      tab_order: data?.tab_order ?? [],
-      hidden_tabs: data?.hidden_tabs ?? [],
-      tab_labels: data?.tab_labels ?? {},
+      tab_order: sanitizeIds(data?.tab_order),
+      hidden_tabs: sanitizeIds(data?.hidden_tabs),
+      tab_labels: sanitizeLabels(data?.tab_labels, KNOWN_TABS),
       group_labels: sanitizeLabels(data?.group_labels, KNOWN_GROUPS),
       nav_layout: sanitizeLayout(data?.group_labels?.__layout),
       nav_tutorial_dismissed: sanitizeTutorialDismissed(data?.group_labels?.__tutorialDismissed),
@@ -110,6 +111,9 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       ...data,
+      tab_order: sanitizeIds(data?.tab_order),
+      hidden_tabs: sanitizeIds(data?.hidden_tabs),
+      tab_labels: sanitizeLabels(data?.tab_labels, KNOWN_TABS),
       group_labels: sanitizeLabels(data?.group_labels, KNOWN_GROUPS),
       nav_layout: sanitizeLayout(data?.group_labels?.__layout),
       nav_tutorial_dismissed: sanitizeTutorialDismissed(data?.group_labels?.__tutorialDismissed),

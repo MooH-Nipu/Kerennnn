@@ -2,10 +2,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { webcrypto } = require('node:crypto');
-const { readFileSync } = require('node:fs');
-const { join } = require('node:path');
-
-const source = path => readFileSync(join(__dirname, '..', path), 'utf8');
 
 test('sample digest uses Web Crypto for known bytes, rejects oversize before reading', async () => {
   const { sha256Sample, MAX_SAMPLE_BYTES } = await import('../src/lib/sample-relationships.mjs');
@@ -35,15 +31,3 @@ test('one-hop graph validates source, bounds pairs, dedupes, rejects malformed a
   assert.equal(reverseCandidates({ records: [...records, null, {}, { host: 'a.example.com' }] }).length, MAX_REVERSE_CANDIDATES);
 });
 
-test('sample file only enters digest; network scanner accepts hash string, never sample bytes', () => {
-  const ui = source('src/pages/IocScanTab.tsx');
-  const helper = source('src/lib/sample-relationships.mjs');
-  const api = source('src/lib/api.ts');
-  assert.match(ui, /const hash = await sha256Sample\(file\)/);
-  assert.match(ui, /setInput\(hash\)/);
-  assert.match(ui, /runScan\(val\)/);
-  assert.doesNotMatch(ui, /runScan\(file\)|api\.scan\.[\w]+\(file\)|FormData\(/);
-  assert.match(helper, /cryptoApi\.subtle\.digest\('SHA-256', bytes\)/);
-  assert.match(api, /encodeURIComponent\(ioc\)/);
-  assert.doesNotMatch(api, /sampleUpload|uploadSample/);
-});

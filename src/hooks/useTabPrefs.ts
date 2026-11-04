@@ -38,18 +38,29 @@ function lsKey(username: string | null | undefined) {
   return username ? `${LS_PREFIX}_${username}` : LS_PREFIX;
 }
 
+function migrateLogPrefs(value: TabPrefsState): TabPrefsState {
+  const alias = (id: string) => (id === 'syslog' ? 'json' : id) as TabId;
+  const seen = new Set<TabId>();
+  const { syslog, ...labels } = value.tabLabels as Record<string, string>;
+  return { ...value,
+    tabLabels: { ...labels, ...(syslog && !labels.json ? { json: syslog } : {}) },
+    hidden: [...new Set(value.hidden.map(alias))],
+    layout: value.layout.map(group => ({ ...group, tabs: group.tabs.map(alias).filter(id => !seen.has(id) && Boolean(seen.add(id))) })),
+  };
+}
+
 function readLs(username: string | null | undefined): TabPrefsState {
   try {
     const raw = localStorage.getItem(lsKey(username));
     if (!raw) return EMPTY;
     const value = JSON.parse(raw) as Partial<TabPrefsState>;
-    return {
+    return migrateLogPrefs({
       hidden: Array.isArray(value.hidden) ? value.hidden as TabId[] : [],
       tabLabels: value.tabLabels && typeof value.tabLabels === 'object' ? value.tabLabels : {},
       groupLabels: value.groupLabels && typeof value.groupLabels === 'object' ? value.groupLabels : {},
       layout: Array.isArray(value.layout) && value.layout.length ? value.layout : DEFAULT_NAV_LAYOUT,
       tutorialDismissed: value.tutorialDismissed === true,
-    };
+    });
   } catch { return EMPTY; }
 }
 

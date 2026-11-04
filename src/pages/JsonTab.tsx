@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { OutputBox } from '../components/shared/OutputBox';
 import { HighlightedOutput } from '../components/shared/HighlightedOutput';
 import { StatusMessage } from '../components/shared/StatusMessage';
-import { extractIOCsFromText, findIOCMatches } from '../lib/ioc';
+import { findIOCMatches } from '../lib/ioc';
+import { extractReport } from '../lib/ioc-report';
 
 interface StatusMsg {
   type: 'success' | 'error' | 'warning' | 'info';
@@ -80,36 +81,16 @@ function formatJson(
   }
 }
 
-// Pull every IOC out of arbitrary text and render it as grouped, copy-friendly
-// sections (one IOC per line under a "# Group (n)" heading).
-function extractReport(src: string): { out: string; status: StatusMsg } {
-  const found = extractIOCsFromText(src);
-  const groups: Array<[string, string[]]> = [
-    ['IPs', found.ips],
-    ['Domains', found.domains],
-    ['URLs', found.urls],
-    ['Hashes', found.hashes],
-    ['Emails', found.emails],
-  ].filter(([, v]) => v.length > 0) as Array<[string, string[]]>;
-
-  const total = groups.reduce((n, [, v]) => n + v.length, 0);
-  if (total === 0) {
-    return { out: '', status: { type: 'error', text: 'No IOCs found in the input.' } };
-  }
-
-  const out = groups.map(([label, v]) => `# ${label} (${v.length})\n${v.join('\n')}`).join('\n\n');
-  const summary = groups.map(([label, v]) => `${v.length} ${label.toLowerCase()}`).join(', ');
-  return { out, status: { type: 'success', text: `Found ${total} IOC${total !== 1 ? 's' : ''} — ${summary}.` } };
-}
-
 const MODES: Array<{ id: Mode; label: string }> = [
   { id: 'beautify', label: 'Beautify' },
   { id: 'minify', label: 'Minify' },
   { id: 'extract', label: 'Extract IOCs' },
 ];
 
-export function JsonTab() {
-  const [raw, setRaw] = useState('');
+export function JsonTab({ input, onInput }: { input?: string; onInput?: (value: string) => void } = {}) {
+  const [localRaw, setLocalRaw] = useState('');
+  const raw = input ?? localRaw;
+  const setRaw = onInput ?? setLocalRaw;
   const [output, setOutput] = useState('');
   const [mode, setMode] = useState<Mode>('beautify');
   const [status, setStatus] = useState<StatusMsg | null>(null);
@@ -189,8 +170,8 @@ export function JsonTab() {
         <StatusMessage type={status.type} message={status.text} onDismiss={() => setStatus(null)} />
       )}
 
-      <div className="formatter-grid">
-        <div className="form-group">
+      <div className="formatter-grid" style={input !== undefined ? { gridTemplateColumns: 'minmax(0, 1fr)' } : undefined}>
+        <div className="form-group" hidden={input !== undefined}>
           <label className="form-label" htmlFor="raw-json">
             {inputLabel}
           </label>

@@ -7,7 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 // Only loopback reverse proxy may supply X-Forwarded-For; direct clients cannot spoof req.ip.
 app.set('trust proxy', 'loopback');
-app.use((req, _res, next) => { req.trustedClientIp = req.ip; next(); });
+app.use((req, _res, next) => {
+  // Cloudflare Tunnel sends real client IP in CF-Connecting-IP header
+  req.trustedClientIp = req.headers['cf-connecting-ip'] || req.ip;
+  next();
+});
 
 // Security headers for the Docker deployment.
 // CSP is tuned for this Vite SPA: bundled self-hosted JS, inline style attributes

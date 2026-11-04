@@ -11,7 +11,7 @@ import type { TabId } from './lib/permissions';
 
 const DashboardTab = lazy(() => import('./pages/DashboardTab').then(m => ({ default: m.DashboardTab })));
 const FormatterTab = lazy(() => import('./pages/FormatterTab').then(m => ({ default: m.FormatterTab })));
-const JsonTab = lazy(() => import('./pages/JsonTab').then(m => ({ default: m.JsonTab })));
+const LogFormatterTab = lazy(() => import('./pages/LogFormatterTab').then(m => ({ default: m.LogFormatterTab })));
 const MergerTab = lazy(() => import('./pages/MergerTab').then(m => ({ default: m.MergerTab })));
 const IocScanTab = lazy(() => import('./pages/IocScanTab').then(m => ({ default: m.IocScanTab })));
 const HistoryTab = lazy(() => import('./pages/HistoryTab').then(m => ({ default: m.HistoryTab })));
@@ -93,8 +93,8 @@ function AppInner() {
   useEffect(() => {
     if (!authed || !role) return;
     const tabs = allowedTabs(role, hiddenTabs, undefined, allowedTeams);
-    if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
-      setActiveTab(tabs[0].id);
+    if (tabs.length > 0) {
+      setActiveTab(current => tabs.some(t => t.id === current) ? current : tabs[0].id);
     }
   }, [authed, role, hiddenTabs, activeTab, allowedTeams]);
 
@@ -128,7 +128,7 @@ function AppInner() {
     switch (id) {
       case 'dashboard':  return <DashboardTab onScanIp={handleQuickScan} />;
       case 'formatter':   return <FormatterTab />;
-      case 'json':        return <JsonTab />;
+      case 'json':        return <LogFormatterTab />;
       case 'merger':      return <MergerTab />;
       case 'ioc-scan':    return <IocScanTab pendingIoc={pendingIoc} onIocConsumed={() => setPendingIoc('')} />;
       case 'history':     return <HistoryTab onReScan={handleReScan} onGoToScan={() => setActiveTab('ioc-scan')} />;

@@ -6,7 +6,6 @@ import { VtFilterChips } from '../components/vt/VtFilterChips';
 import { CountryFilter } from '../components/vt/CountryFilter';
 import { CopyButton } from '../components/shared/CopyButton';
 import { MAX_BULK_INPUT_CHARS, MAX_BULK_IOCS, MAX_SELECTED_IOCS, MAX_SELECTED_DOMAINS, parseBulkIocs, type BulkIocRow } from '../lib/bulk-ioc.mjs';
-import { sha256Sample } from '../lib/sample-relationships.mjs';
 
 interface Props {
   pendingIoc?: string;
@@ -18,9 +17,6 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   const [inputFormat, setInputFormat] = useState<'text' | 'csv' | 'json'>('text');
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [fileTruncated, setFileTruncated] = useState(false);
-  const [sampleState, setSampleState] = useState<'idle' | 'hashing' | 'error'>('idle');
-  const [sampleError, setSampleError] = useState('');
-  const sampleRequest = useRef(0);
   const { visibleItems, items, filters, countryFilters, availableCountries, scanning, progress, statusMsg, statusType, runScan, setFilter, setCountryFilters } = useVtScan();
   const { addEntry } = useScanHistory();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -40,9 +36,6 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
   // Consume pendingIoc from header quick-scan
   useEffect(() => {
     if (pendingIoc) {
-      ++sampleRequest.current;
-      setSampleState('idle');
-      setSampleError('');
       setInput(pendingIoc);
       onIocConsumed?.();
       setTimeout(() => handleScan(pendingIoc), 50);
@@ -69,39 +62,16 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
 
   async function handleFile(file?: File) {
     if (!file) return;
-    const request = ++sampleRequest.current;
-    setSampleState('idle');
-    setSampleError('');
     setInput('');
     const name = file.name.toLowerCase();
     setInputFormat(name.endsWith('.json') ? 'json' : name.endsWith('.csv') ? 'csv' : 'text');
     setFileTruncated(file.size > MAX_BULK_INPUT_CHARS);
+    setRowSelection({});
     try {
       const text = await file.slice(0, MAX_BULK_INPUT_CHARS).text();
-      if (request === sampleRequest.current) { setInput(text); setRowSelection({}); }
+      setInput(text);
     } catch {
-      if (request === sampleRequest.current) { setSampleState('error'); setSampleError('Cannot read IOC list.'); }
-    }
-  }
-
-  async function handleSample(file?: File) {
-    if (!file) return;
-    const request = ++sampleRequest.current;
-    setInput('');
-    setFileTruncated(false);
-    setRowSelection({});
-    setSampleState('hashing');
-    setSampleError('');
-    try {
-      const hash = await sha256Sample(file);
-      if (request !== sampleRequest.current) return;
-      setInputFormat('text');
-      setInput(hash);
-      setSampleState('idle');
-    } catch (error) {
-      if (request !== sampleRequest.current) return;
-      setSampleError(error instanceof Error ? error.message : 'Cannot hash sample.');
-      setSampleState('error');
+      // File read failed, input stays empty
     }
   }
 
@@ -189,7 +159,7 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                 className="form-textarea"
                 placeholder={'8.8.8.8\nexample.com\nd41d8cd98f00b204e9800998ecf8427e'}
                 value={input}
-                onChange={e => { ++sampleRequest.current; setSampleState('idle'); setSampleError(''); setInput(e.target.value); setInputFormat('text'); setRowSelection({}); setFileTruncated(false); }}
+                onChange={e => { setInput(e.target.value); setInputFormat('text'); setRowSelection({}); setFileTruncated(false); }}
                 onKeyDown={handleKeyDown}
                 rows={10}
                 disabled={scanning}
@@ -197,10 +167,6 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
             </div>
 
             <input ref={fileRef} type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" hidden onChange={e => { void handleFile(e.target.files?.[0]); e.target.value = ''; }} />
-            <input id="ioc-sample" type="file" aria-label="Choose sample for local SHA-256 hashing (32 MiB maximum)" onChange={e => { void handleSample(e.target.files?.[0]); e.target.value = ''; }} disabled={scanning || sampleState === 'hashing'} />
-            <p className="form-hint">Sample: SHA-256 in browser only (max 32 MiB). Only hash sent when Scan clicked; no file upload or file analysis.</p>
-            {sampleState === 'hashing' && <p role="status">Hashing sample locally…</p>}
-            {sampleState === 'error' && <p role="alert" className="bulk-ioc-limit">{sampleError}</p>}
             <div className="bulk-ioc-actions">
               <button type="button" className="btn btn-secondary" onClick={() => fileRef.current?.click()} disabled={scanning}>Upload TXT/CSV/JSON</button>
               <button type="submit" className="btn btn-primary" disabled={!selectedPreviewRows.length || scanning}>

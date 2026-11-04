@@ -29,7 +29,7 @@ export const ALL_TABS: TabDef[] = [
   { id: 'admin-users', label: 'Users', icon: '⊕' },
   { id: 'admin-logs', label: 'Logs', icon: '☰' },
   { id: 'ir-manager', label: 'IR Manager', icon: '⚑' },
-  { id: 'json', label: 'JSON', icon: '{}' },
+  { id: 'json', label: 'Log Formatter', icon: '{}' },
   { id: 'cve', label: 'CVE Lookup', icon: '◇' },
   { id: 'attack', label: 'ATT&CK', icon: '◉' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
@@ -139,7 +139,8 @@ export function TabNav({ role, activeTab, setActiveTab, hidden = [], tabLabels =
 
 export function getRestoredTab(role: Role, hidden: TabId[] = [], allowedTeams: Team[] = []): TabId {
   try {
-    const saved = localStorage.getItem(getTabMemoryKey(role)) as TabId | null;
+    const stored = localStorage.getItem(getTabMemoryKey(role));
+    const saved = (stored === 'syslog' ? 'json' : stored) as TabId | null;
     if (saved && !hidden.includes(saved) && ALL_TABS.some(tab => tab.id === saved && isTabVisible(tab, role, allowedTeams))) return saved;
   } catch { /* ignore */ }
   const preferred = role === 'admin' || role === 'l2' ? 'dashboard' : 'ioc-scan';
