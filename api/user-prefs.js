@@ -6,7 +6,7 @@ const { serverError } = require('./_errors');
 const KNOWN_TABS = [
   'dashboard', 'formatter', 'json', 'merger', 'ioc-scan', 'history',
   'pac-filter', 'daily-eod', 'admin-users', 'admin-logs', 'ir-manager',
-  'cve', 'attack', 'settings', 'admin-usage',
+  'cve', 'attack', 'settings', 'admin-usage', 'pairs',
 ];
 const KNOWN_GROUPS = ['work', 'operations', 'utilities', 'admin'];
 const GROUP_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;

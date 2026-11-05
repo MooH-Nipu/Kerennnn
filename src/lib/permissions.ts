@@ -17,7 +17,8 @@ export type TabId =
   | 'cve'
   | 'attack'
   | 'settings'
-  | 'admin-usage';
+  | 'admin-usage'
+  | 'pairs';
 
 // Admin-equivalent roles. L2 is treated as a second admin tier.
 export const ADMIN_ROLES: Role[] = ['admin', 'l2'];
@@ -42,6 +43,7 @@ export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'attack':      null,
   'settings':    ANALYST_ROLES,
   'admin-usage': ADMIN_ROLES,
+  'pairs':       LEAD_ROLES, // L2 and above
 };
 
 export function canViewTab(role: Role, tab: TabId, allowedTeams: Team[] = []): boolean {

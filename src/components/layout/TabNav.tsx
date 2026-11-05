@@ -38,6 +38,7 @@ export const ALL_TABS: TabDef[] = [
   { id: 'attack', label: 'ATT&CK', icon: <Icon><circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></Icon> },
   { id: 'settings', label: 'Settings', icon: '⚙' },
   { id: 'admin-usage', label: 'API Usage', icon: <Icon><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></Icon> },
+  { id: 'pairs', label: 'Excel Converter', icon: <Icon><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M12 3v18"/></Icon> },
 ];
 
 export function isTabVisible(tab: TabDef, role: Role, allowedTeams: Team[] = []): boolean {

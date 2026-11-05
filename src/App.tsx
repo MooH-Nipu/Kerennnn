@@ -24,6 +24,7 @@ const CveTab = lazy(() => import('./pages/CveTab').then(m => ({ default: m.CveTa
 const AttackTab = lazy(() => import('./pages/AttackTab').then(m => ({ default: m.AttackTab })));
 const SettingsTab = lazy(() => import('./pages/SettingsTab').then(m => ({ default: m.SettingsTab })));
 const AdminUsageTab = lazy(() => import('./pages/AdminUsageTab').then(m => ({ default: m.AdminUsageTab })));
+const PairsTab = lazy(() => import('./pages/PairsTab').then(m => ({ default: m.PairsTab })));
 const ResultPage = lazy(() => import('./pages/ResultPage').then(m => ({ default: m.ResultPage })));
 
 function safeDecodePathSegment(value: string) {
@@ -141,6 +142,7 @@ function AppInner() {
       case 'attack':      return <AttackTab />;
       case 'settings':    return <SettingsTab role={role as NonNullable<typeof role>} prefs={tabPrefs} />;
       case 'admin-usage': return <AdminUsageTab />;
+      case 'pairs':       return <PairsTab />;
       default:            return <FormatterTab />;
     }
   }

@@ -14,7 +14,7 @@ export interface NavGroup {
 export const DEFAULT_NAV_LAYOUT: NavGroup[] = [
   { id: 'work', label: 'Work', tabs: ['ioc-scan', 'history', 'ir-manager'] },
   { id: 'operations', label: 'Operations', tabs: ['pac-filter', 'daily-eod'] },
-  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack'] },
+  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack', 'pairs'] },
   { id: 'admin', label: 'Admin', tabs: ['dashboard', 'admin-usage', 'admin-users', 'admin-logs'] },
 ];
 export const L1_NAV_LAYOUT: NavGroup[] = [

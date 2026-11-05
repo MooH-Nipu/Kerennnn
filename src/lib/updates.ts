@@ -13,6 +13,13 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    version: '2026.11.05-1',
+    title: "What's new",
+    changes: [
+      '▤ New Excel Converter tab (L2 and above) — paste IP / URL / path lists with counts in almost any layout (Kibana cell dumps, tab, comma, space) and copy them as Excel-ready rows.',
+    ],
+  },
+  {
     version: '2026.06.14-1',
     title: "What's new",
     changes: [
