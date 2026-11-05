@@ -6,6 +6,21 @@ const { serverError } = require('../_errors');
 const ASSIGNABLE_ROLES = ['admin', 'soc_lead', 'l1', 'l2'];
 const VALID_TEAMS = ['PAC', 'CHARLIE'];
 
+// The L2 tier manages analysts, not the admin tier. Without this an L2 account
+// could mint an admin, reset an admin password, or delete an admin.
+function canAssignRole(actorRole, role) {
+  return actorRole === 'admin' || role !== 'admin';
+}
+
+function canManageTarget(actorRole, targetRole) {
+  return actorRole === 'admin' || targetRole !== 'admin';
+}
+
+async function loadTargetRole(supabase, id) {
+  const { data, error } = await supabase.from('app_users').select('role').eq('id', id).maybeSingle();
+  return { role: data?.role ?? null, error };
+}
+
 function sanitizeTeamAccess(value, optional = false) {
   if (value === undefined && optional) return null;
   if (!Array.isArray(value)) throw new Error('Team access must be an array.');
@@ -66,6 +81,7 @@ module.exports = async function handler(req, res) {
     catch (error) { return res.status(400).json({ error: error.message }); }
     if (!username || !password || !role) return res.status(400).json({ error: 'Missing username, password, or role.' });
     if (!ASSIGNABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if (!canAssignRole(req.auth.role, role)) return res.status(403).json({ error: 'Only admins can assign the admin role.' });
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await mutateUser(supabase, req, 'create', {
       username, passwordHash, role, teamAccess, detail: { role, teamAccess },
@@ -87,6 +103,14 @@ module.exports = async function handler(req, res) {
     if (!role && !password && username == null && !hasTeamAccess) return res.status(400).json({ error: 'Provide username, role, team access, or password to update.' });
     if (username != null && !username) return res.status(400).json({ error: 'Username cannot be empty.' });
     if (role && !ASSIGNABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if (role && !canAssignRole(req.auth.role, role)) return res.status(403).json({ error: 'Only admins can assign the admin role.' });
+    if (id === req.auth.userId && role && role !== req.auth.role) return res.status(400).json({ error: 'Cannot change your own role.' });
+    if (req.auth.role !== 'admin') {
+      const target = await loadTargetRole(supabase, id);
+      if (target.error) return serverError(res, target.error, 'admin/users target');
+      if (!target.role) return res.status(404).json({ error: 'User not found.' });
+      if (!canManageTarget(req.auth.role, target.role)) return res.status(403).json({ error: 'Only admins can modify an admin account.' });
+    }
     const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const result = await mutateUser(supabase, req, 'update', {
       id, username, passwordHash, role, teamAccess,
@@ -100,6 +124,12 @@ module.exports = async function handler(req, res) {
     const { id } = body || {};
     if (!id) return res.status(400).json({ error: 'Missing id.' });
     if (id === req.auth.userId) return res.status(400).json({ error: 'Cannot delete your own account.' });
+    if (req.auth.role !== 'admin') {
+      const target = await loadTargetRole(supabase, id);
+      if (target.error) return serverError(res, target.error, 'admin/users target');
+      if (!target.role) return res.status(404).json({ error: 'User not found.' });
+      if (!canManageTarget(req.auth.role, target.role)) return res.status(403).json({ error: 'Only admins can delete an admin account.' });
+    }
     const result = await mutateUser(supabase, req, 'delete', { id });
     if (result.error) return mutationError(res, result.error, 'admin/users DELETE');
     return res.status(200).json({ ok: true });
@@ -110,3 +140,5 @@ module.exports = async function handler(req, res) {
 
 module.exports.mutateUser = mutateUser;
 module.exports.sanitizeTeamAccess = sanitizeTeamAccess;
+module.exports.canAssignRole = canAssignRole;
+module.exports.canManageTarget = canManageTarget;

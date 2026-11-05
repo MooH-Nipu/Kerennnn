@@ -2,14 +2,19 @@
 const express = require('express');
 const compression = require('compression');
 const path = require('path');
+const { resolveTrustedClientIp } = require('./api/_clientip');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 // Only loopback reverse proxy may supply X-Forwarded-For; direct clients cannot spoof req.ip.
 app.set('trust proxy', 'loopback');
 app.use((req, _res, next) => {
-  // Cloudflare Tunnel sends real client IP in CF-Connecting-IP header
-  req.trustedClientIp = req.headers['cf-connecting-ip'] || req.ip;
+  // CF-Connecting-IP is authoritative only from a loopback/private proxy peer.
+  req.trustedClientIp = resolveTrustedClientIp({
+    peer: req.socket?.remoteAddress,
+    header: req.headers['cf-connecting-ip'],
+    fallback: req.ip,
+  });
   next();
 });
 

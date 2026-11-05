@@ -51,6 +51,20 @@ describe('session token', () => {
     assert.equal(verifySessionToken('not-a-token', SECRET).ok, false);
     assert.equal(verifySessionToken('', SECRET).ok, false);
   });
+
+  test('absolute lifetime caps rolling refresh', () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = makeSessionToken({ userId: 'u1', abs: now - 1, exp: now + 3600 }, SECRET, 3600);
+    const v = verifySessionToken(token, SECRET);
+    assert.equal(v.ok, false);
+    assert.equal(v.error, 'expired');
+  });
+
+  test('refresh preserves the absolute lifetime', () => {
+    const abs = Math.floor(Date.now() / 1000) + 600;
+    const token = makeSessionToken({ userId: 'u1', abs }, SECRET, 3600);
+    assert.equal(verifySessionToken(token, SECRET).payload.abs, abs);
+  });
 });
 
 describe('cookies', () => {

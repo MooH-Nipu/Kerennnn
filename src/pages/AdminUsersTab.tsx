@@ -77,7 +77,8 @@ function TeamAccessSelect({ value, onChange, disabled = false }: {
 }
 
 export function AdminUsersTab() {
-  const { username: selfUsername } = useAuthState();
+  const { username: selfUsername, role: selfRole } = useAuthState();
+  const assignableRoles = selfRole === 'admin' ? ASSIGNABLE_ROLES : ASSIGNABLE_ROLES.filter(r => r !== 'admin');
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -220,7 +221,7 @@ export function AdminUsersTab() {
           <div className="form-group">
             <label className="form-label">Role</label>
             <select className="form-input role-select" value={newRole} onChange={e => setNewRole(e.target.value as Role)}>
-              {ASSIGNABLE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              {assignableRoles.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <fieldset className="form-group team-access-fieldset">
@@ -251,6 +252,7 @@ export function AdminUsersTab() {
         <div className="user-grid">
           {users.map(user => {
             const isSelf = user.username === selfUsername;
+            const adminLocked = user.role === 'admin' && selfRole !== 'admin';
             const isEditing = editingId === user.id;
             const isSaving = savingId === user.id;
             const initials = user.username.slice(0, 2).toUpperCase();
@@ -302,7 +304,7 @@ export function AdminUsersTab() {
                           disabled={isSelf}
                           title={isSelf ? 'Cannot change your own role' : undefined}
                         >
-                          {(!ASSIGNABLE_ROLES.includes(user.role) ? [user.role, ...ASSIGNABLE_ROLES] : ASSIGNABLE_ROLES).map(r => <option key={r} value={r}>{r}</option>)}
+                          {(!assignableRoles.includes(user.role) ? [user.role, ...assignableRoles] : assignableRoles).map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </label>
                       <fieldset className="user-card__field team-access-fieldset" disabled={isSelf}>
@@ -322,14 +324,14 @@ export function AdminUsersTab() {
                   </>
                 ) : (
                   <div className="user-card__actions">
-                    <button className="btn btn-ghost btn-sm btn-edit-user" onClick={() => startEdit(user)}>
+                    <button className="btn btn-ghost btn-sm btn-edit-user" onClick={() => startEdit(user)} disabled={adminLocked} title={adminLocked ? 'Only admins can edit an admin account' : undefined}>
                       Edit
                     </button>
                     <button
                       className="btn btn-ghost btn-sm btn-delete-user"
                       onClick={() => setDeleteTarget(user)}
-                      disabled={isSelf}
-                      title={isSelf ? 'Cannot delete your own account' : 'Delete user'}
+                      disabled={isSelf || adminLocked}
+                      title={isSelf ? 'Cannot delete your own account' : adminLocked ? 'Only admins can delete an admin account' : 'Delete user'}
                     >
                       Delete
                     </button>

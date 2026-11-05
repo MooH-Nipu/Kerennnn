@@ -54,13 +54,11 @@ module.exports = async function handler(req, res) {
 
   // ── Health check ──────────────────────────────
   if (req.query.health === '1') {
-    const allKeys = getVtKeys();
+    // Counts only: key material/prefixes and runtime versions stay off this route.
     return res.status(200).json({
       ok: true,
-      totalKeys: allKeys.length,
+      totalKeys: getVtKeys().length,
       availableKeys: getVtAvailableKeyCount(),
-      keys: allKeys.map((k, i) => ({ index: i + 1, prefix: k.slice(0, 6) + '...' })),
-      node: process.version,
     });
   }
 

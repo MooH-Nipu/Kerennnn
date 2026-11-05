@@ -68,6 +68,12 @@ function getSessionRefreshWindowSeconds() {
   return Math.min(ttl, Math.max(30, positiveIntEnv('SESSION_REFRESH_MINUTES', 30) * 60));
 }
 
+// Rolling refresh can extend a session forever. `abs` is set at login and never
+// extended, so a stolen or long-lived cookie dies after this cap.
+function getSessionAbsoluteSeconds() {
+  return Math.max(3600, positiveIntEnv('SESSION_ABSOLUTE_HOURS', 24) * 3600);
+}
+
 function buildSetCookie(value, opts = {}) {
   const secure =
     opts.secure !== undefined ? !!opts.secure : envBool('COOKIE_SECURE', process.env.NODE_ENV === 'production');
@@ -89,10 +95,12 @@ function makeSessionToken(payload, secret, ttlSeconds) {
   const now = Math.floor(Date.now() / 1000);
   const ttl = typeof ttlSeconds === 'number' && ttlSeconds > 0 ? ttlSeconds : getSessionTtlSeconds();
   const inputExp = payload && typeof payload.exp === 'number' ? payload.exp : null;
+  const inputAbs = payload && typeof payload.abs === 'number' ? payload.abs : null;
   const body = {
     ...payload,
     iat: now,
     exp: inputExp != null ? inputExp : now + ttl,
+    abs: inputAbs != null ? inputAbs : now + getSessionAbsoluteSeconds(),
   };
   const json = JSON.stringify(body);
   const msg = b64urlEncode(json);
@@ -118,6 +126,8 @@ function verifySessionToken(token, secret) {
   const now = Math.floor(Date.now() / 1000);
   const exp = payload && typeof payload.exp === 'number' ? payload.exp : null;
   if (exp != null && now > exp) return { ok: false, error: 'expired' };
+  const abs = payload && typeof payload.abs === 'number' ? payload.abs : null;
+  if (abs != null && now > abs) return { ok: false, error: 'expired' };
 
   return { ok: true, payload };
 }
@@ -157,7 +167,7 @@ function requireAuth(req, res) {
   const ttl = getSessionTtlSeconds();
   if (ttl > 0 && exp - now <= getSessionRefreshWindowSeconds()) {
     const refreshed = makeSessionToken(
-      { userId: v.payload.userId, role: v.payload.role, username: v.payload.username, teamAccess: v.payload.teamAccess },
+      { userId: v.payload.userId, role: v.payload.role, username: v.payload.username, teamAccess: v.payload.teamAccess, abs: v.payload.abs },
       secret,
       ttl
     );
@@ -200,6 +210,7 @@ async function revalidateRequestIdentity(req, res, supabase) {
   if (!shouldRevalidateRoute(req.path)) return true;
   if (!requireAuth(req, res)) return false;
   const tokenExp = req.auth.exp || 0;
+  const tokenAbs = req.auth.abs;
   const { data, error } = await supabase
     .from('app_users')
     .select('id,username,role,team_access')
@@ -220,7 +231,7 @@ async function revalidateRequestIdentity(req, res, supabase) {
   const ttl = getSessionTtlSeconds();
   const now = Math.floor(Date.now() / 1000);
   if (ttl > 0 && tokenExp - now <= getSessionRefreshWindowSeconds()) {
-    const refreshed = makeSessionToken(result.auth, getAuthSecret(), ttl);
+    const refreshed = makeSessionToken({ ...result.auth, abs: tokenAbs }, getAuthSecret(), ttl);
     res.setHeader('Set-Cookie', buildSetCookie(refreshed, { maxAge: ttl }));
   }
   return true;
