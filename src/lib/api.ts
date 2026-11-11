@@ -1,4 +1,5 @@
 import type { Role, Team, CharlieFilterClient, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
+import type { ApiKeyListResponse, ApiKeyResponse, ApiIocType, ApiScope } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
@@ -158,6 +159,23 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ webhook_url, enabled, min_confidence }),
       }),
+  },
+
+  apiKeys: {
+    list: () => apiFetch<ApiKeyListResponse>('/api/api-keys'),
+    create: (label: string, scopes: ApiScope[], allowedTypes: ApiIocType[]) =>
+      apiFetch<ApiKeyResponse>('/api/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, scopes, allowedTypes }),
+      }),
+    update: (id: string, patch: { label?: string; scopes?: ApiScope[]; allowedTypes?: ApiIocType[]; enabled?: boolean }) =>
+      apiFetch<ApiKeyResponse>('/api/api-keys', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...patch }),
+      }),
+    revoke: (id: string) => apiFetch<ApiKeyResponse>(`/api/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
 
   ipCache: {

@@ -310,3 +310,30 @@ export interface ApiUsageResponse {
   byDay: Array<{ day: string } & Record<string, number>>;
   recent: UsageRecentRow[];
 }
+
+export type ApiScope = 'ioc:scan' | 'ioc:read';
+export type ApiIocType = 'ip' | 'domain' | 'hash';
+
+export interface ApiKeyMetadata {
+  id: string;
+  label: string | null;
+  prefix: string;
+  scopes: ApiScope[];
+  allowedTypes: ApiIocType[];
+  enabled: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeyListResponse {
+  ok: boolean;
+  keys: ApiKeyMetadata[];
+  error?: string | { code?: string; message?: string };
+}
+
+export interface ApiKeyResponse {
+  ok: boolean;
+  key: ApiKeyMetadata | null;
+  secret?: string;
+  error?: string | { code?: string; message?: string };
+}
