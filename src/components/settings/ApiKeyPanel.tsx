@@ -161,7 +161,7 @@ export function ApiKeyPanel() {
         <input className="form-input" value={label} onChange={event => setLabel(event.target.value)} maxLength={60} placeholder="n8n prod / laptop cli / siem probe" autoComplete="off" />
       </label>
 
-      <fieldset className="settings-row" style={{ border: 0, padding: 0, margin: 0 }}>
+      <fieldset className="settings-acl">
         <legend className="settings-field__label">Allowed actions</legend>
         {SCOPE_OPTIONS.map(option => (
           <label className="settings-toggle" key={option.id}>
@@ -172,7 +172,7 @@ export function ApiKeyPanel() {
         ))}
       </fieldset>
 
-      <fieldset className="settings-row" style={{ border: 0, padding: 0, margin: 0 }}>
+      <fieldset className="settings-acl">
         <legend className="settings-field__label">Allowed IOC types</legend>
         {TYPE_OPTIONS.map(option => (
           <label className="settings-toggle" key={option.id}>

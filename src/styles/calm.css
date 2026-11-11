@@ -511,3 +511,19 @@ textarea::placeholder, input::placeholder { color: var(--text-muted); font-famil
 .vt-card .meta-item .mv {
   font-family: 'Twemoji Country Flags', 'JetBrains Mono', monospace;
 }
+
+/* Settings → API: ACL checkbox groups. The generic .settings-row is a
+   space-between flex row, which clipped the third toggle at the card edge. */
+.settings-acl {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-acl legend { padding: 0; margin-bottom: 0.35rem; }
+.settings-acl .settings-toggle { min-width: 0; }
+.settings-acl .settings-toggle__label,
+.settings-acl .settings-field__hint { min-width: 0; overflow-wrap: anywhere; }
