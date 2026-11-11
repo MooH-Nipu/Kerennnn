@@ -5,6 +5,7 @@
  * src/lib/ioc.ts; duplicated on purpose (server is CommonJS, UI is TS).
  */
 function labelFromConfidence(score) {
+  if (score === null || score === undefined || score === '') return 'UNKNOWN';
   const n = Number(score);
   if (!Number.isFinite(n)) return 'UNKNOWN';
   if (n >= 70) return 'HIGH RISK';
