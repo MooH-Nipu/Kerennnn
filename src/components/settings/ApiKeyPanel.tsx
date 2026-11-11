@@ -67,9 +67,12 @@ export function ApiKeyPanel() {
 
   const create = () => run(async () => {
     const res = await api.apiKeys.create(label.trim(), scopes, types);
-    if (res.secret) setSecret({ label: res.key?.label || label.trim() || 'API key', value: res.secret });
+    const created = res.key;
+    if (res.secret) setSecret({ label: created?.label || label.trim() || 'API key', value: res.secret });
+    // Mutation, not a refetch: two quick creates would otherwise race and the
+    // older GET could land last and drop the newer key from the list.
+    if (created) setKeys(current => [created, ...current.filter(k => k.id !== created.id)]);
     setLabel('');
-    await load();
   }, 'Key created. Copy it now — it is shown once.');
 
   function startEdit(key: ApiKeyMetadata) {
@@ -87,14 +90,16 @@ export function ApiKeyPanel() {
 
   const saveAcl = () => run(async () => {
     if (!editingId) return;
-    await api.apiKeys.update(editingId, { label: label.trim(), scopes, allowedTypes: types });
+    const res = await api.apiKeys.update(editingId, { label: label.trim(), scopes, allowedTypes: types });
+    const updated = res.key;
+    if (updated) setKeys(current => current.map(k => (k.id === updated.id ? updated : k)));
     resetForm();
-    await load();
   }, 'API access updated.');
 
   const toggleEnabled = (key: ApiKeyMetadata) => run(async () => {
-    await api.apiKeys.update(key.id, { enabled: !key.enabled });
-    await load();
+    const res = await api.apiKeys.update(key.id, { enabled: !key.enabled });
+    const updated = res.key;
+    if (updated) setKeys(current => current.map(k => (k.id === updated.id ? updated : k)));
   });
 
   const revoke = (key: ApiKeyMetadata) => {
@@ -103,7 +108,7 @@ export function ApiKeyPanel() {
       await api.apiKeys.revoke(key.id);
       if (secret && key.prefix === secret.value.slice(0, key.prefix.length)) setSecret(null);
       if (editingId === key.id) resetForm();
-      await load();
+      setKeys(current => current.filter(k => k.id !== key.id));
     }, 'Key revoked.');
   };
 
