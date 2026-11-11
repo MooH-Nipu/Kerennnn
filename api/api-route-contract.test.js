@@ -25,3 +25,14 @@ test('the shared route registry still only holds literal require() entries', () 
   const routes = source('api/_routes.js');
   assert.doesNotMatch(routes, /require\(entry\[1\]\)/);
 });
+
+test('unknown /api paths return a JSON 404 instead of the SPA shell', () => {
+  const server = source('server.js');
+  assert.match(server, /app\.use\('\/api', \(_req, res\) => \{\s*res\.status\(404\)\.json/);
+  const guard = server.indexOf("app.use('/api', (_req, res)");
+  const staticMount = server.indexOf('express.static(dist');
+  const fallback = server.indexOf("app.get('*'");
+  assert.ok(guard > 0, 'API 404 guard must exist');
+  assert.ok(guard < staticMount, 'guard must run before static assets');
+  assert.ok(guard < fallback, 'guard must run before the SPA fallback');
+});

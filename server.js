@@ -97,6 +97,12 @@ for (const [route, handler] of routes) {
   });
 }
 
+// Unknown API paths must never fall through to the SPA shell — an API client
+// that typos a path needs a JSON 404, not index.html with a 200.
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Unknown API route.' } });
+});
+
 // Static frontend
 const dist = path.join(__dirname, 'dist');
 app.use(express.static(dist, {
