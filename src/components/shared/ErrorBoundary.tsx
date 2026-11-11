@@ -3,6 +3,15 @@ import { Component, type ReactNode } from 'react';
 interface Props { children: ReactNode; }
 interface State { error: Error | null; }
 
+// Vite hashes chunk filenames per build. A tab left open across a deploy asks for
+// an entry that no longer exists, so the dynamic import rejects with a fetch error.
+// That is fixed by a reload, not by retrying the same import — so give it its own page.
+const CHUNK_ERROR = /dynamically imported module|Loading chunk \d+ failed|Importing a module script failed|error loading dynamically imported module/i;
+
+function isChunkLoadError(error: Error): boolean {
+  return CHUNK_ERROR.test(`${error.name}: ${error.message}`);
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
@@ -11,29 +20,34 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.error) {
-      return (
-        <div className="empty-state" style={{ minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-          <div className="empty-state__media">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-          </div>
-          <h3 style={{ color: 'var(--color-foreground)', margin: 0 }}>Something went wrong</h3>
-          <p className="empty-state__text" style={{ maxWidth: 400 }}>
-            {this.state.error.message}
+    const { error } = this.state;
+    if (!error) return this.props.children;
+
+    const staleBuild = isChunkLoadError(error);
+
+    return (
+      <div className="app-error-page" role="alert">
+        <div className="app-error-page__card">
+          <span className="app-error-page__eyebrow">{staleBuild ? 'Update available' : 'Something went wrong'}</span>
+          <h1>{staleBuild ? 'This page needs a refresh' : 'This section failed to load'}</h1>
+          <p>
+            {staleBuild
+              ? 'Charlie was updated while this tab was open, so part of the app could not be fetched. Refreshing loads the new version — you stay signed in.'
+              : 'An unexpected error stopped this page from rendering. Refreshing usually clears it.'}
           </p>
-          <button
-            className="button button--primary"
-            onClick={() => this.setState({ error: null })}
-          >
-            Try again
-          </button>
+          {!staleBuild && <p className="app-error-page__detail">{error.message}</p>}
+          <div className="app-error-page__actions">
+            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+              Refresh page
+            </button>
+            {!staleBuild && (
+              <button type="button" className="btn btn-secondary" onClick={() => this.setState({ error: null })}>
+                Try again
+              </button>
+            )}
+          </div>
         </div>
-      );
-    }
-    return this.props.children;
+      </div>
+    );
   }
 }

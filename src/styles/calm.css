@@ -1,6 +1,15 @@
 /* Calm layer: warm stone neutrals, one muted sage accent, serif display type.
    Loaded last; overrides tokens from stisla-bridge/instrument-panel instead of rewriting them. */
 @font-face { font-family: 'Instrument Serif'; src: url('/fonts/instrument-serif-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+/* Windows/Chromium ships no country-flag glyphs, so 🇳🇱 renders as "NL". This face covers
+   regional-indicator pairs only (Twemoji art, CC-BY 4.0, via country-flag-emoji-polyfill MIT). */
+@font-face {
+  font-family: 'Twemoji Country Flags';
+  src: url('/fonts/TwemojiCountryFlags.woff2') format('woff2');
+  font-weight: 400 700; font-style: normal; font-display: swap;
+  unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067,
+    U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+}
 @font-face { font-family: 'Inter'; src: url('/fonts/inter-var.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 
 :root {
@@ -35,7 +44,7 @@
   --green: #516d2f; --red: #b4493f; --yellow: #7c5a12; --cyan: #4d6f80;
 }
 
-body, button, input, select, textarea { font-family: var(--font-sans); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
+body, button, input, select, textarea { font-family: 'Twemoji Country Flags', var(--font-sans); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
 body { font-size: 14px; }
 
 /* Display type */
@@ -161,8 +170,8 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .tab-nav--sidebar .tab-btn:hover, .tab-nav--sidebar .tab-btn:focus-visible { transform: none; }
 
 .user-menu { border-top: 1px solid var(--border); padding: .75rem; }
-.user-menu__who { display: flex; align-items: center; gap: .5rem; padding: .25rem .35rem; }
-.user-menu__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .85rem; color: var(--text-pri); }
+.user-menu__who { display: flex; align-items: center; gap: .5rem; padding: .25rem .35rem; min-width: 0; }
+.user-menu__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; color: var(--text-pri); }
 .user-menu .header-user__monogram { background: var(--color-accent); color: var(--text-pri); border: 1px solid var(--border); }
 .user-menu__actions { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .4rem; }
 .user-menu__actions > * { flex: 0 0 auto; }
@@ -184,7 +193,8 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
   .sidebar { width: 100%; }
   .sidebar__search, .sidebar__sub { display: none; }
   .sidebar__brand { padding: .9rem 1rem .5rem; }
-  .user-menu { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding: .4rem .75rem; }
+  .user-menu { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding: .4rem .75rem; }
+  .user-menu__name { max-width: 8rem; }
   .user-menu__actions { margin-top: 0; }
   .tab-content .section-header h2 { font-size: 2rem; }
 }
@@ -277,6 +287,9 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 
 /* IoC Scan: workbench with one results panel and a row per indicator */
 .ioc-scan-layout { grid-template-columns: 380px minmax(0, 1fr); align-items: stretch; }
+/* This layer loads last, so the single-column collapse has to live here too —
+   otherwise the earlier @media rule loses and results are pushed off-screen. */
+@media (max-width: 980px) { .ioc-scan-layout { grid-template-columns: 1fr; } }
 .ioc-scan-input { position: static; background: var(--bg-card); }
 .ioc-scan-input .scan-form { display: flex; flex-direction: column; gap: 1rem; }
 .ioc-scan-input .form-hint { font-size: .75rem; line-height: 1.5; color: var(--text-sec); margin: 0; }
@@ -290,7 +303,25 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .ioc-scan-results .vt-card:last-child { border-bottom: 0; }
 .vt-card-header { padding: .8rem 1.25rem; gap: .75rem; }
 .vt-card-header:hover { background: color-mix(in srgb, var(--text-pri) 4%, transparent); }
-.vt-card--selected { box-shadow: none; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* Selection paints the whole result row — header and body — not a single hairline */
+.ioc-scan-results .vt-card { transition: background-color 140ms ease-out, box-shadow 140ms ease-out; }
+.ioc-scan-results .vt-card--selected {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.ioc-scan-results .vt-card--selected .vt-card-header {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.ioc-scan-results .vt-card--selected .vt-card-header:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.ioc-scan-results .vt-card--selected .vt-ioc-val { color: var(--text-pri); font-weight: 500; }
+/* Bulk preview row answers the same way as the result row it becomes */
+.bulk-ioc-row--selected td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.bulk-ioc-row--selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .vt-type-badge { background: none; border: 0; color: var(--text-muted); font-family: var(--font-sans); font-weight: 500; font-size: .66rem; letter-spacing: .06em; padding: 0; min-width: 5.5rem; }
 .vt-ioc-val { font-family: var(--font-mono, monospace); font-size: .82rem; }
 .ctry-badge, .vt-seen { background: none; border: 0; color: var(--text-sec); }
@@ -335,6 +366,9 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .vt-chip.chip-malicious.on { color: var(--red); } .vt-chip.chip-suspicious.on, .vt-chip.chip-lowrisk.on { color: var(--yellow); } .vt-chip.chip-clean.on { color: var(--green); }
 .ioc-multi-bar { background: transparent; border: 0; border-radius: 0; }
 .scan-results-header { gap: 1rem; flex-wrap: wrap; }
+/* Chips must wrap: the row is min-content bound otherwise and clips the country control */
+.scan-results-filters, .vt-filter-chips { min-width: 0; }
+.vt-filter-chips { flex-wrap: wrap; row-gap: .3rem; }
 
 /* Input preview summary: plain text, not neon pills */
 .bulk-ioc-summary { background: transparent; font: 400 .75rem var(--font-sans); gap: 1rem; padding: .6rem 0 0; }
@@ -438,3 +472,42 @@ select, .settings-select { font-family: var(--font-sans); }
 
 textarea::placeholder, input::placeholder { color: var(--text-muted); font-family: var(--font-sans); opacity: 1; }
 .tab-content .tab-content > .section-header, .syslog-tab .section-header { align-items: center; }
+
+
+/* ── Numerals ──────────────────────────────────────────────── */
+/* Fixed-advance figures: live counts and table numbers stop jittering */
+.dash-summary__num, .dash-summary__err-num, .verdict-legend b, .line-count, .scan-results-count,
+.ioc-multi-count, .bulk-ioc-summary span, .meta-item .mv, .sb-v, .vt-quota, .usage-stat__value,
+.bulk-ioc-table td, .admin-log-when { font-variant-numeric: tabular-nums; }
+
+
+/* ── Fatal error page ──────────────────────────────────────── */
+/* Full-page surface for a crashed render or a stale chunk after a deploy */
+.app-error-page {
+  min-height: 100vh; min-height: 100dvh; display: grid; place-items: center;
+  padding: 2rem 1.25rem; background: var(--bg-base); color: var(--text-pri);
+}
+.app-error-page__card {
+  width: min(480px, 100%); display: flex; flex-direction: column; gap: .75rem;
+  padding: 2rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+}
+.app-error-page__eyebrow {
+  font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec);
+}
+.app-error-page__card h1 {
+  margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 2rem; line-height: 1.1; letter-spacing: -.01em;
+}
+.app-error-page__card p { margin: 0; font-size: .9rem; line-height: 1.6; color: var(--text-sec); }
+.app-error-page__detail {
+  font-family: var(--font-mono, monospace); font-size: .72rem; color: var(--text-muted); overflow-wrap: anywhere;
+}
+.app-error-page__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.app-error-page__actions .btn { width: auto; }
+
+/* Country codes pull flag glyphs from the bundled Twemoji face. The unicode-range
+   declaration means only regional-indicator pairs use it — every other character
+   keeps the family listed after it. */
+.ctry-badge, .vt-country-pill__label, .vt-country-filter__select, .vt-country-filter select,
+.vt-card .meta-item .mv {
+  font-family: 'Twemoji Country Flags', 'JetBrains Mono', monospace;
+}

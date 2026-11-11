@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScanItem } from '../../types/vt';
-import { calcVerdict, operationalVerdict, hashLabel } from '../../lib/ioc';
+import { calcVerdict, operationalVerdict, countryFlag, hashLabel } from '../../lib/ioc';
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
 import { CorrelationPanel } from './CorrelationPanel';
@@ -82,6 +82,7 @@ function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggle
             onChange={onToggleSelect}
             onClick={e => e.stopPropagation()}
             title="Select for copy"
+            aria-label={`Select ${corr.ioc} for copy`}
           />
         )}
         <button
@@ -125,6 +126,7 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
     : v;
   const country = String(a.country ?? enrichmentCountry ?? '');
   const ctry = country || '—';
+  const flag = countryFlag(country);
   const meta = raw?._meta as Record<string, unknown> | undefined;
   const cache = (meta?.cache as Record<string, unknown>) ?? {};
   const seenBefore = !!cache.seenBefore;
@@ -136,7 +138,7 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
       <span className="vt-ioc-val">{item.ioc}</span>
       {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
-      {country && <span className="ctry-badge">{country.toUpperCase()}</span>}
+      {country && <span className="ctry-badge">{flag} {country.toUpperCase()}</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
         <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
@@ -166,7 +168,7 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
         { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
         { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label,                   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
-        { label: 'Country',    value: ctry, color: 'cyan' },
+        { label: 'Country',    value: flag ? `${flag} ${ctry}` : ctry, color: 'cyan' },
         { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
         { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
         { label: 'Network',    value: String(a.network ?? '—') },

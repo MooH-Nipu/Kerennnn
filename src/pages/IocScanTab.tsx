@@ -184,7 +184,13 @@ export function IocScanTab({ pendingIoc, onIocConsumed }: Props) {
                   <table className="bulk-ioc-table">
                     <thead><tr><th><span className="sr-only">Select</span></th><th>Original</th><th>Normalized</th><th>Type</th><th>State</th></tr></thead>
                     <tbody>{previewRows.map(row => (
-                      <tr key={row.id} className={!row.valid || row.duplicate ? 'bulk-ioc-row--muted' : ''}>
+                      <tr
+                        key={row.id}
+                        className={[
+                          !row.valid || row.duplicate ? 'bulk-ioc-row--muted' : '',
+                          isSelected(row) ? 'bulk-ioc-row--selected' : '',
+                        ].filter(Boolean).join(' ')}
+                      >
                         <td><input type="checkbox" aria-label={`Select ${row.original}`} checked={isSelected(row)} disabled={!row.valid || row.duplicate || scanning || (!isSelected(row) && (selectionFull || ((row.type === 'domain' || row.type === 'url') && domainSelectionFull)))} onChange={e => setRowSelection(prev => ({ ...prev, [row.id]: e.target.checked }))} /></td>
                         <td title={row.original}>{row.original}</td><td title={row.normalized}>{row.normalized || '—'}</td><td>{row.type === 'url' ? 'DOMAIN FROM URL' : row.type?.toUpperCase() || '—'}</td>
                         <td>{row.duplicate ? 'Duplicate' : row.valid ? 'Ready' : row.invalidReason}</td>

@@ -34,7 +34,7 @@ export function AppHeader({ username, role, settingsActive, showSettingsFeature,
     <div className="user-menu">
       <div className="user-menu__who">
         <span className="header-user__monogram" aria-hidden="true">{username.slice(0, 2).toUpperCase()}</span>
-        <span className="user-menu__name">{username}</span>
+        <span className="user-menu__name" title={username}>{username}</span>
         <RoleBadge role={role} size="xs" />
       </div>
       <div className="user-menu__actions">
