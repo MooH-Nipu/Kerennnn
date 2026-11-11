@@ -202,7 +202,13 @@ function validateCurrentIdentity(tokenAuth, dbUser, allowedRoles) {
   };
 }
 
+// API-key routes authenticate with Authorization: Bearer, not the session cookie,
+// so the cookie revalidation wrapper must skip them. Keep this list to exactly
+// the /api/v1 routes served by requireApiKey.
+const API_KEY_ROUTES = ['/api/v1/scan', '/api/v1/verdict', '/api/v1/me'];
+
 function shouldRevalidateRoute(route) {
+  if (API_KEY_ROUTES.includes(route)) return false;
   return !['/api/health', '/api/auth/login', '/api/auth/logout'].includes(route);
 }
 
@@ -296,6 +302,7 @@ module.exports = {
   requireCurrentRole,
   validateCurrentIdentity,
   shouldRevalidateRoute,
+  API_KEY_ROUTES,
   revalidateRequestIdentity,
   readJsonBody,
   normalizeTeamAccess,
