@@ -2,6 +2,7 @@ import { useEffect, useState, FormEvent, DragEvent } from 'react';
 import { api } from '../lib/api';
 import { StatusMessage } from '../components/shared/StatusMessage';
 import { Spinner } from '../components/shared/Spinner';
+import { ApiKeyPanel } from '../components/settings/ApiKeyPanel';
 import { ALL_TABS, isTabVisible } from '../components/layout/TabNav';
 import { DEFAULT_NAV_LAYOUT, type NavGroup, type TabPrefsState } from '../hooks/useTabPrefs';
 import type { Role } from '../types/api';
@@ -18,12 +19,13 @@ interface Props {
 }
 
 type DragItem = { type: 'tab'; id: TabId } | { type: 'group'; id: string };
-type SettingsSection = 'workspace' | 'navigation' | 'alerts';
+type SettingsSection = 'workspace' | 'navigation' | 'alerts' | 'api';
 
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string; note: string }[] = [
   { id: 'workspace', label: 'Workspace', note: 'Team scope' },
   { id: 'navigation', label: 'Navigation', note: 'Sidebar layout' },
   { id: 'alerts', label: 'Alerts', note: 'Webhook delivery' },
+  { id: 'api', label: 'API', note: 'Keys and access' },
 ];
 
 export function SettingsTab({ role, prefs }: Props) {
@@ -374,6 +376,12 @@ export function SettingsTab({ role, prefs }: Props) {
                   <div className="settings-toolbar"><span>Triggers after completed IOC scans.</span><button type="submit" className="btn btn-primary" disabled={savingWebhook || !urlValid}>{savingWebhook ? 'Saving…' : 'Save alerts'}</button></div>
                 </>
               )}
+            </form>
+          )}
+
+          {activeSection === 'api' && (
+            <form className="settings-panel" aria-label="API access" onSubmit={event => event.preventDefault()}>
+              <ApiKeyPanel />
             </form>
           )}
         </main>
