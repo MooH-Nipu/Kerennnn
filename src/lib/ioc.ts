@@ -88,8 +88,20 @@ const OPERATIONAL_VERDICTS: Record<string, OperationalVerdict> = {
   SUSPICIOUS: { label: 'SUSPICIOUS', cls: 'verdict-suspicious' },
   'LOW RISK': { label: 'LOW RISK', cls: 'verdict-unknown' },
   CLEAN:      { label: 'CLEAN', cls: 'verdict-clean' },
+  PRIVATE:    { label: 'PRIVATE', cls: 'verdict-private' },
   UNKNOWN:    { label: 'UNKNOWN', cls: 'verdict-unknown' },
 };
+
+/**
+ * Private/reserved addresses have no internet reputation to score, so CLEAN and
+ * UNKNOWN are lies for them — they get their own PRIVATE bucket instead. A real
+ * detection is never masked: MALICIOUS/SUSPICIOUS still win.
+ */
+export function privateVerdict(isPrivate: boolean, fallback: OperationalVerdict): OperationalVerdict {
+  if (!isPrivate) return fallback;
+  if (fallback.label === 'MALICIOUS' || fallback.label === 'SUSPICIOUS') return fallback;
+  return OPERATIONAL_VERDICTS.PRIVATE;
+}
 
 export function operationalVerdict(
   vtVerdict: OperationalVerdict,

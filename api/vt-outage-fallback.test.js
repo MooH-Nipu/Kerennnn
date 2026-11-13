@@ -41,7 +41,7 @@ test('VtCard surfaces a provider error instead of believable zero values', () =>
   assert.match(card, /function ProviderErrorNotice/);
   // Detection bar and VT verdict must not render as if VT answered.
   assert.match(card, /\{!providerError && <DetectionBar/);
-  assert.match(card, /value: providerError \? 'UNAVAILABLE' : v\.label/);
+  assert.match(card, /value: providerError \? 'UNAVAILABLE' : verdictMeta\(item, v\)\.label/);
   // Detection counters must read '—' on error, never a believable zero.
   assert.match(card, /\{ label: 'Malicious',\s+value: providerError \? '—' : mal,/);
   assert.match(card, /\{ label: 'Suspicious', value: providerError \? '—' : sus,/);

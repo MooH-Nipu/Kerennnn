@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '../lib/api';
-import { calcVerdict, countryFlag, confLabel, confClass, operationalVerdict, hashLabel } from '../lib/ioc';
+import { calcVerdict, countryFlag, confLabel, confClass, operationalVerdict, privateVerdict, hashLabel } from '../lib/ioc';
+import { isPrivateIp } from '../lib/ipscope.mjs';
 import { DetectionBar } from '../components/vt/DetectionBar';
 import { CorrelationPanel } from '../components/vt/CorrelationPanel';
 import { Spinner } from '../components/shared/Spinner';
@@ -49,6 +50,10 @@ function buildTakeaway(type: IocType): Record<string, { title: string; body: str
     'low risk': {
       title: `${subject} has low-risk signals`,
       body: `Monitor this indicator and validate surrounding context before escalation. Low risk is not the same as confirmed clean.`,
+    },
+    private: {
+      title: `${subject} is a private address`,
+      body: `Private or reserved address space is not routable on the internet, so there is no public reputation to score. A PRIVATE verdict means the indicator was never assessed against internet threat intel — treat it as internal context, not as clean.`,
     },
     clean: {
       title: `${subject} appears clean`,
@@ -176,7 +181,7 @@ export function ResultPage({ id }: { id: string }) {
   const enrichment = corr?.sources?.find(s => s.source === 'Enrichment')?.meta ?? null;
 
   const corrConfidence = typeof corr?.confidence === 'number' ? corr.confidence : data.corr_confidence;
-  const v = operationalVerdict(vtVerdict, corrConfidence, corr?.sources);
+  const v = privateVerdict(isPrivateIp(iocValue), operationalVerdict(vtVerdict, corrConfidence, corr?.sources));
   const vKey = v.label.toLowerCase();
   const takeaway = buildTakeaway(type)[vKey] ?? buildTakeaway(type).unknown;
 

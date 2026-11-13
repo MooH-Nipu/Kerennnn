@@ -26,7 +26,7 @@
   --border: #2c2b28; --border-hl: #8fb3a6;
   --text-pri: #e8e4dc; --text-primary: #e8e4dc; --text-sec: #9a958a; --text-secondary: #9a958a; --text-muted: #8a857a;
   --text-code: #b9cdc4; --accent: #8fb3a6; --accent-hl: #a8c8bb;
-  --green: #9bb27a; --red: #d17b72; --yellow: #d4a95f; --cyan: #8aa9b8;
+  --green: #9bb27a; --red: #d17b72; --yellow: #d4a95f; --cyan: #8aa9b8; --blue: #7fa8d4;
   --shadow-panel: none; --radius-panel: 8px; --radius: 0.4rem;
 }
 :root[data-theme='light'] {
@@ -41,7 +41,7 @@
   --border: #ddd7ca; --border-hl: #3f6b60;
   --text-pri: #2a2824; --text-primary: #2a2824; --text-sec: #6f6a5f; --text-secondary: #6f6a5f; --text-muted: #6a655a;
   --text-code: #2f574d; --accent: #3f6b60; --accent-hl: #2f574d;
-  --green: #516d2f; --red: #b4493f; --yellow: #7c5a12; --cyan: #4d6f80;
+  --green: #516d2f; --red: #b4493f; --yellow: #7c5a12; --cyan: #4d6f80; --blue: #3a6491;
 }
 
 body, button, input, select, textarea { font-family: 'Twemoji Country Flags', var(--font-sans); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
@@ -325,7 +325,6 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .vt-type-badge { background: none; border: 0; color: var(--text-muted); font-family: var(--font-sans); font-weight: 500; font-size: .66rem; letter-spacing: .06em; padding: 0; min-width: 5.5rem; }
 .vt-ioc-val { font-family: var(--font-mono, monospace); font-size: .82rem; }
 .ctry-badge, .vt-seen { background: none; border: 0; color: var(--text-sec); }
-.vt-private-badge { background: none; border: 0; color: var(--text-muted); font-family: var(--font-mono); font-size: .68rem; letter-spacing: .04em; }
 .vt-detail-btn { background: transparent; color: var(--accent) !important; border: 1px solid var(--border); filter: none; transform: none; font-weight: 500; }
 .vt-detail-btn:hover { filter: none; transform: none; border-color: var(--accent); }
 
@@ -334,6 +333,7 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .verdict-malicious { color: var(--red); }
 .verdict-suspicious { color: var(--yellow); }
 .verdict-clean { color: var(--green); }
+.verdict-private { color: var(--blue); }
 .verdict-unknown { color: var(--text-muted); }
 
 /* ── Result rows, filters, settings ────────────────────────── */
@@ -361,10 +361,10 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 /* Filters: text tabs and one flat toolbar */
 .vt-chip { border-radius: 6px; font-family: var(--font-sans); font-size: .78rem; padding: .25rem .6rem; border-color: transparent; }
 .vt-chip:hover { background: color-mix(in srgb, var(--text-pri) 5%, transparent); }
-.vt-chip.on, .vt-chip.chip-malicious.on, .vt-chip.chip-suspicious.on, .vt-chip.chip-lowrisk.on, .vt-chip.chip-clean.on, .vt-chip.chip-unknown.on {
+.vt-chip.on, .vt-chip.chip-malicious.on, .vt-chip.chip-suspicious.on, .vt-chip.chip-lowrisk.on, .vt-chip.chip-clean.on, .vt-chip.chip-unknown.on, .vt-chip.chip-private.on {
   background: var(--color-accent); border-color: var(--border); color: var(--text-pri);
 }
-.vt-chip.chip-malicious.on { color: var(--red); } .vt-chip.chip-suspicious.on, .vt-chip.chip-lowrisk.on { color: var(--yellow); } .vt-chip.chip-clean.on { color: var(--green); }
+.vt-chip.chip-malicious.on { color: var(--red); } .vt-chip.chip-suspicious.on, .vt-chip.chip-lowrisk.on { color: var(--yellow); } .vt-chip.chip-clean.on { color: var(--green); } .vt-chip.chip-private.on { color: var(--blue); }
 .ioc-multi-bar { background: transparent; border: 0; border-radius: 0; }
 .scan-results-header { gap: 1rem; flex-wrap: wrap; }
 /* Chips must wrap: the row is min-content bound otherwise and clips the country control */
@@ -453,7 +453,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .vt-card--pending { opacity: 1; }
 .btn:disabled, .button:disabled { opacity: 1; background: var(--color-accent); color: var(--text-sec); border-color: var(--border); }
 .vt-chip.chip-unknown.on { color: var(--text-sec); }
-.meta-item .mv.red { color: var(--red); } .meta-item .mv.yellow { color: var(--yellow); } .meta-item .mv.green { color: var(--green); }
+.meta-item .mv.red { color: var(--red); } .meta-item .mv.yellow { color: var(--yellow); } .meta-item .mv.green { color: var(--green); } .meta-item .mv.blue { color: var(--blue); }
 select, .settings-select { font-family: var(--font-sans); }
 .user-menu .logout-btn, .user-menu .settings-btn, .user-menu .theme-toggle { line-height: 1; vertical-align: middle; }
 .user-menu__actions { align-items: center; }

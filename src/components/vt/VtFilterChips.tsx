@@ -5,13 +5,15 @@ interface Props {
   onToggle: (key: keyof ScanFilters, value: boolean) => void;
 }
 
+// Private takes Clean's slot: a private IOC can never be CLEAN any more, so the
+// chip that used to hide clean traffic now hides private traffic.
+// CLEAN-verdict items keep filters.clean (default on) and have no chip.
 const CHIPS: Array<{ key: keyof ScanFilters; label: string; cls: string }> = [
   { key: 'malicious',  label: 'Malicious',  cls: 'chip-malicious' },
   { key: 'suspicious', label: 'Suspicious', cls: 'chip-suspicious' },
   { key: 'lowrisk',    label: 'Low Risk',   cls: 'chip-lowrisk' },
-  { key: 'clean',      label: 'Clean',      cls: 'chip-clean' },
+  { key: 'private',    label: 'Private',    cls: 'chip-private' },
   { key: 'unknown',    label: 'Unknown',    cls: 'chip-unknown' },
-  { key: 'private',    label: 'Private IP', cls: 'chip-private' },
 ];
 
 export function VtFilterChips({ filters, onToggle }: Props) {

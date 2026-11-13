@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useRef } from 'react';
-import { parseIocList, calcVerdict, operationalVerdict } from '../lib/ioc';
+import { parseIocList, calcVerdict, operationalVerdict, privateVerdict } from '../lib/ioc';
 import { isPrivateIp } from '../lib/ipscope.mjs';
 import { api } from '../lib/api';
 import type { ScanItem } from '../types/vt';
@@ -27,7 +27,6 @@ async function fetchVtKeyCount(): Promise<number> {
 }
 
 export interface ScanFilters {
-  clean: boolean;
   unknown: boolean;
   lowrisk: boolean;
   suspicious: boolean;
@@ -63,7 +62,7 @@ type Action =
 
 const initial: VtScanState = {
   items: [],
-  filters: { clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true },
+  filters: { unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true },
   countryFilters: [],
   scanning: false,
   progress: { done: 0, total: 0 },
@@ -98,18 +97,16 @@ function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
   const sus = stats?.suspicious ?? 0;
   const total = Object.values(stats ?? {}).reduce((a, b) => a + b, 0);
   const vtVerdict = calcVerdict(mal, sus, total);
-  if (item.correlation !== null) {
-    const conf = (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null;
-    const { label } = operationalVerdict(vtVerdict, conf, item.correlation.sources);
-    if (label === 'MALICIOUS') return filters.malicious;
-    if (label === 'SUSPICIOUS') return filters.suspicious;
-    if (label === 'LOW RISK') return filters.lowrisk;
-    if (label === 'CLEAN') return filters.clean;
-    return filters.unknown;
-  }
-  if (vtVerdict.label === 'MALICIOUS') return filters.malicious;
-  if (vtVerdict.label === 'SUSPICIOUS') return filters.suspicious;
-  if (vtVerdict.label === 'CLEAN') return filters.clean;
+  const base = item.correlation !== null
+    ? operationalVerdict(vtVerdict, (item.correlation as unknown as Record<string, unknown>)?.confidence as number | null ?? null, item.correlation.sources)
+    : vtVerdict;
+  // Same label the card renders, so chip and badge can never disagree.
+  const { label } = privateVerdict(isPrivateIp(item.ioc), base);
+  if (label === 'MALICIOUS') return filters.malicious;
+  if (label === 'SUSPICIOUS') return filters.suspicious;
+  if (label === 'LOW RISK') return filters.lowrisk;
+  if (label === 'PRIVATE') return filters.private;
+  if (label === 'CLEAN') return true;   // clean has no chip: always visible
   return filters.unknown;
 }
 
@@ -328,7 +325,6 @@ export function useVtScan() {
 
   const visibleItems = state.items.filter(item => {
     if (!passesVerdictFilter(item, state.filters)) return false;
-    if (isPrivateIp(item.ioc) && !state.filters.private) return false;
 
     // Country filter — Kibana style: include = OR allowlist, exclude = denylist.
     if (includeCodes.length || excludeCodes.length) {

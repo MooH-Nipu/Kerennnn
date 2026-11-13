@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScanItem } from '../../types/vt';
-import { calcVerdict, operationalVerdict, countryFlag, hashLabel } from '../../lib/ioc';
+import { calcVerdict, operationalVerdict, privateVerdict, countryFlag, hashLabel } from '../../lib/ioc';
 import { isPrivateIp } from '../../lib/ipscope.mjs';
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
@@ -8,6 +8,16 @@ import { CorrelationPanel } from './CorrelationPanel';
 import { PassiveDnsPanel } from './PassiveDnsPanel';
 import { CertHistoryPanel } from './CertHistoryPanel';
 import { CopyButton } from '../shared/CopyButton';
+
+/** VT verdict cell: private addresses are reported as PRIVATE (blue), never CLEAN. */
+function verdictMeta(item: ScanItem, v: { label: string; cls: string }): { label: string; color: string } {
+  const verdict = privateVerdict(isPrivateIp(item.ioc), v);
+  const color = verdict.cls === 'verdict-malicious' ? 'red'
+    : verdict.cls === 'verdict-suspicious' ? 'yellow'
+    : verdict.cls === 'verdict-private' ? 'blue'
+    : verdict.cls === 'verdict-clean' ? 'green' : '';
+  return { label: verdict.label, color };
+}
 
 interface Props {
   item: ScanItem;
@@ -122,9 +132,9 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
-  const blendedV = (!item.correlationLoading && item.correlation !== null)
+  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
     ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v;
+    : v);
   const country = String(a.country ?? enrichmentCountry ?? '');
   const ctry = country || '—';
   const flag = countryFlag(country);
@@ -139,7 +149,6 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
       <span className="vt-ioc-val">{item.ioc}</span>
       {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
-      {isPrivateIp(item.ioc) && <span className="vt-private-badge" title="Private/reserved address — not routable on the internet">PRIVATE</span>}
       {country && <span className="ctry-badge">{flag} {country.toUpperCase()}</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
@@ -169,7 +178,7 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
         { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label,                   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label,                   color: verdictMeta(item, v).color },
         { label: 'Country',    value: flag ? `${flag} ${ctry}` : ctry, color: 'cyan' },
         { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
         { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
@@ -193,9 +202,9 @@ function HashCard({ item, providerError, collapsed, onToggle, selected, onToggle
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
-  const blendedV = (!item.correlationLoading && item.correlation !== null)
+  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
     ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v;
+    : v);
 
   const names = ((a.names as string[] | undefined) ?? []).slice(0, 3).join(', ') || '—';
   const ftype = String(a.type_description ?? a.magic ?? '—');
@@ -238,7 +247,7 @@ function HashCard({ item, providerError, collapsed, onToggle, selected, onToggle
         { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label, color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label, color: verdictMeta(item, v).color },
         { label: 'File Type',  value: ftype, color: 'purple' },
         { label: 'Size',       value: size },
         { label: 'File Names', value: names },
@@ -261,9 +270,9 @@ function DomainCard({ item, providerError, collapsed, onToggle, selected, onTogg
   const sus = s.suspicious ?? 0;
   const total = Object.values(s).reduce((x, y) => x + y, 0);
   const v = calcVerdict(mal, sus, total);
-  const blendedV = (!item.correlationLoading && item.correlation !== null)
+  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
     ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v;
+    : v);
 
   const registrar = String(a.registrar ?? '—');
   const created = typeof a.creation_date    === 'number' ? new Date(a.creation_date    * 1000).toLocaleDateString('en-GB') : '—';
@@ -307,7 +316,7 @@ function DomainCard({ item, providerError, collapsed, onToggle, selected, onTogg
         { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
         { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
         { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : v.label,   color: v.cls === 'verdict-malicious' ? 'red' : v.cls === 'verdict-suspicious' ? 'yellow' : v.cls === 'verdict-clean' ? 'green' : '' },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label,   color: verdictMeta(item, v).color },
         { label: 'Registrar',  value: registrar, color: 'purple' },
         { label: 'Created',    value: created,   color: 'cyan' },
         { label: 'Updated',    value: updated },
