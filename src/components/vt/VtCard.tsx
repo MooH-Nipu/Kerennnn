@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ScanItem } from '../../types/vt';
 import { calcVerdict, operationalVerdict, countryFlag, hashLabel } from '../../lib/ioc';
+import { isPrivateIp } from '../../lib/ipscope.mjs';
 import { DetectionBar } from './DetectionBar';
 import { MetaGrid } from './MetaGrid';
 import { CorrelationPanel } from './CorrelationPanel';
@@ -138,6 +139,7 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
       <span className="vt-ioc-val">{item.ioc}</span>
       {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
       {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
+      {isPrivateIp(item.ioc) && <span className="vt-private-badge" title="Private/reserved address — not routable on the internet">PRIVATE</span>}
       {country && <span className="ctry-badge">{flag} {country.toUpperCase()}</span>}
       <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
       <span className="vt-header-actions" onClick={e => e.stopPropagation()}>

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import { extractIOC, detectType } from '../lib/ioc';
+import { isPrivateIp } from '../lib/ipscope.mjs';
 import type { Team } from '../types/api';
 
 const CHUNK = 40;
@@ -88,7 +89,10 @@ export function useMergerDb(team: Team, identity: string, clientCode?: string, e
 
     try {
       const lines = rawInput.split('\n').map(s => extractIOC(s)).filter(s => s && detectType(s) === 'ip' && !s.includes(':'));
-      const unique = [...new Set(lines)];
+      // Private/reserved IPs are excluded client-side too; the API gate is the real
+      // boundary, this just keeps them out of the progress count and payload.
+      const publicLines = lines.filter(ip => !isPrivateIp(ip));
+      const unique = [...new Set(publicLines)];
       const existing = new Set(items.map(i => i.ip));
       const toPost = unique.filter(ip => !existing.has(ip));
 

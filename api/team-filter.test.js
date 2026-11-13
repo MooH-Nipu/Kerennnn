@@ -8,10 +8,31 @@ describe('team filter input boundary', () => {
       { ip: '192.0.2.10', role: 'admin', team: 'CHARLIE' },
       { ioc: '192.0.2.10' },
       { ip: '198.51.100.2' },
-    ]), [
-      { ip: '192.0.2.10', payload: { ioc: '192.0.2.10' } },
-      { ip: '198.51.100.2', payload: { ioc: '198.51.100.2' } },
-    ]);
+    ]), {
+      ips: [
+        { ip: '192.0.2.10', payload: { ioc: '192.0.2.10' } },
+        { ip: '198.51.100.2', payload: { ioc: '198.51.100.2' } },
+      ],
+      excluded: [],
+    });
+  });
+
+  test('private and reserved IPv4 is excluded, not saved', () => {
+    assert.deepEqual(sanitizeFilterItems([
+      { ip: '192.0.2.10' },
+      { ip: '10.0.0.1' },
+      { ip: '172.16.4.4' },
+      { ip: '192.168.1.1' },
+      { ip: '10.0.0.1' },
+      { ip: '127.0.0.1' },
+    ]), {
+      ips: [{ ip: '192.0.2.10', payload: { ioc: '192.0.2.10' } }],
+      excluded: ['10.0.0.1', '172.16.4.4', '192.168.1.1', '127.0.0.1'],
+    });
+  });
+
+  test('private IPv6 is still a hard reject (family check, not a silent exclude)', () => {
+    assert.throws(() => sanitizeFilterItems([{ ip: 'fd00::1' }]), /valid IPv4/);
   });
 
   test('rejects IPv6, malformed input, and oversized batches', () => {

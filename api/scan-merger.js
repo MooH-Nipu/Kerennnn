@@ -1,4 +1,5 @@
 const { normalizeIpLine } = require('./_ioc');
+const { isPrivateIp } = require('./_ipscope');
 const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { serverError } = require('./_errors');
@@ -99,6 +100,7 @@ module.exports = async function handler(req, res) {
       }
 
       const errors = [];
+      const privateExcluded = [];
       /** @type {Map<string, { indices: number[], mergedPatch: Record<string, unknown> }>} */
       const byIp = new Map();
 
@@ -111,6 +113,10 @@ module.exports = async function handler(req, res) {
         const ip = normalizeIpLine(row.ip != null ? row.ip : row.ioc);
         if (!ip) {
           errors.push({ index: i, reason: 'missing or invalid ip/ioc' });
+          continue;
+        }
+        if (isPrivateIp(ip)) {
+          if (!privateExcluded.includes(ip)) privateExcluded.push(ip);
           continue;
         }
         const patch = { ...row };
@@ -173,9 +179,11 @@ module.exports = async function handler(req, res) {
         saved,
         skipped,
         errors,
+        privateExcluded,
         savedCount: saved.length,
         skippedCount: skipped.length,
         errorCount: errors.length,
+        privateExcludedCount: privateExcluded.length,
         uniqueIpCount: byIp.size,
       });
     }

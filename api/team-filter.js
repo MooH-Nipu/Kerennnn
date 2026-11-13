@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const net = require('net');
 const { normalizeIpLine } = require('./_ioc');
+const { isPrivateIp } = require('./_ipscope');
 const { requireCurrentRole, readJsonBody } = require('./_auth');
 const { getSupabase } = require('./_supabase');
 const { resolveTeamContext } = require('./_tenancy');
@@ -38,21 +39,31 @@ function boundaryError(message) {
   return error;
 }
 
+// Returns { ips, excluded }. Private/reserved IPv4 is silently excluded — it is
+// never a valid filter-DB entry, but one bad line must not fail the whole batch.
 function sanitizeFilterItems(items) {
   if (!Array.isArray(items) || items.length === 0) throw boundaryError('Body must contain at least one item.');
   if (items.length > MAX_BATCH) throw boundaryError(`Batch maximum ${MAX_BATCH} items.`);
   const unique = new Set();
+  const excluded = [];
   for (const row of items) {
     const raw = row && typeof row === 'object' ? row.ip ?? row.ioc : row;
     const ip = normalizeIpLine(raw == null ? '' : String(raw));
     if (!ip || net.isIP(ip) !== 4) throw boundaryError('Every item must contain a valid IPv4 address.');
+    if (isPrivateIp(ip)) {
+      if (!excluded.includes(ip)) excluded.push(ip);
+      continue;
+    }
     unique.add(ip);
   }
-  return [...unique].map(ip => ({ ip, payload: { ioc: ip } }));
+  return { ips: [...unique].map(ip => ({ ip, payload: { ioc: ip } })), excluded };
 }
 
 function sanitizeDeleteIps(values) {
-  return sanitizeFilterItems((Array.isArray(values) ? values : []).map(ip => ({ ip }))).map(row => row.ip);
+  // Delete is NOT gated: legacy private rows must stay purgeable. The insert
+  // gate is the only place private/reserved space is refused.
+  const { ips, excluded } = sanitizeFilterItems((Array.isArray(values) ? values : []).map(ip => ({ ip })));
+  return [...ips.map(row => row.ip), ...excluded];
 }
 
 function isSchemaMissingError(error) {
@@ -215,7 +226,14 @@ module.exports = async function handler(req, res) {
           team, operation: 'insert', status: 'denied', detail: { code: 'ERR_INVALID_FILTER_ITEMS' },
         }, { status: error.status || 400, code: 'ERR_INVALID_FILTER_ITEMS', message: error.message });
       }
-      const ips = clean.map(row => row.ip);
+      const ips = clean.ips.map(row => row.ip);
+      const excluded = clean.excluded;
+      if (!ips.length) {
+        return res.status(200).json({
+          success: true, team_context: team, saved: [], skipped: [], excluded,
+          skippedCount: 0, excludedCount: excluded.length, request_id: id,
+        });
+      }
       let mutation;
       if (team === 'CHARLIE' && clientCode && clientCode !== 'GENERAL') {
         mutation = await supabase.rpc('mutate_charlie_client_filter', {
@@ -239,7 +257,7 @@ module.exports = async function handler(req, res) {
           detail: { code: 'ERR_DATABASE' },
         }, { status: 500, code: 'ERR_INTERNAL', message: 'Internal server error.' });
       }
-      return res.status(200).json({ success: true, team_context: team, saved: data?.ips ?? [], skippedCount: data?.skipped_count ?? 0, request_id: id });
+      return res.status(200).json({ success: true, team_context: team, saved: data?.ips ?? [], excluded, skippedCount: data?.skipped_count ?? 0, excludedCount: excluded.length, request_id: id });
     }
 
     if (req.method === 'DELETE') {

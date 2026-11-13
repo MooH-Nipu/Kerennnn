@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useRef } from 'react';
 import { parseIocList, calcVerdict, operationalVerdict } from '../lib/ioc';
+import { isPrivateIp } from '../lib/ipscope.mjs';
 import { api } from '../lib/api';
 import type { ScanItem } from '../types/vt';
 import type { IocType } from '../types/vt';
@@ -31,6 +32,7 @@ export interface ScanFilters {
   lowrisk: boolean;
   suspicious: boolean;
   malicious: boolean;
+  private: boolean;
 }
 
 export type CountryMode = 'include' | 'exclude';
@@ -61,7 +63,7 @@ type Action =
 
 const initial: VtScanState = {
   items: [],
-  filters: { clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true },
+  filters: { clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true },
   countryFilters: [],
   scanning: false,
   progress: { done: 0, total: 0 },
@@ -326,6 +328,7 @@ export function useVtScan() {
 
   const visibleItems = state.items.filter(item => {
     if (!passesVerdictFilter(item, state.filters)) return false;
+    if (isPrivateIp(item.ioc) && !state.filters.private) return false;
 
     // Country filter — Kibana style: include = OR allowlist, exclude = denylist.
     if (includeCodes.length || excludeCodes.length) {

@@ -325,6 +325,7 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 .vt-type-badge { background: none; border: 0; color: var(--text-muted); font-family: var(--font-sans); font-weight: 500; font-size: .66rem; letter-spacing: .06em; padding: 0; min-width: 5.5rem; }
 .vt-ioc-val { font-family: var(--font-mono, monospace); font-size: .82rem; }
 .ctry-badge, .vt-seen { background: none; border: 0; color: var(--text-sec); }
+.vt-private-badge { background: none; border: 0; color: var(--text-muted); font-family: var(--font-mono); font-size: .68rem; letter-spacing: .04em; }
 .vt-detail-btn { background: transparent; color: var(--accent) !important; border: 1px solid var(--border); filter: none; transform: none; font-weight: 500; }
 .vt-detail-btn:hover { filter: none; transform: none; border-color: var(--accent); }
 

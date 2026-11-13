@@ -5,6 +5,7 @@ import { StatusMessage } from '../components/shared/StatusMessage';
 
 import { OutputBox } from '../components/shared/OutputBox';
 import { extractIOC, detectType } from '../lib/ioc';
+import { isPrivateIp } from '../lib/ipscope.mjs';
 import type { CharlieFilterClient, Team } from '../types/api';
 
 const isIPv6 = (ip: string) => ip.includes(':');
@@ -153,8 +154,11 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
   }, [input]);
   const ipv6Ips = useMemo(() => parsedInputIps.filter(isIPv6), [parsedInputIps]);
   const ipv4Only = useMemo(() => parsedInputIps.filter(ip => !isIPv6(ip)), [parsedInputIps]);
-  const newIps = useMemo(() => ipv4Only.filter(ip => !existingSet.has(ip)), [ipv4Only, existingSet]);
-  const dupIps = useMemo(() => ipv4Only.filter(ip => existingSet.has(ip)), [ipv4Only, existingSet]);
+  // Private/reserved IPv4 never reaches the DB — excluded before the new/dup split.
+  const privateIps = useMemo(() => ipv4Only.filter(isPrivateIp), [ipv4Only]);
+  const publicIpv4 = useMemo(() => ipv4Only.filter(ip => !isPrivateIp(ip)), [ipv4Only]);
+  const newIps = useMemo(() => publicIpv4.filter(ip => !existingSet.has(ip)), [publicIpv4, existingSet]);
+  const dupIps = useMemo(() => publicIpv4.filter(ip => existingSet.has(ip)), [publicIpv4, existingSet]);
 
   // Delete preview: classify delete-input IPs as found-in-DB vs not-found
   const parsedDeleteIps = useMemo(() => {
@@ -334,6 +338,7 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
                 {newIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--new">{newIps.length} new to save</span>}
                 {dupIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--dup">{dupIps.length} already in DB</span>}
                 {ipv6Ips.length > 0 && <span className="pac-ip-badge pac-ip-badge--skip">IPv6 detected — will not be saved to DB</span>}
+                {privateIps.length > 0 && <span className="pac-ip-badge pac-ip-badge--private">Private IP detected — excluded from DB</span>}
               </div>
               <div className="pac-ip-chips">
                 {newIps.map(ip => (
@@ -344,6 +349,9 @@ export function PacFilterTab({ onCountChange, team, identity, canManageClients =
                 ))}
                 {ipv6Ips.map(ip => (
                   <span key={ip} className="pac-ip-chip pac-ip-chip--skip" title="IPv6 not supported">{ip}</span>
+                ))}
+                {privateIps.map(ip => (
+                  <span key={ip} className="pac-ip-chip pac-ip-chip--private" title="Private/reserved — excluded from DB">{ip}</span>
                 ))}
               </div>
             </div>

@@ -56,7 +56,7 @@ test('all analyst-facing verdict paths use consensus-aware precedence', () => {
   assert.match(detail, /No reliable threat-intelligence verdict is available yet/);
   assert.doesNotMatch(detail, /More than 3 AV engines flagged this indicator/);
   assert.match(scan, /if \(label === 'CLEAN'\) return filters\.clean;[\s\S]*return filters\.unknown;/);
-  assert.match(scan, /filters: \{ clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true \}/);
+  assert.match(scan, /filters: \{ clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true \}/);
   const chips = fs.readFileSync(path.join(root, 'src/components/vt/VtFilterChips.tsx'), 'utf8');
   assert.match(chips, /key: 'unknown',[\s\S]*label: 'Unknown'/);
 });
