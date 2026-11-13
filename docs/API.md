@@ -10,6 +10,8 @@ in the UI, never over the API.
 Authorization: Bearer krn_<8 hex>_<32 chars>
 ```
 
+`X-API-Key: <key>` is accepted as an alternative for clients that prefer it.
+
 ## Endpoints
 
 | Method | Path | Scope | Purpose |

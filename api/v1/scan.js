@@ -13,7 +13,7 @@ function jsonError(res, status, code, message) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, X-API-Key, Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return jsonError(res, 405, 'METHOD_NOT_ALLOWED', 'Use POST.');
 
