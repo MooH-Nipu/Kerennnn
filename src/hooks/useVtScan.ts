@@ -27,6 +27,7 @@ async function fetchVtKeyCount(): Promise<number> {
 }
 
 export interface ScanFilters {
+  clean: boolean;
   unknown: boolean;
   lowrisk: boolean;
   suspicious: boolean;
@@ -62,7 +63,7 @@ type Action =
 
 const initial: VtScanState = {
   items: [],
-  filters: { unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true },
+  filters: { clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true },
   countryFilters: [],
   scanning: false,
   progress: { done: 0, total: 0 },
@@ -106,7 +107,7 @@ function passesVerdictFilter(item: ScanItem, filters: ScanFilters): boolean {
   if (label === 'SUSPICIOUS') return filters.suspicious;
   if (label === 'LOW RISK') return filters.lowrisk;
   if (label === 'PRIVATE') return filters.private;
-  if (label === 'CLEAN') return true;   // clean has no chip: always visible
+  if (label === 'CLEAN') return filters.clean;
   return filters.unknown;
 }
 

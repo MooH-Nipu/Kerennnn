@@ -69,14 +69,13 @@ test('all analyst-facing verdict paths use consensus-aware precedence', () => {
   assert.match(detail, /Monitor this indicator and validate surrounding context before escalation/);
   assert.match(detail, /No reliable threat-intelligence verdict is available yet/);
   assert.doesNotMatch(detail, /More than 3 AV engines flagged this indicator/);
-  assert.match(scan, /if \(label === 'CLEAN'\) return true;[\s\S]*return filters\.unknown;/);
-  assert.match(scan, /filters: \{ unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true \}/);
-  // Chip row: private sits where clean used to; clean has no chip of its own.
+  assert.match(scan, /if \(label === 'CLEAN'\) return filters\.clean;[\s\S]*return filters\.unknown;/);
+  assert.match(scan, /filters: \{ clean: true, unknown: true, lowrisk: true, suspicious: true, malicious: true, private: true \}/);
+  // Chip row: every verdict, including CLEAN, keeps a toggle.
   assert.match(scan, /const \{ label \} = privateVerdict\(isPrivateIp\(item\.ioc\), base\)/);
   assert.match(scan, /if \(label === 'PRIVATE'\) return filters\.private;/);
   assert.doesNotMatch(scan, /if \(isPrivateIp\(item\.ioc\)\) return filters\.private;/);
   const chips = fs.readFileSync(path.join(root, 'src/components/vt/VtFilterChips.tsx'), 'utf8');
-  assert.match(chips, /key: 'private',[\s\S]*key: 'unknown'/);
-  assert.doesNotMatch(chips, /key: 'clean'/);
+  assert.match(chips, /key: 'clean',[\s\S]*key: 'unknown'[\s\S]*key: 'private'/);
   assert.match(chips, /key: 'unknown',[\s\S]*label: 'Unknown'/);
 });
