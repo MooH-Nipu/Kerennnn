@@ -16,14 +16,16 @@ const source = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('VT failure is non-fatal and correlation still runs', () => {
   const hook = source('src/hooks/useVtScan.ts');
-  // VT error is captured, not rethrown out of the scan loop.
-  assert.match(hook, /vtFailed = true/);
+  // VT error is captured and rendered, not rethrown out of the scan loop.
   assert.doesNotMatch(hook, /RESOLVE_ERROR/);
   // The failed VT result keeps the provider error on the item.
-  assert.match(hook, /result = \{ error: .* \} as ScanItem\['result'\]/);
-  // Cached correlation is skipped after a VT failure so independent providers
-  // get a fresh chance to answer.
-  assert.match(hook, /if \(!vtFailed\)/);
+  assert.match(hook, /result: \{ error: .* \} as ScanItem\['result'\]/);
+  // Correlation is now a fully independent queue, so a VT failure cannot gate it
+  // at all — stronger than the old "skip the cached correlation on VT failure"
+  // rule, which existed only because VT and correlate shared one worker loop.
+  assert.match(hook, /async function corrWorker\(\)/);
+  assert.doesNotMatch(hook, /if \(!vtFailed\)/);
+  assert.doesNotMatch(hook, /let vtFailed/);
 });
 
 test('IP country falls back to successful Enrichment metadata when VT has none', () => {

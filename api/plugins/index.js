@@ -26,8 +26,11 @@ const PLUGINS = [
   new URLScanPlugin(),
 ];
 
-// Default per-source timeout; URLScan overrides via plugin.timeoutMs.
-const DEFAULT_TIMEOUT_MS = 15_000;
+// Default per-source timeout. Was 15s; the slowest legitimate source measured
+// live (OTX full-domain general endpoint) answers in ~2.6s, so 15s was 6x the
+// real p95 and every straggler set the floor for the whole Promise.all. URLScan
+// still overrides via plugin.timeoutMs for its submit+poll cycle.
+const DEFAULT_TIMEOUT_MS = 8_000;
 
 function getAvailablePlugins(type) {
   return PLUGINS.filter(p => p.supportsType(type) && p.isAvailable());
