@@ -5,6 +5,10 @@ import { api } from '../lib/api';
 import type { ScanItem, IocType } from '../types/vt';
 
 const VT_CONCURRENCY = 2;
+// Correlation queue runs independently of the VT queue: correlation providers
+// have their own budget (server-side SCAN_CORRELATE_PER_MINUTE) and no reason to
+// wait behind VT's per-key quota pacing.
+const CORR_CONCURRENCY = 4;
 // Retry budget per IOC when all VT keys are rate-limited, and default cooldown
 // (used when the server sends no Retry-After) matching VT's 60s per-minute window.
 const VT_MAX_RETRIES = 6;
@@ -174,6 +178,11 @@ export function useVtScan() {
     pauseUntilRef.current = 0;
     dispatch({ type: 'START', total: parsed.length });
 
+    // Declare every row up front so both queues below can resolve in any order —
+    // a correlation that lands before its VT sibling still finds its item.
+    const ids = parsed.map(({ ioc }, i) => `${i}-${ioc}`);
+    parsed.forEach(({ ioc, type }, i) => dispatch({ type: 'ADD_PENDING', id: ids[i], ioc, iocType: type }));
+
     // Derive pacing interval from how many VT keys the server has configured.
     // 4 req/min per key → 60000 / (keyCount * 4) ms between requests.
     // Fetched once per scan so rotated runtime keys take effect immediately.
@@ -234,58 +243,63 @@ export function useVtScan() {
       throw new Error('VirusTotal rate limit — retries exhausted. Try again later.');
     }
 
-    async function worker() {
+    // Two independent queues. VT is rate-limited by VT's own quota (paced, with
+    // 429 backoff); correlation providers have a separate budget and no reason to
+    // wait behind the VT queue. Running them concurrently turns the wall clock
+    // from `VT + correlate` into `max(VT, correlate)`; for a multi-IOC scan with
+    // the VT queue as the slow side, that is the difference between the sum of
+    // both and the slower one alone.
+    //
+    // VT still owns the pacing globals (vtPaceMs / lastVtCallAt / cooldown) so the
+    // outbound VT rate stays at keyCount*4/min regardless of queue count.
+    async function vtWorker() {
       while (idx < parsed.length && !abortRef.current) {
         const i = idx++;
-        const { ioc, type } = parsed[i];
-        const id = `${i}-${ioc}`;
-
-        dispatch({ type: 'ADD_PENDING', id, ioc, iocType: type });
+        const { ioc } = parsed[i];
+        const id = ids[i];
 
         // VT is one enrichment source, not scan gate. If VT is unavailable,
-        // still run correlation so AbuseIPDB, OTX, Abuse.ch, and other sources work.
-        let result: ScanItem['result'] = null;
-        let vtFailed = false;
+        // still let the correlation queue answer: it runs independently below.
         try {
-          result = await fetchVt(ioc);
+          const result = await fetchVt(ioc);
+          dispatch({ type: 'RESOLVE', id, result });
         } catch (err) {
           if (abortRef.current) return;
-          vtFailed = true;
           // VT outage is non-fatal. Keep provider error visible while
           // correlation providers remain authoritative for this scan.
-          result = { error: err instanceof Error ? err.message : String(err) } as ScanItem['result'];
-        }
-
-        // Preserve VT result when available. On VT failure, correlation still runs
-        // below and returns whatever independent providers can answer.
-        let cachedCorr: ScanItem['correlation'] = null;
-        dispatch({ type: 'RESOLVE', id, result });
-        if (!vtFailed) {
-          // If VT was served from cache and correlation was previously saved.
-          const meta = (result as unknown as Record<string, unknown>)?._meta as Record<string, unknown> | undefined;
-          const cacheMeta = meta?.cache as Record<string, unknown> | undefined;
-          cachedCorr = cacheMeta?.fromCache && cacheMeta?.corrPayload
-            ? cacheMeta.corrPayload as ScanItem['correlation']
-            : null;
-        }
-
-        // Always bypass cache for domain IOCs so URLScan active scan runs.
-        // Also bypass cached correlation after VT failure: independent sources
-        // must get a chance to produce a usable result.
-        if (cachedCorr && type !== 'domain') {
-          dispatch({ type: 'UPDATE_CORR', id, correlation: cachedCorr });
-        } else {
-          try {
-            const corr = await api.scan.correlate(ioc);
-            dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
-          } catch {
-            dispatch({ type: 'UPDATE_CORR', id, correlation: null });
-          }
+          dispatch({
+            type: 'RESOLVE',
+            id,
+            result: { error: err instanceof Error ? err.message : String(err) } as ScanItem['result'],
+          });
         }
       }
     }
 
-    const workers = Array.from({ length: VT_CONCURRENCY }, () => worker());
+    // Correlate queue: own concurrency, no VT pacing. Cache-friendly — the server
+    // short-circuits a fresh stored correlation (every IOC type) at zero upstream
+    // cost, so repeats are cheap no matter how many rows are queued here.
+    let corrIdx = 0;
+    async function corrWorker() {
+      while (corrIdx < parsed.length && !abortRef.current) {
+        const i = corrIdx++;
+        const { ioc } = parsed[i];
+        const id = ids[i];
+        try {
+          const corr = await api.scan.correlate(ioc);
+          dispatch({ type: 'UPDATE_CORR', id, correlation: corr as unknown as ScanItem['correlation'] });
+        } catch {
+          dispatch({ type: 'UPDATE_CORR', id, correlation: null });
+        }
+      }
+    }
+
+    // Correlate gets a wider pool than VT: it is bounded by the server's
+    // per-user scan budget (SCAN_CORRELATE_PER_MINUTE), not by a provider quota.
+    const workers = [
+      ...Array.from({ length: VT_CONCURRENCY }, () => vtWorker()),
+      ...Array.from({ length: CORR_CONCURRENCY }, () => corrWorker()),
+    ];
     await Promise.all(workers);
 
     if (!abortRef.current) {

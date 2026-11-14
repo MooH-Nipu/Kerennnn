@@ -2,6 +2,14 @@
 const https = require('https');
 
 /**
+ * Shared keep-alive agent. Every TI call goes to one of ~9 hosts and a single
+ * scan makes 3-7 of them, so without pooling each request pays a fresh TCP +
+ * TLS handshake (~60-120ms) that never shows up in the response timing.
+ * maxSockets caps concurrency per host; keepAliveMsecs reaps idle sockets.
+ */
+const agent = new https.Agent({ keepAlive: true, maxSockets: 64, keepAliveMsecs: 30_000 });
+
+/**
  * Minimal JSON HTTP helpers shared by the threat-intel handlers.
  * Both resolve { status, data } and reject on network/timeout/parse error.
  * `opts.timeout` is in milliseconds (default 8000).
@@ -9,7 +17,7 @@ const https = require('https');
 function httpGet(url, headers = {}, opts = {}) {
   const timeout = opts.timeout || 8000;
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, (res) => {
+    const req = https.get(url, { headers, agent }, (res) => {
       let body = '';
       res.on('data', (c) => (body += c));
       res.on('end', () => {
@@ -39,6 +47,7 @@ function httpPost(url, postBody, headers = {}, opts = {}) {
         method: 'POST',
         headers: { ...headers },
         lookup: opts.lookup,
+        agent,
       },
       (res) => {
         let body = '';
@@ -73,7 +82,7 @@ function httpGetText(url, headers = {}, opts = {}) {
   const maxRedirects = opts.maxRedirects ?? 3;
   return new Promise((resolve, reject) => {
     const visit = (u, redirectsLeft) => {
-      const req = https.get(u, { headers }, (res) => {
+      const req = https.get(u, { headers, agent }, (res) => {
         const sc = res.statusCode;
         if (sc >= 300 && sc < 400 && res.headers.location && redirectsLeft > 0) {
           res.resume(); // drain so the socket can be reused

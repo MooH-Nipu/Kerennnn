@@ -13,20 +13,40 @@ const { getTrustFactor, ispIsHighRiskHoster } = require('./plugins/_helpers');
 const { buildVtResult } = require('./plugins/virustotal');
 const { parseMalwareBazaar } = require('./plugins/malwarebazaar');
 
-// Reuse a previously-stored correlation for this IP so a re-scan of an
-// already-seen IP spends ZERO upstream calls across ALL sources.
+// Reuse a previously-stored correlation for this IOC so a re-scan spends ZERO
+// upstream calls across ALL sources. IPs live in vt_ip_cache (PK ip); domain and
+// hash in vt_ioc_cache (PK ioc_type+ioc) — the same row the write path at the
+// bottom of this handler already fills with corr_payload. Without this branch the
+// domain/hash cache was write-only, so every repeat domain scan re-submitted to
+// URLScan and paid its 8-33s submit+poll cycle again.
+//
+// Freshness comes from the correlation's OWN timestamp (payload.correlatedAt),
+// not from the row's last_scanned_at: vt.js is insert-only for domain/hash by
+// design, so that column stays at the first-ever VT scan and made every row look
+// permanently stale. The row's vt_verdict still picks the TTL tier, so a
+// malicious correlation is kept 24h while clean evidence is re-checked hourly.
 // Returns the cached correlate payload, or null when there's no fresh row.
-async function corrFromCache(ip) {
+async function corrFromCache(ioc, type) {
   const supabase = getSupabase();
   if (!supabase) return null;
   try {
-    const { data: row } = await supabase
-      .from('vt_ip_cache')
-      .select('corr_payload,vt_verdict,last_scanned_at,first_scanned_at')
-      .eq('ip', ip)
-      .maybeSingle();
+    const base = supabase
+      .from(type === 'ip' ? 'vt_ip_cache' : 'vt_ioc_cache')
+      .select('corr_payload,vt_verdict,last_scanned_at,first_scanned_at');
+    const { data: row } = type === 'ip'
+      ? await base.eq('ip', ioc).maybeSingle()
+      : await base.eq('ioc_type', type).eq('ioc', ioc).maybeSingle();
     const p = row?.corr_payload;
-    if (isFreshCacheRow(row) && isCompleteCorrelationPayload(p)) return p;
+    if (!isCompleteCorrelationPayload(p)) return null;
+    // Payloads written before correlatedAt existed are treated as stale, so the
+    // first scan of each IOC re-stamps instead of serving unbounded-age evidence.
+    const observedAt = p.correlatedAt;
+    const fresh = isFreshCacheRow({
+      last_scanned_at: observedAt,
+      first_scanned_at: observedAt,
+      vt_verdict: row?.vt_verdict,
+    });
+    return fresh ? p : null;
   } catch {
     // fall through to live correlation
   }
@@ -499,12 +519,14 @@ module.exports = async function handler(req, res) {
   const type = detectType(ioc);
   if (!type) return res.status(400).json({ error: `Cannot detect IOC type for: "${ioc}"` });
 
-  // Re-scan short-circuit: an IP already correlated within the cache TTL is served
-  // straight from its stored correlation — no source is re-called, so nothing is
-  // logged to api_usage and no duplicate alert fires. This makes a repeat IP scan
-  // cost ZERO upstream calls across ALL sources, exactly like the VT cache reuse.
-  if (type === 'ip') {
-    const cachedCorr = await corrFromCache(ioc);
+  // Re-scan short-circuit: an IOC already correlated within the cache TTL is
+  // served straight from its stored correlation — no source is re-called, so
+  // nothing is logged to api_usage and no duplicate alert fires. This makes a
+  // repeat scan cost ZERO upstream calls across ALL sources, for every IOC type.
+  // `?refresh=1` forces a live scan (analyst wants fresh active URLScan evidence).
+  const refresh = String(req.query?.refresh ?? '') === '1';
+  if (!refresh) {
+    const cachedCorr = await corrFromCache(ioc, type);
     if (cachedCorr) return res.status(200).json(cachedCorr);
   }
 
@@ -531,7 +553,7 @@ module.exports = async function handler(req, res) {
   const plugins = getAvailablePlugins(type);
   const results = await Promise.all(
     plugins.map(p =>
-      withTimeout(p.check(ioc, type), getPluginTimeout(p), p.name)
+      withTimeout(p.check(ioc, type, { refresh }), getPluginTimeout(p), p.name)
         .catch(e => ({ source: p.name, error: e.message || 'timed out', skipped: false }))
     )
   );
@@ -602,6 +624,10 @@ module.exports = async function handler(req, res) {
     ioc,
     type,
     confidence,
+    // Observation time of THIS correlation. The cache freshness check reads this
+    // rather than the row's vt_* timestamps, which vt.js leaves untouched for
+    // domain/hash (insert-only by design) and which therefore never advance.
+    correlatedAt: new Date().toISOString(),
     baselineConfidence: baseline,
     floor,
     bonus,
