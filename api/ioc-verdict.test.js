@@ -62,7 +62,11 @@ test('all analyst-facing verdict paths use consensus-aware precedence', () => {
   const card = fs.readFileSync(path.join(root, 'src/components/vt/VtCard.tsx'), 'utf8');
   const scan = fs.readFileSync(path.join(root, 'src/hooks/useVtScan.ts'), 'utf8');
   const detail = fs.readFileSync(path.join(root, 'src/pages/ResultPage.tsx'), 'utf8');
-  assert.equal((card.match(/operationalVerdict\(v, item\.correlation\.confidence, item\.correlation\.sources\)/g) ?? []).length, 3);
+  // One shared readBase() feeds every card type; calling it once per card was
+  // the duplication this guard used to count.
+  assert.equal((card.match(/operationalVerdict\(v, item\.correlation\.confidence, item\.correlation\.sources\)/g) ?? []).length, 1);
+  assert.match(card, /function readBase\(item: ScanItem\)/);
+  assert.match(card, /const \{ a, s, mal, sus, total, v, blendedV, seenBefore, stableId \} = readBase\(item\)/);
   assert.match(scan, /operationalVerdict\(vtVerdict, \(item\.correlation as unknown as Record<string, unknown>\)\?\.confidence as number \| null \?\? null, item\.correlation\.sources\)/);
   assert.match(detail, /const v = privateVerdict\(isPrivateIp\(iocValue\), operationalVerdict\(vtVerdict, corrConfidence, corr\?\.sources\)\)/);
   assert.match(detail, /High-confidence or corroborated threat intelligence flagged this indicator as malicious/);

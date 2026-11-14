@@ -73,6 +73,87 @@ function ProviderErrorNotice({ error }: { error?: string }) {
   return error ? <div className="vt-error-box">VT: {error}</div> : null;
 }
 
+/** Shared scan-result shape: VT payload plus the cache metadata every card needs. */
+function readBase(item: ScanItem) {
+  const raw = item.result as Record<string, unknown> | null;
+  const d = (raw?.data as Record<string, unknown>) ?? {};
+  const a = (d.attributes as Record<string, unknown>) ?? {};
+  const s = (a.last_analysis_stats as Record<string, number>) ?? {};
+  const mal = s.malicious ?? 0;
+  const sus = s.suspicious ?? 0;
+  const total = Object.values(s).reduce((x, y) => x + y, 0);
+  const v = calcVerdict(mal, sus, total);
+  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
+    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
+    : v);
+  const meta = raw?._meta as Record<string, unknown> | undefined;
+  const cache = (meta?.cache as Record<string, unknown>) ?? {};
+  return { raw, a, s, mal, sus, total, v, blendedV, seenBefore: !!cache.seenBefore, stableId: String(cache.stableId ?? '') };
+}
+
+/** Header row shared by every card type: badge, IOC, verdict, copy + deep-analysis actions. */
+function CardHeader({ item, badge, badgeCls, providerError, blendedV, seenBefore, stableId, extra }: {
+  item: ScanItem;
+  badge: string;
+  badgeCls: string;
+  providerError?: string;
+  blendedV: { label: string; cls: string };
+  seenBefore: boolean;
+  stableId: string;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <>
+      <span className={`vt-type-badge ${badgeCls}`}>{badge}</span>
+      <span className="vt-ioc-val">{item.ioc}</span>
+      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
+      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
+      {extra}
+      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
+      <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
+        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
+        {stableId && (
+          <a
+            className="vt-detail-btn"
+            href={`/result/${stableId}`}
+            onClick={e => e.stopPropagation()}
+            title={`UUID: ${stableId}`}
+          >
+            🔍 Deep Analysis
+          </a>
+        )}
+      </span>
+    </>
+  );
+}
+
+/** Detection + verdict grid shared by ip, hash and domain cards. */
+function StatsGrid({ item, providerError, mal, sus, total, s, v, rows }: {
+  item: ScanItem;
+  providerError?: string;
+  mal: number;
+  sus: number;
+  total: number;
+  s: Record<string, number>;
+  v: { label: string; cls: string };
+  rows: { label: string; value: string | number; color?: string }[];
+}) {
+  const meta = verdictMeta(item, v);
+  return (
+    <>
+      <ProviderErrorNotice error={providerError} />
+      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
+      <MetaGrid items={[
+        { label: 'Malicious',  value: providerError ? '—' : mal, color: providerError ? '' : mal > 0 ? 'red' : 'green' },
+        { label: 'Suspicious', value: providerError ? '—' : sus, color: providerError ? '' : sus > 0 ? 'yellow' : '' },
+        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
+        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : meta.label, color: providerError ? '' : meta.color },
+        ...rows,
+      ]} />
+    </>
+  );
+}
+
 function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggleSelect }: {
   header: React.ReactNode;
   body: React.ReactNode;
@@ -118,53 +199,28 @@ function CardShell({ header, body, corr, collapsed, onToggle, selected, onToggle
 }
 
 function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
-  const raw = item.result as Record<string, unknown> | null;
+  const { a, s, mal, sus, total, v, blendedV, seenBefore, stableId } = readBase(item);
   const corrSources = item.correlation?.sources ?? [];
   const enrichmentCountry = corrSources
     .filter(source => source.source === 'Enrichment' && !source.error && !source.skipped)
     .map(source => source.meta?.Country ?? source.meta?.['RIR Country'])
     .map(value => typeof value === 'string' ? value.trim().toUpperCase() : '')
     .find(value => /^[A-Z]{2}$/.test(value)) || '';
-  const d = (raw?.data as Record<string, unknown>) ?? {};
-  const a = (d.attributes as Record<string, unknown>) ?? {};
-  const s = (a.last_analysis_stats as Record<string, number>) ?? {};
-  const mal = s.malicious ?? 0;
-  const sus = s.suspicious ?? 0;
-  const total = Object.values(s).reduce((x, y) => x + y, 0);
-  const v = calcVerdict(mal, sus, total);
-  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
-    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v);
   const country = String(a.country ?? enrichmentCountry ?? '');
   const ctry = country || '—';
   const flag = countryFlag(country);
-  const meta = raw?._meta as Record<string, unknown> | undefined;
-  const cache = (meta?.cache as Record<string, unknown>) ?? {};
-  const seenBefore = !!cache.seenBefore;
-  const stableId = String(cache.stableId ?? '');
 
   const header = (
-    <>
-      <span className="vt-type-badge badge-ip">IP ADDRESS</span>
-      <span className="vt-ioc-val">{item.ioc}</span>
-      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
-      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
-      {country && <span className="ctry-badge">{flag} {country.toUpperCase()}</span>}
-      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
-      <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
-        {stableId && (
-          <a
-            className="vt-detail-btn"
-            href={`/result/${stableId}`}
-            onClick={e => e.stopPropagation()}
-            title={`UUID: ${stableId}`}
-          >
-            🔍 Deep Analysis
-          </a>
-        )}
-      </span>
-    </>
+    <CardHeader
+      item={item}
+      badge="IP ADDRESS"
+      badgeCls="badge-ip"
+      providerError={providerError}
+      blendedV={blendedV}
+      seenBefore={seenBefore}
+      stableId={stableId}
+      extra={country ? <span className="ctry-badge">{flag} {country.toUpperCase()}</span> : null}
+    />
   );
 
   const rep = a.reputation !== undefined ? a.reputation : '—';
@@ -172,19 +228,22 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
 
   const body = (
     <>
-      <ProviderErrorNotice error={providerError} />
-      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
-      <MetaGrid items={[
-        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label,                   color: verdictMeta(item, v).color },
-        { label: 'Country',    value: flag ? `${flag} ${ctry}` : ctry, color: 'cyan' },
-        { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
-        { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
-        { label: 'Network',    value: String(a.network ?? '—') },
-        { label: 'Reputation', value: String(rep),               color: repColor },
-      ]} />
+      <StatsGrid
+        item={item}
+        providerError={providerError}
+        mal={mal}
+        sus={sus}
+        total={total}
+        s={s}
+        v={v}
+        rows={[
+          { label: 'Country',    value: flag ? `${flag} ${ctry}` : ctry, color: 'cyan' },
+          { label: 'ASN',        value: a.asn ? 'AS' + String(a.asn) : '—', color: 'purple' },
+          { label: 'AS Owner',   value: String(a.as_owner ?? '—') },
+          { label: 'Network',    value: String(a.network ?? '—') },
+          { label: 'Reputation', value: String(rep), color: repColor },
+        ]}
+      />
       <a className="vt-open-link" href={`https://www.virustotal.com/gui/ip-address/${item.ioc}`} target="_blank" rel="noopener">↗ Open in VirusTotal</a>
       <PassiveDnsPanel ioc={item.ioc} type="ip" />
     </>
@@ -194,66 +253,44 @@ function IpCard({ item, providerError, collapsed, onToggle, selected, onToggleSe
 }
 
 function HashCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
-  const raw = item.result as Record<string, unknown> | null;
-  const d = (raw?.data as Record<string, unknown>) ?? {};
-  const a = (d.attributes as Record<string, unknown>) ?? {};
-  const s = (a.last_analysis_stats as Record<string, number>) ?? {};
-  const mal = s.malicious ?? 0;
-  const sus = s.suspicious ?? 0;
-  const total = Object.values(s).reduce((x, y) => x + y, 0);
-  const v = calcVerdict(mal, sus, total);
-  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
-    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v);
+  const { a, s, mal, sus, total, v, blendedV, seenBefore, stableId } = readBase(item);
 
   const names = ((a.names as string[] | undefined) ?? []).slice(0, 3).join(', ') || '—';
   const ftype = String(a.type_description ?? a.magic ?? '—');
   const size = typeof a.size === 'number' ? (a.size / 1024).toFixed(1) + ' KB' : '—';
   const first = typeof a.first_submission_date === 'number' ? new Date(a.first_submission_date * 1000).toLocaleDateString('en-GB') : '—';
   const last  = typeof a.last_analysis_date    === 'number' ? new Date(a.last_analysis_date    * 1000).toLocaleDateString('en-GB') : '—';
-  const meta = raw?._meta as Record<string, unknown> | undefined;
-  const cache = (meta?.cache as Record<string, unknown>) ?? {};
-  const seenBefore = !!cache.seenBefore;
-  const stableId = String(cache.stableId ?? '');
 
   const header = (
-    <>
-      <span className={`vt-type-badge badge-hash`}>{hashLabel(item.ioc.length)}</span>
-      <span className="vt-ioc-val">{item.ioc}</span>
-      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
-      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
-      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
-      <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
-        {stableId && (
-          <a
-            className="vt-detail-btn"
-            href={`/result/${stableId}`}
-            onClick={e => e.stopPropagation()}
-            title={`UUID: ${stableId}`}
-          >
-            🔍 Deep Analysis
-          </a>
-        )}
-      </span>
-    </>
+    <CardHeader
+      item={item}
+      badge={hashLabel(item.ioc.length)}
+      badgeCls="badge-hash"
+      providerError={providerError}
+      blendedV={blendedV}
+      seenBefore={seenBefore}
+      stableId={stableId}
+    />
   );
 
   const body = (
     <>
-      <ProviderErrorNotice error={providerError} />
-      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
-      <MetaGrid items={[
-        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label, color: verdictMeta(item, v).color },
-        { label: 'File Type',  value: ftype, color: 'purple' },
-        { label: 'Size',       value: size },
-        { label: 'File Names', value: names },
-        { label: 'First Seen', value: first, color: 'cyan' },
-        { label: 'Last Scan',  value: last },
-      ]} />
+      <StatsGrid
+        item={item}
+        providerError={providerError}
+        mal={mal}
+        sus={sus}
+        total={total}
+        s={s}
+        v={v}
+        rows={[
+          { label: 'File Type',  value: ftype, color: 'purple' },
+          { label: 'Size',       value: size },
+          { label: 'File Names', value: names },
+          { label: 'First Seen', value: first, color: 'cyan' },
+          { label: 'Last Scan',  value: last },
+        ]}
+      />
       <a className="vt-open-link" href={`https://www.virustotal.com/gui/file/${item.ioc}`} target="_blank" rel="noopener">↗ Open in VirusTotal</a>
     </>
   );
@@ -262,17 +299,7 @@ function HashCard({ item, providerError, collapsed, onToggle, selected, onToggle
 }
 
 function DomainCard({ item, providerError, collapsed, onToggle, selected, onToggleSelect }: CardProps) {
-  const raw = item.result as Record<string, unknown> | null;
-  const d = (raw?.data as Record<string, unknown>) ?? {};
-  const a = (d.attributes as Record<string, unknown>) ?? {};
-  const s = (a.last_analysis_stats as Record<string, number>) ?? {};
-  const mal = s.malicious ?? 0;
-  const sus = s.suspicious ?? 0;
-  const total = Object.values(s).reduce((x, y) => x + y, 0);
-  const v = calcVerdict(mal, sus, total);
-  const blendedV = privateVerdict(isPrivateIp(item.ioc), (!item.correlationLoading && item.correlation !== null)
-    ? operationalVerdict(v, item.correlation.confidence, item.correlation.sources)
-    : v);
+  const { a, s, mal, sus, total, v, blendedV, seenBefore, stableId } = readBase(item);
 
   const registrar = String(a.registrar ?? '—');
   const created = typeof a.creation_date    === 'number' ? new Date(a.creation_date    * 1000).toLocaleDateString('en-GB') : '—';
@@ -280,49 +307,37 @@ function DomainCard({ item, providerError, collapsed, onToggle, selected, onTogg
   const cats = Object.values((a.categories as Record<string, string>) ?? {}).slice(0, 2).join(', ') || '—';
   const rep = a.reputation !== undefined ? a.reputation : '—';
   const repColor = typeof rep === 'number' ? (rep > 0 ? 'green' : rep < 0 ? 'red' : '') : '';
-  const meta = raw?._meta as Record<string, unknown> | undefined;
-  const cache = (meta?.cache as Record<string, unknown>) ?? {};
-  const seenBefore = !!cache.seenBefore;
-  const stableId = String(cache.stableId ?? '');
 
   const header = (
-    <>
-      <span className="vt-type-badge badge-domain">DOMAIN</span>
-      <span className="vt-ioc-val">{item.ioc}</span>
-      {providerError && <span className="verdict verdict-unknown" title={providerError}>VT: ERROR</span>}
-      {seenBefore && <span className="vt-seen" title="Already scanned">♻ SCANNED</span>}
-      <span className={`verdict ${blendedV.cls}${item.correlationLoading ? ' verdict--pending' : ''}`}>● {blendedV.label}</span>
-      <span className="vt-header-actions" onClick={e => e.stopPropagation()}>
-        <CopyButton text={item.ioc} label="COPY" labelDone="✓" variant="overlay" className="copy-btn-small" />
-        {stableId && (
-          <a
-            className="vt-detail-btn"
-            href={`/result/${stableId}`}
-            onClick={e => e.stopPropagation()}
-            title={`UUID: ${stableId}`}
-          >
-            🔍 Deep Analysis
-          </a>
-        )}
-      </span>
-    </>
+    <CardHeader
+      item={item}
+      badge="DOMAIN"
+      badgeCls="badge-domain"
+      providerError={providerError}
+      blendedV={blendedV}
+      seenBefore={seenBefore}
+      stableId={stableId}
+    />
   );
 
   const body = (
     <>
-      <ProviderErrorNotice error={providerError} />
-      {!providerError && <DetectionBar malicious={mal} suspicious={sus} total={total} />}
-      <MetaGrid items={[
-        { label: 'Malicious',  value: providerError ? '—' : mal,   color: providerError ? '' : mal > 0 ? 'red' : 'green' },
-        { label: 'Suspicious', value: providerError ? '—' : sus,   color: providerError ? '' : sus > 0 ? 'yellow' : '' },
-        { label: 'Undetected', value: providerError ? '—' : (s.undetected ?? 0) },
-        { label: 'VT Verdict', value: providerError ? 'UNAVAILABLE' : verdictMeta(item, v).label,   color: verdictMeta(item, v).color },
-        { label: 'Registrar',  value: registrar, color: 'purple' },
-        { label: 'Created',    value: created,   color: 'cyan' },
-        { label: 'Updated',    value: updated },
-        { label: 'Categories', value: cats },
-        { label: 'Reputation', value: String(rep), color: repColor },
-      ]} />
+      <StatsGrid
+        item={item}
+        providerError={providerError}
+        mal={mal}
+        sus={sus}
+        total={total}
+        s={s}
+        v={v}
+        rows={[
+          { label: 'Registrar',  value: registrar, color: 'purple' },
+          { label: 'Created',    value: created,   color: 'cyan' },
+          { label: 'Updated',    value: updated },
+          { label: 'Categories', value: cats },
+          { label: 'Reputation', value: String(rep), color: repColor },
+        ]}
+      />
       <a className="vt-open-link" href={`https://www.virustotal.com/gui/domain/${item.ioc}`} target="_blank" rel="noopener">↗ Open in VirusTotal</a>
       <PassiveDnsPanel ioc={item.ioc} type="domain" />
       <CertHistoryPanel domain={item.ioc} />

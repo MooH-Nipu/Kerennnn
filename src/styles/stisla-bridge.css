@@ -135,9 +135,6 @@ body {
 /* Stisla spinner inherits currentColor — good, no override needed */
 
 /* Stisla progress bar track */
-.progress__track {
-  background: var(--color-surface-3);
-}
 
 /* ──────────────────────────────────────────────────────────────
    Bridge: old Kerennnn classes → Stisla visual tokens

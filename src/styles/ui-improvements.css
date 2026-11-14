@@ -229,28 +229,6 @@ body { padding: 0; }
 }
 
 /* ---------- Icon Buttons ---------- */
-.icon-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text-muted, #6b7f9a);
-  padding: 0.375rem 0.5rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  line-height: 1;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-}
-
-.icon-btn:hover {
-  color: var(--text-primary, #e8f0fe);
-  background: var(--bg-card, #111c30);
-}
-
-.icon-btn--active {
-  color: var(--accent, #3b82f6);
-  border-color: var(--accent, #3b82f6);
-  background: color-mix(in srgb, var(--accent, #3b82f6) 10%, transparent);
-}
 
 /* ---------- Header User Info ---------- */
 .header-user {
@@ -3282,7 +3260,6 @@ body { padding: 0; }
   opacity: 0.4;
   cursor: not-allowed;
 }
-
 
 /* ============================================================
    IoC Scan — side-by-side layout + multi-select

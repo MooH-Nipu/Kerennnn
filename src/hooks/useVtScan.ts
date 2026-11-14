@@ -2,8 +2,7 @@ import { useReducer, useCallback, useRef } from 'react';
 import { parseIocList, calcVerdict, operationalVerdict, privateVerdict } from '../lib/ioc';
 import { isPrivateIp } from '../lib/ipscope.mjs';
 import { api } from '../lib/api';
-import type { ScanItem } from '../types/vt';
-import type { IocType } from '../types/vt';
+import type { ScanItem, IocType } from '../types/vt';
 
 const VT_CONCURRENCY = 2;
 // Retry budget per IOC when all VT keys are rate-limited, and default cooldown

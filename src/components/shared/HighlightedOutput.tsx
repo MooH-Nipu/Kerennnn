@@ -34,7 +34,9 @@ function highlight(value: string): ReactNode {
 
 // Read-only output that renders text with IOCs highlighted in red. Mirrors
 // OutputBox (copy button + .form-textarea--output styling) but uses a <pre>
-// because a <textarea> can't colour individual substrings.
+// because a <textarea> can't colour individual substrings. The <pre> is a
+// read-only region, not a form control: role="textbox" would promise editing
+// affordances it doesn't have, so expose it as a labelled group instead.
 export function HighlightedOutput({
   value,
   placeholder,
@@ -52,7 +54,7 @@ export function HighlightedOutput({
           className="output-box__copy"
         />
       )}
-      <pre className="form-textarea form-textarea--output ioc-output" role="textbox" aria-label="Highlighted output" aria-readonly="true" tabIndex={0}>
+      <pre className="form-textarea form-textarea--output ioc-output" role="group" aria-label="Highlighted output" tabIndex={0}>
         {value ? highlight(value) : <span className="ioc-output__placeholder">{placeholder}</span>}
       </pre>
     </div>

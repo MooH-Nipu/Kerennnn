@@ -1,5 +1,4 @@
-import type { Role, Team, CharlieFilterClient, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse } from '../types/api';
-import type { ApiKeyListResponse, ApiKeyResponse, ApiIocType, ApiScope } from '../types/api';
+import type { Role, Team, CharlieFilterClient, MeResponse, LoginResponse, UsersListResponse, AppUser, RecentResponse, IrCasesListResponse, IrCaseDetailResponse, IrCasesMutateResponse, LogsResponse, HistoryListResponse, HistoryMutateResponse, UserPrefsResponse, PassiveDnsResponse, CrtShResponse, CveLookupResponse, AttackSearchResponse, UserWebhookResponse, ApiUsageResponse, IpScanAnalyticsResponse, VtQuotaResponse, ApiKeyListResponse, ApiKeyResponse, ApiIocType, ApiScope } from '../types/api';
 import type { ScanItem } from '../types/vt';
 import type { TabId } from './permissions';
 
