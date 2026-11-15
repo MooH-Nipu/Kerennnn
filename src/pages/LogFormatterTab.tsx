@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { JsonTab } from './JsonTab';
 import { SyslogTab } from './SyslogTab';
+import { RedactPanel } from '../components/shared/RedactPanel';
 import { MAX_SYSLOG_CHARS } from '../lib/syslog.mjs';
 
 export function LogFormatterTab() {
@@ -14,5 +15,6 @@ export function LogFormatterTab() {
     {input.length > MAX_SYSLOG_CHARS ? <p role="alert">Input exceeds {MAX_SYSLOG_CHARS} characters; nothing processed.</p> : syslog
       ? <SyslogTab input={input} onInput={setInput} />
       : <JsonTab input={input} onInput={setInput} />}
+    <RedactPanel />
   </div>;
 }

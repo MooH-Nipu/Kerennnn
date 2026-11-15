@@ -528,3 +528,21 @@ textarea::placeholder, input::placeholder { color: var(--text-muted); font-famil
 .settings-acl .settings-toggle { min-width: 0; }
 .settings-acl .settings-toggle__label,
 .settings-acl .settings-field__hint { min-width: 0; overflow-wrap: anywhere; }
+
+/* Log Formatter → Redact before prompt. Kept last so the state classes win;
+   `.redact-grid` collapses at the same 900px breakpoint as the rest of the app. */
+.redact-panel { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); min-width: 0; }
+.redact-panel .section-header h3 { font: 500 .8rem var(--font-sans); letter-spacing: 0; color: var(--text-sec); margin: 0; }
+.redact-help { color: var(--text-muted); font-size: 12px; line-height: 1.6; margin: .5rem 0 .9rem; }
+.redact-help code { font-family: var(--font-mono, monospace); color: var(--text-code); }
+.redact-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.redact-grid > .form-group { min-width: 0; }
+.redact-hint { color: var(--text-muted); font-size: 11px; line-height: 1.5; margin: .35rem 0 .9rem; }
+.redact-hint strong { color: var(--yellow); font-weight: 600; }
+.redact-options { display: grid; gap: .4rem; margin-top: .6rem; }
+.redact-toggle { display: flex; align-items: flex-start; gap: .45rem; font-size: 12px; color: var(--text-sec); line-height: 1.45; }
+.redact-toggle input { margin: .15rem 0 0; flex: none; width: auto; }
+.redact-toggle span { min-width: 0; }
+.redact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .9rem 0; }
+.redact-stats { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-muted); overflow-wrap: anywhere; }
+@media (max-width: 900px) { .redact-grid { grid-template-columns: 1fr; } }
