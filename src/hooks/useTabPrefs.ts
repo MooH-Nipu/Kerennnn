@@ -14,13 +14,13 @@ export interface NavGroup {
 export const DEFAULT_NAV_LAYOUT: NavGroup[] = [
   { id: 'work', label: 'Work', tabs: ['ioc-scan', 'history', 'ir-manager'] },
   { id: 'operations', label: 'Operations', tabs: ['pac-filter', 'daily-eod'] },
-  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack', 'pairs'] },
+  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'redact', 'cve', 'attack', 'pairs'] },
   { id: 'admin', label: 'Admin', tabs: ['dashboard', 'admin-usage', 'admin-users', 'admin-logs'] },
 ];
 export const L1_NAV_LAYOUT: NavGroup[] = [
   { id: 'work', label: 'Investigation', tabs: ['ioc-scan', 'history', 'ir-manager'] },
   { id: 'operations', label: 'Operations', tabs: ['pac-filter', 'daily-eod'] },
-  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'cve', 'attack'] },
+  { id: 'utilities', label: 'Utilities', tabs: ['formatter', 'merger', 'json', 'redact', 'cve', 'attack'] },
 ];
 
 export interface TabPrefsState {
@@ -42,11 +42,34 @@ function migrateLogPrefs(value: TabPrefsState): TabPrefsState {
   const alias = (id: string) => (id === 'syslog' ? 'json' : id) as TabId;
   const seen = new Set<TabId>();
   const { syslog, ...labels } = value.tabLabels as Record<string, string>;
-  return { ...value,
+  const migrated = { ...value,
     tabLabels: { ...labels, ...(syslog && !labels.json ? { json: syslog } : {}) },
     hidden: [...new Set(value.hidden.map(alias))],
     layout: value.layout.map(group => ({ ...group, tabs: group.tabs.map(alias).filter(id => !seen.has(id) && Boolean(seen.add(id))) })),
   };
+  return adoptNewTabs(migrated);
+}
+
+// A saved layout is authoritative, so a tab shipped after the user last saved is
+// absent from their layout and never renders. Append any default tab the layout
+// has never seen into its default group; never resurrect one they hid.
+function adoptNewTabs(value: TabPrefsState): TabPrefsState {
+  const present = new Set(value.layout.flatMap(group => group.tabs));
+  const hidden = new Set(value.hidden);
+  let layout = value.layout;
+  for (const group of DEFAULT_NAV_LAYOUT) {
+    for (const tab of group.tabs) {
+      if (present.has(tab) || hidden.has(tab)) continue;
+      present.add(tab);
+      const target = layout.find(g => g.id === group.id);
+      if (target) {
+        layout = layout.map(g => (g.id === group.id ? { ...g, tabs: [...g.tabs, tab] } : g));
+      } else {
+        layout = [...layout, { id: group.id, label: group.label, tabs: [tab] }];
+      }
+    }
+  }
+  return layout === value.layout ? value : { ...value, layout };
 }
 
 function readLs(username: string | null | undefined): TabPrefsState {

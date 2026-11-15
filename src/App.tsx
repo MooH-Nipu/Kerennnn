@@ -24,6 +24,7 @@ const CveTab = lazy(() => import('./pages/CveTab').then(m => ({ default: m.CveTa
 const AttackTab = lazy(() => import('./pages/AttackTab').then(m => ({ default: m.AttackTab })));
 const SettingsTab = lazy(() => import('./pages/SettingsTab').then(m => ({ default: m.SettingsTab })));
 const AdminUsageTab = lazy(() => import('./pages/AdminUsageTab').then(m => ({ default: m.AdminUsageTab })));
+const RedactTab = lazy(() => import('./pages/RedactTab').then(m => ({ default: m.RedactTab })));
 const PairsTab = lazy(() => import('./pages/PairsTab').then(m => ({ default: m.PairsTab })));
 const ResultPage = lazy(() => import('./pages/ResultPage').then(m => ({ default: m.ResultPage })));
 
@@ -138,6 +139,7 @@ function AppInner() {
       case 'admin-users': return <AdminUsersTab />;
       case 'admin-logs':  return <AdminLogsTab />;
       case 'ir-manager':  return <IrManagerTab />;
+      case 'redact':      return <RedactTab />;
       case 'cve':         return <CveTab />;
       case 'attack':      return <AttackTab />;
       case 'settings':    return <SettingsTab role={role as NonNullable<typeof role>} prefs={tabPrefs} />;

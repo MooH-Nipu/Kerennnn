@@ -16,6 +16,7 @@ export type TabId =
   | 'ir-manager'
   | 'cve'
   | 'attack'
+  | 'redact'
   | 'settings'
   | 'admin-usage'
   | 'pairs';
@@ -31,6 +32,7 @@ export const TAB_ACCESS: Record<TabId, Role[] | null> = {
   'dashboard':   ADMIN_ROLES,
   'formatter':   null,
   'json':        null,
+  'redact':      null,
   'merger':      null,
   'ioc-scan':    ANALYST_ROLES,
   'history':     ANALYST_ROLES,

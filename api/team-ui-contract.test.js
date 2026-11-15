@@ -45,7 +45,7 @@ test('L1 navigation includes global utilities without admin tools', () => {
   assert.match(permissions, /'formatter':\s+null/);
   assert.match(permissions, /'daily-eod':\s+null/);
   const l1Layout = prefs.match(/L1_NAV_LAYOUT[\s\S]*?\n\];/)?.[0] || '';
-  assert.match(l1Layout, /'formatter', 'merger', 'json', 'cve', 'attack'/);
+  assert.match(l1Layout, /'formatter', 'merger', 'json', 'redact', 'cve', 'attack'/);
   assert.doesNotMatch(l1Layout, /dashboard|admin-users|admin-logs/);
   assert.match(source('src/App.tsx'), /role !== 'l1' && !tabPrefs\.tutorialDismissed/);
 });

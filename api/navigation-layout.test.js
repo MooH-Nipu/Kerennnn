@@ -143,3 +143,43 @@ test('shared modal exposes semantics and manages focus lifecycle', () => {
   assert.match(shortcuts, /previousFocus/);
   assert.match(shortcuts, /querySelectorAll<HTMLElement>/);
 });
+
+test('tabs shipped after a user last saved their layout still render', () => {
+  const prefs = source('src/hooks/useTabPrefs.ts');
+
+  // The saved layout is authoritative, so a new tab id is absent from it and
+  // silently never renders for returning users. adoptNewTabs() appends defaults
+  // the layout has never seen — and must not resurrect a tab the user hid.
+  assert.match(prefs, /function adoptNewTabs\(value: TabPrefsState\): TabPrefsState/);
+  assert.match(prefs, /return adoptNewTabs\(migrated\)/);
+  assert.match(prefs, /if \(present\.has\(tab\) \|\| hidden\.has\(tab\)\) continue;/);
+  assert.match(prefs, /const present = new Set\(value\.layout\.flatMap\(group => group\.tabs\)\)/);
+});
+
+test('redact is its own tab, not a panel inside the log formatter', () => {
+  const logFormatter = source('src/pages/LogFormatterTab.tsx');
+  const redactTab = source('src/pages/RedactTab.tsx');
+  const permissions = source('src/lib/permissions.ts');
+  const nav = source('src/components/layout/TabNav.tsx');
+  const app = source('src/App.tsx');
+  const prefs = source('src/hooks/useTabPrefs.ts');
+  const userPrefs = source('api/user-prefs.js');
+
+  assert.doesNotMatch(logFormatter, /RedactPanel|redact\.mjs/);
+  assert.match(redactTab, /export function RedactTab/);
+  assert.match(redactTab, /redact\.mjs/);
+
+  // Every role: null = any authenticated user
+  assert.match(permissions, /'redact':\s+null/);
+  assert.match(nav, /id: 'redact', label: 'Redact'/);
+  assert.match(app, /case 'redact':\s+return <RedactTab \/>/);
+  assert.match(app, /RedactTab = lazy/);
+
+  // Registered in both default layouts and in the server-side allowlist, or the
+  // tab is dropped on save and never comes back.
+  const l1 = prefs.match(/L1_NAV_LAYOUT[\s\S]*?\n\];/)?.[0] || '';
+  const all = prefs.match(/DEFAULT_NAV_LAYOUT[\s\S]*?\n\];/)?.[0] || '';
+  assert.match(all, /'redact'/);
+  assert.match(l1, /'redact'/);
+  assert.match(userPrefs, /'redact'/);
+});

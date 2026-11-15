@@ -60,11 +60,11 @@ test('live identity and auth responses carry database team memberships', () => {
 test('utility tabs are global while Team Filter follows membership', () => {
   const permissions = source('src/lib/permissions.ts');
   const prefs = source('src/hooks/useTabPrefs.ts');
-  for (const tab of ['formatter', 'json', 'merger', 'daily-eod', 'cve', 'attack']) {
+  for (const tab of ['formatter', 'json', 'merger', 'daily-eod', 'cve', 'attack', 'redact']) {
     assert.match(permissions, new RegExp(`'${tab}':\\s+null`));
   }
   assert.match(permissions, /if \(tab === 'pac-filter'\) return allowedTeams\.length > 0/);
-  assert.match(prefs, /L1_NAV_LAYOUT[\s\S]*'daily-eod'[\s\S]*'formatter', 'merger', 'json', 'cve', 'attack'/);
+  assert.match(prefs, /L1_NAV_LAYOUT[\s\S]*'daily-eod'[\s\S]*'formatter', 'merger', 'json', 'redact', 'cve', 'attack'/);
   const eod = source('api/kibana-combined-report.js');
   assert.match(eod, /if \(!requireAuth\(req, res\)\) return/);
   assert.doesNotMatch(eod, /authEnabled\(\) &&/);

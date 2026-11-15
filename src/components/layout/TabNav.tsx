@@ -34,6 +34,7 @@ export const ALL_TABS: TabDef[] = [
   { id: 'admin-logs', label: 'Logs', icon: <Icon><path d="M15 12h-5M15 8h-5M19 17V5a2 2 0 0 0-2-2H4"/></Icon> },
   { id: 'ir-manager', label: 'IR Manager', icon: <Icon><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></Icon> },
   { id: 'json', label: 'Log Formatter', icon: <Icon><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></Icon> },
+  { id: 'redact', label: 'Redact', icon: <Icon><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/></Icon> },
   { id: 'cve', label: 'CVE Lookup', icon: <Icon><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></Icon> },
   { id: 'attack', label: 'ATT&CK', icon: <Icon><circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></Icon> },
   { id: 'settings', label: 'Settings', icon: '⚙' },
