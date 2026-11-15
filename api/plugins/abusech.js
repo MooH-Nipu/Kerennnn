@@ -9,6 +9,9 @@ class AbuseChPlugin extends TIPlugin {
   constructor() {
     super();
     this.name = 'Abuse.ch';
+    // URLhaus /v1/host/ accepts IP literals as well as hostnames (verified:
+    // host=60.18.59.73 -> query_status ok). Dropping 'ip' here silently removes
+    // the source from every IP scan — registry.test.js guards against it.
     this.supportedTypes = ['ip', 'domain'];
   }
 
@@ -28,7 +31,9 @@ class AbuseChPlugin extends TIPlugin {
         'User-Agent': 'Charlie-kerennnn/1.0',
       });
       if (status !== 200) {
-        const msg = data?.errors?.[0]?.detail || data?.error || data?.message || `HTTP ${status}`;
+        const qs = data?.query_status;
+        const msg = qs === 'unknown_auth_key' ? 'invalid Auth-Key (re-issue at auth.abuse.ch)'
+          : data?.errors?.[0]?.detail || data?.error || data?.message || `HTTP ${status}`;
         return { source: 'Abuse.ch', error: `URLhaus: ${msg}` };
       }
       if (data?.query_status === 'no_results') {

@@ -53,4 +53,9 @@ describe('Plugin registry', () => {
       assert.equal(getPluginTimeout(vt), DEFAULT_TIMEOUT_MS);
     }
   });
+
+  test('Abuse.ch declares IP support (URLhaus /v1/host/ takes IP literals)', () => {
+    const abusech = PLUGINS.find(p => p.name === 'Abuse.ch');
+    assert.deepEqual(abusech.supportedTypes, ['ip', 'domain']);
+  });
 });
