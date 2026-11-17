@@ -1,36 +1,5 @@
-/* Instrument panel layer: final, shared visual contract. */
-:root {
-  --bg-base: #0a101b;
-  --bg-card: #111b2b;
-  --bg-input: #080f1a;
-  --border: #223452;
-  --border-hl: #3979d8;
-  --text-pri: #e4edf9;
-  --text-sec: #91a5c2;
-  --text-code: #a8c9ff;
-  --accent: #3979d8;
-  --accent-hl: #5d98ef;
-  --green: #27b889;
-  --red: #ef6268;
-  --yellow: #eab35b;
-  --cyan: #69b9d8;
-}
-:root[data-theme='light'] {
-  --bg-base: #eef3f8;
-  --bg-card: #ffffff;
-  --bg-input: #f5f8fb;
-  --border: #ccd7e4;
-  --border-hl: #326ac0;
-  --text-pri: #17263a;
-  --text-sec: #536b87;
-  --text-code: #1e579f;
-  --accent: #326ac0;
-  --accent-hl: #24559f;
-  --green: #087d5c;
-  --red: #bf3039;
-  --yellow: #986514;
-  --cyan: #126788;
-}
+/* Instrument panel layer: final, shared visual contract.
+   Colour tokens live in calm.css (imported last); this file only consumes them. */
 html { background: var(--bg-base); }
 body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 code, pre, input[type='text'], input[type='password'], textarea, .mono, [class*='ioc'], [class*='hash'] { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }

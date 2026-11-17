@@ -12,36 +12,39 @@
 }
 @font-face { font-family: 'Inter'; src: url('/fonts/inter-var.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 
+/* Palette: aquatic ramp #213A58 → #0C6478 → #15919B → #09D1C7 → #46DFB1 → #B0EE9B.
+   Accent = turquoise, accent-hl = mint, success = lime. Surfaces are the navy end
+   of the same ramp so chrome and data colours come from one family. */
 :root {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
-  --color-background: #161614; --color-surface: #1c1c1a; --color-surface-2: #222220; --color-surface-3: #131311;
-  --color-border: #2c2b28; --color-border-strong: #3d3c37;
-  --color-foreground: #e8e4dc; --color-muted-foreground: #9a958a;
-  --color-primary: #8fb3a6; --color-primary-emphasis: #a8c8bb; --color-primary-foreground: #141413;
-  --color-success: #9bb27a; --color-danger: #d17b72; --color-warning: #d4a95f; --color-info: #8aa9b8;
-  --color-accent: #24241f; --color-accent-foreground: #e8e4dc;
-  --color-neutral: #262623; --color-neutral-foreground: #e8e4dc;
-  --bg-base: #161614; --bg-card: #1c1c1a; --bg-input: #131311; --bg-surface: #1c1c1a;
-  --border: #2c2b28; --border-hl: #8fb3a6;
-  --text-pri: #e8e4dc; --text-primary: #e8e4dc; --text-sec: #9a958a; --text-secondary: #9a958a; --text-muted: #8a857a;
-  --text-code: #b9cdc4; --accent: #8fb3a6; --accent-hl: #a8c8bb;
-  --green: #9bb27a; --red: #d17b72; --yellow: #d4a95f; --cyan: #8aa9b8; --blue: #7fa8d4;
+  --color-background: #142539; --color-surface: #1d334e; --color-surface-2: #314864; --color-surface-3: #111f31;
+  --color-border: #3e546e; --color-border-strong: #5b6d83;
+  --color-foreground: #e6f0f2; --color-muted-foreground: #9db3c0;
+  --color-primary: #09d1c7; --color-primary-emphasis: #46dfb1; --color-primary-foreground: #213a58;
+  --color-success: #b0ee9b; --color-danger: #f07a72; --color-warning: #e7c065; --color-info: #09d1c7;
+  --color-accent: #24384f; --color-accent-foreground: #e6f0f2;
+  --color-neutral: #263b52; --color-neutral-foreground: #e6f0f2;
+  --bg-base: #142539; --bg-card: #1d334e; --bg-input: #111f31; --bg-surface: #1d334e;
+  --border: #3e546e; --border-hl: #09d1c7;
+  --text-pri: #e6f0f2; --text-primary: #e6f0f2; --text-sec: #9db3c0; --text-secondary: #9db3c0; --text-muted: #8b9dab;
+  --text-code: #9fe8e1; --accent: #09d1c7; --accent-hl: #46dfb1;
+  --green: #b0ee9b; --red: #f07a72; --yellow: #e7c065; --cyan: #09d1c7; --blue: #8fb8de;
   --shadow-panel: none; --radius-panel: 8px; --radius: 0.4rem;
 }
 :root[data-theme='light'] {
-  --color-background: #f4f1ea; --color-surface: #fbf9f5; --color-surface-2: #f0ece3; --color-surface-3: #f0ece3;
-  --color-border: #ddd7ca; --color-border-strong: #c4bdac;
-  --color-foreground: #2a2824; --color-muted-foreground: #6f6a5f;
-  --color-primary: #3f6b60; --color-primary-emphasis: #2f574d; --color-primary-foreground: #fbf9f5;
-  --color-success: #516d2f; --color-danger: #b4493f; --color-warning: #7c5a12; --color-info: #4d6f80;
-  --color-accent: #ebe6da; --color-accent-foreground: #2a2824;
-  --color-neutral: #e8e3d7; --color-neutral-foreground: #2a2824;
-  --bg-base: #f4f1ea; --bg-card: #fbf9f5; --bg-input: #f0ece3; --bg-surface: #fbf9f5;
-  --border: #ddd7ca; --border-hl: #3f6b60;
-  --text-pri: #2a2824; --text-primary: #2a2824; --text-sec: #6f6a5f; --text-secondary: #6f6a5f; --text-muted: #6a655a;
-  --text-code: #2f574d; --accent: #3f6b60; --accent-hl: #2f574d;
-  --green: #516d2f; --red: #b4493f; --yellow: #7c5a12; --cyan: #4d6f80; --blue: #3a6491;
+  --color-background: #f4fdfa; --color-surface: #ffffff; --color-surface-2: #e9fbf6; --color-surface-3: #ecfcf7;
+  --color-border: #c2e2e5; --color-border-strong: #8ac8cd;
+  --color-foreground: #17293f; --color-muted-foreground: #0c5466;
+  --color-primary: #0c6478; --color-primary-emphasis: #0c5062; --color-primary-foreground: #ffffff;
+  --color-success: #49674f; --color-danger: #a9453c; --color-warning: #5e553a; --color-info: #0c6478;
+  --color-accent: #e9fbf6; --color-accent-foreground: #17293f;
+  --color-neutral: #e5faf3; --color-neutral-foreground: #17293f;
+  --bg-base: #f4fdfa; --bg-card: #ffffff; --bg-input: #ecfcf7; --bg-surface: #ffffff;
+  --border: #c2e2e5; --border-hl: #0c6478;
+  --text-pri: #17293f; --text-primary: #17293f; --text-sec: #0c5466; --text-secondary: #0c5466; --text-muted: #2e6b78;
+  --text-code: #0c6478; --accent: #0c6478; --accent-hl: #0c5062;
+  --green: #49674f; --red: #a9453c; --yellow: #5e553a; --cyan: #0c6478; --blue: #2e5f8a;
 }
 
 body, button, input, select, textarea { font-family: 'Twemoji Country Flags', var(--font-sans); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
@@ -93,7 +96,7 @@ body { font-size: 14px; }
 button, input, select, textarea { font: inherit; }
 :root { color-scheme: dark; } :root[data-theme='light'] { color-scheme: light; }
 .btn-primary { background-image: none; }
-.form-input::placeholder, .form-textarea::placeholder { font-family: var(--font-sans); color: var(--text-muted); opacity: .8; }
+.form-input::placeholder, .form-textarea::placeholder { font-family: var(--font-sans); color: var(--text-muted); opacity: 1; }
 .form-label { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: .8rem; color: var(--text-sec); }
 
 /* Toasts: same surface as cards, quiet dismiss */
@@ -116,8 +119,8 @@ button, input, select, textarea { font: inherit; }
 .button--primary:hover:not(:disabled) { background: var(--accent-hl); }
 .button--ghost { color: var(--text-sec); }
 /* Sign in / Scan: enough contrast to read as the primary action */
-:root:not([data-theme='light']) .btn-primary, :root:not([data-theme='light']) .button--primary { background: #a3c4b8; color: #12130f; }
-:root[data-theme='light'] .btn-primary, :root[data-theme='light'] .button--primary { background: #2f574d; color: #fbf9f5; border-color: #2f574d; }
+:root:not([data-theme='light']) .btn-primary, :root:not([data-theme='light']) .button--primary { background: var(--accent); color: var(--color-primary-foreground); }
+:root[data-theme='light'] .btn-primary, :root[data-theme='light'] .button--primary { background: var(--accent); color: var(--color-primary-foreground); border-color: var(--accent); }
 
 /* "New" popover uses card surface, not the old navy elevation */
 .settings-feature-bubble, .settings-feature-bubble::after { background: var(--bg-card); border-color: var(--border); color: var(--text-pri); }
@@ -339,8 +342,8 @@ input[type='file']::file-selector-button:hover { background: var(--color-accent)
 /* ── Result rows, filters, settings ────────────────────────── */
 
 /* Muted data colors: the legacy palette is saturated, so remap its tokens here */
-:root { --orange: #c9926a; --purple: #a99ab8; }
-:root[data-theme='light'] { --orange: #a8672f; --purple: #6f5f86; }
+:root { --orange: #e8945c; --purple: #8fa9d6; }
+:root[data-theme='light'] { --orange: #9a4f1c; --purple: #46608e; }
 .fill-clean { background: var(--green); } .fill-low { background: var(--yellow); }
 .fill-high { background: var(--orange); } .fill-critical { background: var(--red); box-shadow: none; }
 .det-bar-bg { background: var(--border); height: 4px; }

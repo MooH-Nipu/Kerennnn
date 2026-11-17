@@ -143,15 +143,15 @@ export function ResultPage({ id }: { id: string }) {
   }, [id]);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base,#080d17)', color: 'var(--text-muted,#6b7f9a)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-muted)' }}>
       <Spinner size={32} />
     </div>
   );
 
   if (error || !data) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base,#080d17)', color: 'var(--text-muted,#6b7f9a)', gap: '1rem' }}>
-      <div style={{ color: '#f87171', fontSize: '1rem' }}>{error ?? 'Data not found.'}</div>
-      <a href="/" style={{ color: 'var(--accent,#3b82f6)', textDecoration: 'none', fontSize: '0.85rem' }}>← Back to app</a>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-muted)', gap: '1rem' }}>
+      <div style={{ color: 'var(--red)', fontSize: '1rem' }}>{error ?? 'Data not found.'}</div>
+      <a href="/" style={{ color: 'var(--accent,var(--accent))', textDecoration: 'none', fontSize: '0.85rem' }}>← Back to app</a>
     </div>
   );
 
@@ -191,10 +191,10 @@ export function ResultPage({ id }: { id: string }) {
   const corrCls = confClass(corrConf ?? null);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base,#080d17)', padding: '2rem 1rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
         {/* Back link */}
-        <a href="/" style={{ color: 'var(--text-muted,#6b7f9a)', textDecoration: 'none', fontSize: '0.8rem', display: 'inline-block', marginBottom: '1.5rem' }}>
+        <a href="/" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.8rem', display: 'inline-block', marginBottom: '1.5rem' }}>
           ← Charlie kerennnn
         </a>
 
@@ -284,13 +284,13 @@ export function ResultPage({ id }: { id: string }) {
         {/* Educational takeaway */}
         <div className="vt-card">
           <div className="vt-card-body" style={{ borderTop: 'none' }}>
-            <div style={{ fontSize: '0.75rem', fontFamily: 'Syne,sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted,#6b7f9a)', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.75rem', fontFamily: 'Syne,sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
               Recommendation
             </div>
-            <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary,#e8f0fe)', marginBottom: '0.375rem' }}>
+            <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary,var(--text-pri))', marginBottom: '0.375rem' }}>
               {takeaway.title}
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary,#a3b3cc)', lineHeight: 1.6 }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary,var(--text-sec))', lineHeight: 1.6 }}>
               {takeaway.body}
             </div>
           </div>

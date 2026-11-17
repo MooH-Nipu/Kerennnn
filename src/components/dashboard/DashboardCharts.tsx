@@ -18,14 +18,14 @@ const SERVICE_COLORS: Record<string, string> = {
   VirusTotal: 'var(--color-primary)',
   AbuseIPDB: 'var(--color-danger)',
   'Abuse.ch': 'var(--color-warning)',
-  MalwareBazaar: '#f472b6',
-  'AlienVault OTX': '#a78bfa',
+  MalwareBazaar: 'var(--red)',
+  'AlienVault OTX': 'var(--purple)',
   'URLScan.io': 'var(--color-success)',
   Enrichment: 'var(--color-info)',
-  'Passive DNS': '#fb923c',
-  'crt.sh': '#a3e635',
+  'Passive DNS': 'var(--orange)',
+  'crt.sh': 'var(--green)',
 };
-const FALLBACK_PALETTE = ['var(--color-primary)', 'var(--color-danger)', 'var(--color-warning)', '#a78bfa', 'var(--color-success)', 'var(--color-info)', '#fb923c', '#a3e635', '#c084fc', '#f472b6'];
+const FALLBACK_PALETTE = ['var(--color-primary)', 'var(--color-danger)', 'var(--color-warning)', 'var(--purple)', 'var(--color-success)', 'var(--color-info)', 'var(--orange)', 'var(--green)', 'var(--cyan)', 'var(--red)'];
 const TOOLTIP_STYLE = {
   background: 'var(--color-surface)',
   border: '1px solid var(--color-border)',

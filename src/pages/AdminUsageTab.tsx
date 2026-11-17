@@ -11,35 +11,35 @@ import { Spinner } from '../components/shared/Spinner';
 import type { ApiUsageResponse } from '../types/api';
 
 const OUTCOME_COLORS: Record<string, string> = {
-  ok: '#0fba81',
-  rate_limited: '#f5a623',
-  error: '#e5484d',
+  ok: 'var(--green)',
+  rate_limited: 'var(--yellow)',
+  error: 'var(--red)',
 };
 
 // Per-service line colors for the TI usage-over-time chart. Services not
 // listed here get assigned from the FALLBACK_PALETTE in order.
 const SERVICE_COLORS: Record<string, string> = {
-  'VirusTotal':      '#1d6ae5',
-  'AbuseIPDB':       '#e5484d',
-  'Abuse.ch':        '#f5a623',
-  'MalwareBazaar':   '#f472b6',
-  'AlienVault OTX':  '#a78bfa',
-  'URLScan.io':      '#0fba81',
-  'Enrichment':      '#38bdf8',
-  'Passive DNS':     '#fb923c',
-  'crt.sh':          '#a3e635',
+  'VirusTotal':      'var(--accent)',
+  'AbuseIPDB':       'var(--red)',
+  'Abuse.ch':        'var(--yellow)',
+  'MalwareBazaar':   'var(--red)',
+  'AlienVault OTX':  'var(--purple)',
+  'URLScan.io':      'var(--green)',
+  'Enrichment':      'var(--cyan)',
+  'Passive DNS':     'var(--orange)',
+  'crt.sh':          'var(--green)',
 };
-const FALLBACK_PALETTE = ['#1d6ae5', '#e5484d', '#f5a623', '#a78bfa', '#0fba81', '#38bdf8', '#fb923c', '#a3e635', '#c084fc', '#f472b6'];
+const FALLBACK_PALETTE = ['var(--accent)', 'var(--red)', 'var(--yellow)', 'var(--purple)', 'var(--green)', 'var(--cyan)', 'var(--orange)', 'var(--green)', 'var(--cyan)', 'var(--red)'];
 
 // Dark-theme tooltip box matching the rest of the UI.
 const TOOLTIP_STYLE = {
-  background: '#0e1829',
-  border: '1px solid #1e304d',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 8,
-  color: '#d4e4ff',
+  color: 'var(--text-pri)',
   fontSize: 12,
 };
-const AXIS_STYLE = { fill: '#5a7aa8', fontSize: 11 };
+const AXIS_STYLE = { fill: 'var(--text-sec)', fontSize: 11 };
 
 function outcomeLabel(o: string) {
   if (o === 'rate_limited') return 'Rate-limited';
@@ -194,11 +194,11 @@ export function AdminUsageTab() {
       {!loading && data && (
         <>
           <div className="usage-stats">
-            <StatCard label="Total calls" value={data.total} accent="#1d6ae5" />
-            <StatCard label="OK" value={totals.ok || 0} accent="#0fba81" />
-            <StatCard label="Rate-limited" value={totals.rate_limited || 0} accent="#f5a623" />
-            <StatCard label="Errors" value={totals.error || 0} accent="#e5484d" />
-            <StatCard label="Users" value={data.byUser.length} accent="#a78bfa" />
+            <StatCard label="Total calls" value={data.total} accent="var(--accent)" />
+            <StatCard label="OK" value={totals.ok || 0} accent="var(--green)" />
+            <StatCard label="Rate-limited" value={totals.rate_limited || 0} accent="var(--yellow)" />
+            <StatCard label="Errors" value={totals.error || 0} accent="var(--red)" />
+            <StatCard label="Users" value={data.byUser.length} accent="var(--purple)" />
           </div>
 
           {data.capped && (
@@ -215,11 +215,11 @@ export function AdminUsageTab() {
               <ChartCard title="Calls per user" hint="All threat-intel sources combined">
                 <ResponsiveContainer width="100%" height={perUserHeight}>
                   <BarChart data={data.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" horizontal={false} />
-                    <XAxis type="number" tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="#1e304d" width={96} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" tick={AXIS_STYLE} stroke="var(--border)" allowDecimals={false} />
+                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--border)" width={96} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} />
-                    <Bar dataKey="total" name="Total calls" fill="#1d6ae5" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="total" name="Total calls" fill="var(--accent)" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -227,11 +227,11 @@ export function AdminUsageTab() {
               <ChartCard title="Outcomes per user" hint="OK vs rate-limited vs error">
                 <ResponsiveContainer width="100%" height={perUserHeight}>
                   <BarChart data={data.byUser} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" horizontal={false} />
-                    <XAxis type="number" tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="#1e304d" width={96} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" tick={AXIS_STYLE} stroke="var(--border)" allowDecimals={false} />
+                    <YAxis type="category" dataKey="username" tick={AXIS_STYLE} stroke="var(--border)" width={96} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(29,106,229,0.08)' }} formatter={(v, n) => [v as number, outcomeLabel(String(n))]} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#5a7aa8' }} formatter={(v) => outcomeLabel(String(v))} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-sec)' }} formatter={(v) => outcomeLabel(String(v))} />
                     <Bar dataKey="ok" stackId="o" fill={OUTCOME_COLORS.ok} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="rate_limited" stackId="o" fill={OUTCOME_COLORS.rate_limited} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="error" stackId="o" fill={OUTCOME_COLORS.error} radius={[0, 4, 4, 0]} />
@@ -269,11 +269,11 @@ export function AdminUsageTab() {
                               </linearGradient>
                             ))}
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1e304d" vertical={false} />
-                          <XAxis dataKey="day" tick={AXIS_STYLE} stroke="#1e304d" />
-                          <YAxis tick={AXIS_STYLE} stroke="#1e304d" allowDecimals={false} />
-                          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2a5298' }} />
-                          <Legend wrapperStyle={{ fontSize: 11, color: '#5a7aa8' }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                          <XAxis dataKey="day" tick={AXIS_STYLE} stroke="var(--border)" />
+                          <YAxis tick={AXIS_STYLE} stroke="var(--border)" allowDecimals={false} />
+                          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: 'var(--accent)' }} />
+                          <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-sec)' }} />
                           {services.map((svc, i) => (
                             <Area
                               key={svc}

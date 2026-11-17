@@ -38,9 +38,9 @@ export function AdminLogsTab() {
       style={{
         padding: '0.45rem 0.9rem',
         borderRadius: 8,
-        border: '1px solid var(--border, #1e2a3f)',
-        background: view === id ? 'var(--accent, #4ade80)' : 'transparent',
-        color: view === id ? '#08111f' : 'var(--text-secondary, #a3b3cc)',
+        border: '1px solid var(--border, var(--border))',
+        background: view === id ? 'var(--accent, var(--green))' : 'transparent',
+        color: view === id ? 'var(--bg-input)' : 'var(--text-secondary, var(--text-sec))',
         fontWeight: 600,
         fontSize: '0.8rem',
         cursor: 'pointer',
@@ -55,7 +55,7 @@ export function AdminLogsTab() {
       <div className="section-header">
         <div>
           <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Activity Logs</h2>
-          <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted, #6b7f9a)' }}>
+          <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted, var(--text-muted))' }}>
             Admin audit trail & login attempts (latest 100 each).
           </p>
         </div>
@@ -99,10 +99,10 @@ function AuditList({ rows }: { rows: AuditLogEntry[] }) {
           <span className="admin-log-when">{fmtDate(r.created_at)}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              <span style={{ color: 'var(--accent, #4ade80)' }}>{r.action}</span>
-              {r.target && <span style={{ color: 'var(--text-secondary, #a3b3cc)' }}> → {r.target}</span>}
+              <span style={{ color: 'var(--accent, var(--green))' }}>{r.action}</span>
+              {r.target && <span style={{ color: 'var(--text-secondary, var(--text-sec))' }}> → {r.target}</span>}
             </div>
-            <div className="admin-log-detail" style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6b7f9a)', marginTop: '0.15rem' }}>
+            <div className="admin-log-detail" style={{ fontSize: '0.74rem', color: 'var(--text-muted, var(--text-muted))', marginTop: '0.15rem' }}>
               by <strong>{r.actor_username ?? 'unknown'}</strong>
               {r.detail && Object.keys(r.detail).length > 0 && (
                 <span style={{ fontFamily: 'var(--font-mono, monospace)' }}> · {JSON.stringify(r.detail)}</span>
@@ -124,12 +124,12 @@ function LoginList({ rows }: { rows: LoginAttemptEntry[] }) {
           <span className="admin-log-when">{fmtDate(r.attempted_at)}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              <span style={{ color: r.success ? 'var(--accent, #4ade80)' : '#f87171' }}>
+              <span style={{ color: r.success ? 'var(--accent, var(--green))' : 'var(--red)' }}>
                 {r.success ? '✓ success' : '✗ failed'}
               </span>
-              <span style={{ color: 'var(--text-secondary, #a3b3cc)' }}> · {r.username}</span>
+              <span style={{ color: 'var(--text-secondary, var(--text-sec))' }}> · {r.username}</span>
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #6b7f9a)', marginTop: '0.15rem', fontFamily: 'var(--font-mono, monospace)' }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, var(--text-muted))', marginTop: '0.15rem', fontFamily: 'var(--font-mono, monospace)' }}>
               IP {r.ip}
             </div>
           </div>
@@ -141,7 +141,7 @@ function LoginList({ rows }: { rows: LoginAttemptEntry[] }) {
 
 function Empty({ label }: { label: string }) {
   return (
-    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted, #6b7f9a)', fontSize: '0.85rem' }}>
+    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted, var(--text-muted))', fontSize: '0.85rem' }}>
       {label}
     </div>
   );

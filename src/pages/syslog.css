@@ -4,10 +4,10 @@
 .syslog-tab label { display: block; margin: 12px 0 6px; font-size: 12px; }
 .syslog-tab textarea { box-sizing: border-box; width: 100%; resize: vertical; font-family: var(--font-mono, monospace); font-size: 12px; }
 .syslog-status { min-height: 20px; color: var(--text-muted); font-size: 12px; }
-.syslog-error { color: #f87171; font-size: 12px; overflow-wrap: anywhere; }
-.syslog-record { border: 1px solid var(--border); border-left: 3px solid #34d399; padding: 12px; margin-top: 12px; min-width: 0; }
-.syslog-record--invalid { border-left-color: #f87171; }
+.syslog-error { color: var(--red); font-size: 12px; overflow-wrap: anywhere; }
+.syslog-record { border: 1px solid var(--border); border-left: 3px solid var(--green); padding: 12px; margin-top: 12px; min-width: 0; }
+.syslog-record--invalid { border-left-color: var(--red); }
 .syslog-record h3 { font-size: 13px; margin: 0 0 10px; }
 .syslog-record pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; max-height: 400px; overflow: auto; }
 .syslog-record summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
-.syslog-tab :focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+.syslog-tab :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

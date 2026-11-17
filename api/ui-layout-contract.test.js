@@ -188,10 +188,10 @@ test('Dashboard defers chart runtime and preserves loading geometry', () => {
 
 test('measured header, navigation, and success badge colors meet contrast fixes', () => {
   const css = source('src/styles/ui-improvements.css');
-  assert.match(css, /\.app-header__title em\s*\{[^}]*color:\s*#6ea8fe;/s);
-  assert.match(css, /\.tab-nav__section-label\s*\{[^}]*color:\s*var\(--text-secondary, #a3b3cc\);/s);
-  assert.match(css, /\.badge--success\.badge--soft\s*\{[^}]*color:\s*#4ade80;/s);
-  assert.match(css, /\.update-toast__badge\s*\{[^}]*color:\s*#6ea8fe;/s);
+  assert.match(css, /\.app-header__title em\s*\{[^}]*color:\s*var\(--accent-hl/s);
+  assert.match(css, /\.tab-nav__section-label\s*\{[^}]*color:\s*var\(--text-secondary/s);
+  assert.match(css, /\.badge--success\.badge--soft\s*\{[^}]*color:\s*var\(--green\);/s);
+  assert.match(css, /\.update-toast__badge\s*\{[^}]*color:\s*var\(--accent/s);
 });
 
 test('Team Filter warnings are not styled as success', () => {

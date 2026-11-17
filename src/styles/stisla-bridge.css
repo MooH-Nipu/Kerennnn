@@ -8,36 +8,36 @@
 /* ── Theme tokens ──────────────────────────────────────────── */
 :root {
   color-scheme: dark;
-  /* Pull Stisla's dark surface tokens closer to Kerennnn's palette */
-  --color-background: oklch(15% 0.02 260);      /* #080d17-ish */
-  --color-foreground: oklch(92% 0.01 260);      /* #d4e4ff-ish */
-  --color-surface: oklch(17% 0.03 260);         /* #0e1829-ish */
-  --color-surface-2: oklch(20% 0.03 260);       /* slightly lighter */
-  --color-surface-3: oklch(23% 0.03 260);
-  --color-border: oklch(28% 0.03 260);          /* #1e304d-ish */
-  --color-border-strong: oklch(35% 0.04 260);
-  --color-muted-foreground: oklch(68% 0.02 260); /* #6b8cc0-ish */
+  /* Surfaces: navy end of the aquatic ramp (#213A58 family) */
+  --color-background: oklch(26.0% 0.0442 253.4);  /* #142539 */
+  --color-foreground: oklch(94.8% 0.011 211.0);   /* #e6f0f2 */
+  --color-surface: oklch(31.7% 0.0562 254.3);     /* #1d334e */
+  --color-surface-2: oklch(36.0% 0.0520 254.0);   /* slightly lighter */
+  --color-surface-3: oklch(40.0% 0.0480 254.0);
+  --color-border: oklch(43.9% 0.0510 253.1);      /* #3e546e */
+  --color-border-strong: oklch(52.0% 0.0450 253.0);
+  --color-muted-foreground: oklch(75.4% 0.0307 233.8); /* #9db3c0 */
 
-  /* Match Kerennnn's blue accent (#1d6ae5 ≈ oklch(54% 0.19 256)) */
-  --color-primary: oklch(54% 0.19 257);
-  --color-primary-foreground: oklch(100% 0 0);
-  --color-primary-emphasis: oklch(60% 0.19 257);
+  /* Accent: turquoise / mint from the same ramp */
+  --color-primary: oklch(77.6% 0.1338 188.7);          /* #09d1c7 */
+  --color-primary-foreground: oklch(34.3% 0.0615 253.9); /* #213a58 — dark text on turquoise */
+  --color-primary-emphasis: oklch(81.2% 0.1437 168.7); /* #46dfb1 */
 
   /* Status colors aligned to Kerennnn vars */
-  --color-success: oklch(60% 0.17 150);         /* #0fba81-ish */
-  --color-success-foreground: oklch(100% 0 0);
-  --color-danger: oklch(58% 0.22 27);           /* #e5484d-ish */
+  --color-success: oklch(88.7% 0.1269 138.0);    /* #b0ee9b */
+  --color-success-foreground: oklch(34.3% 0.0615 253.9);
+  --color-danger: oklch(68.0% 0.1420 25.0);      /* #f07a72 */
   --color-danger-foreground: oklch(100% 0 0);
-  --color-warning: oklch(75% 0.16 71);          /* #f5a623-ish */
+  --color-warning: oklch(82.0% 0.1050 85.0);     /* #e7c065 */
   --color-warning-foreground: oklch(27% 0 0);
-  --color-info: oklch(62% 0.15 238);
-  --color-info-foreground: oklch(100% 0 0);
+  --color-info: oklch(77.6% 0.1338 188.7);       /* #09d1c7 */
+  --color-info-foreground: oklch(34.3% 0.0615 253.9);
 
   /* Neutral + accent surfaces */
-  --color-neutral: oklch(27% 0.02 260);
-  --color-neutral-foreground: oklch(92% 0.01 260);
-  --color-accent: oklch(26% 0.03 260);
-  --color-accent-foreground: oklch(92% 0.01 260);
+  --color-neutral: oklch(35.0% 0.0500 254.0);
+  --color-neutral-foreground: oklch(94.8% 0.011 211.0);
+  --color-accent: oklch(34.0% 0.0480 254.0);
+  --color-accent-foreground: oklch(94.8% 0.011 211.0);
 
   /* Radius — Kerennnn uses 8-14px, Stisla default 1rem=16px is too round */
   --radius: 0.5rem;
@@ -46,21 +46,25 @@
 /* Light mode keeps operational colors readable without changing component markup. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --color-background: oklch(97% 0.012 250);
-  --color-foreground: oklch(22% 0.035 255);
+  --color-background: oklch(98.6% 0.0103 174.3);   /* #f4fdfa */
+  --color-foreground: oklch(27.7% 0.0475 254.2);   /* #17293f */
   --color-surface: oklch(100% 0 0);
-  --color-surface-2: oklch(96% 0.015 250);
-  --color-surface-3: oklch(93% 0.02 250);
-  --color-border: oklch(84% 0.025 255);
-  --color-border-strong: oklch(70% 0.04 255);
-  --color-muted-foreground: oklch(45% 0.04 255);
-  --color-primary: oklch(50% 0.19 257);
-  --color-primary-emphasis: oklch(44% 0.19 257);
+  --color-surface-2: oklch(97.3% 0.0200 177.5);    /* #e9fbf6 */
+  --color-surface-3: oklch(95.5% 0.0170 178.0);
+  --color-border: oklch(89.1% 0.0339 203.5);       /* #c2e2e5 */
+  --color-border-strong: oklch(79.3% 0.0636 202.3);
+  --color-muted-foreground: oklch(41.4% 0.0711 220.0); /* #0c5466 */
+  --color-primary: oklch(46.6% 0.0807 218.6);      /* #0c6478 */
+  --color-primary-emphasis: oklch(40.1% 0.0689 221.1);
   --color-primary-foreground: oklch(100% 0 0);
-  --color-accent: oklch(94% 0.025 250);
-  --color-accent-foreground: oklch(22% 0.035 255);
-  --color-neutral: oklch(91% 0.02 255);
-  --color-neutral-foreground: oklch(22% 0.035 255);
+  --color-accent: oklch(97.3% 0.0200 177.5);
+  --color-accent-foreground: oklch(27.7% 0.0475 254.2);
+  --color-neutral: oklch(97.0% 0.0190 176.0);
+  --color-neutral-foreground: oklch(27.7% 0.0475 254.2);
+  --color-success: oklch(48.3% 0.0520 150.2);      /* #49674f */
+  --color-danger: oklch(52.2% 0.1337 27.7);        /* #a9453c */
+  --color-warning: oklch(45.1% 0.0426 91.8);       /* #5e553a */
+  --color-info: oklch(46.6% 0.0807 218.6);
 }
 
 /* ── Cross-reference: Kerennnn vars → Stisla tokens ────────── */
