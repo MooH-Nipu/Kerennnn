@@ -17,13 +17,16 @@ const VT_RATE_LIMIT_BACKOFF_MS = 60_000;
 // runtime from the configured key count so adding more keys automatically speeds
 // up the scan without code changes. Falls back to 1 key (15s) if count unknown.
 const VT_KEYS_URL = '/api/vt?health=1';
+// Returns usable key count; 0 means the server has keys but none currently
+// usable (quota spent / cooling down), so the caller must skip the VT queue
+// rather than pace every IOC at the 15s no-key interval for nothing.
 async function fetchVtKeyCount(): Promise<number> {
   try {
     const r = await fetch(VT_KEYS_URL, { credentials: 'include' });
     const j = await r.json().catch(() => ({}));
     const health = j as { totalKeys?: number; availableKeys?: number };
     const n = Number(health.availableKeys ?? health.totalKeys);
-    return Number.isFinite(n) && n > 0 ? n : 1;
+    return Number.isFinite(n) && n > 0 ? n : 0;
   } catch {
     return 1;
   }
@@ -188,6 +191,19 @@ export function useVtScan() {
     // Fetched once per scan so rotated runtime keys take effect immediately.
     const keyCount = await fetchVtKeyCount();
     const vtPaceMs = Math.ceil(60_000 / (keyCount * 4)); // e.g. 5 keys → 3000ms
+    // No usable key right now: skip the VT queue entirely instead of pacing every
+    // IOC at 15s and then failing anyway. Correlation providers still answer, so
+    // the scan completes with VT marked UNAVAILABLE.
+    const vtEnabled = keyCount > 0;
+    if (!vtEnabled) {
+      for (const id of ids) {
+        dispatch({
+          type: 'RESOLVE',
+          id,
+          result: { error: 'VirusTotal quota exhausted — other sources still applied.' } as ScanItem['result'],
+        });
+      }
+    }
     let lastVtCallAt = 0; // shared across workers — enforces global pace
 
     // Pool: run VT_CONCURRENCY at a time
@@ -297,7 +313,7 @@ export function useVtScan() {
     // Correlate gets a wider pool than VT: it is bounded by the server's
     // per-user scan budget (SCAN_CORRELATE_PER_MINUTE), not by a provider quota.
     const workers = [
-      ...Array.from({ length: VT_CONCURRENCY }, () => vtWorker()),
+      ...(vtEnabled ? Array.from({ length: VT_CONCURRENCY }, () => vtWorker()) : []),
       ...Array.from({ length: CORR_CONCURRENCY }, () => corrWorker()),
     ];
     await Promise.all(workers);
