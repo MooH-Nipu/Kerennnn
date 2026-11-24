@@ -17,6 +17,11 @@ const OUTPUT_KEYS = ['Date', 'Alarm Name', 'Severity', 'Alarm Time', 'Alarm Take
 // Columns 3-7: Severity, Alarm Time, Alarm Taken, Min, Shift Name
 const EOD_CENTER_COLS = new Set([3, 4, 5, 6, 7]);
 
+// PAC labels differ from the shared EOD layout: Event / Analyst instead of
+// Alarm Name / Shift Name. Keys stay on OUTPUT_KEYS so the processor is shared.
+const PAC_HEADERS = ['Date', 'Event', 'Severity', 'Alarm Time', 'Alarm Taken', 'Min', 'Analyst'];
+const PAC_COLUMNS = OUTPUT_KEYS.map((key, i) => ({ header: PAC_HEADERS[i], key, width: 22 }));
+
 // DCI export carries "signal.rule.name"; CTBC export carries "kibana.alert.rule.name".
 const DCI_RULE_CANDIDATES = [
   'signal.rule.name: Ascending',
@@ -116,6 +121,15 @@ function parseCsvBuffer(buf) {
   });
 }
 
+/**
+ * Lens headers carry the value limit ("Top 500 values of signal.rule.name"),
+ * which changes as the analyst retunes the viz. Collapse the quantifier so the
+ * candidate list matches whatever limit the export used.
+ */
+function normalizeColumnName(name) {
+  return String(name).trim().toLowerCase().replace(/^top \d+ values of /, 'top values of ');
+}
+
 function firstPresent(row, names) {
   if (!row || typeof row !== 'object') return '';
   for (const name of names) {
@@ -129,6 +143,11 @@ function firstPresent(row, names) {
     if (!name) continue;
     const found = keys.find((k) => k.trim() === name.trim());
     if (found !== undefined && row[found] !== undefined && row[found] !== '') return row[found];
+  }
+  // Aggregated (Lens) exports: "Top 500 values of signal.rule.name" == "Top values of signal.rule.name"
+  const targets = new Set(names.filter(Boolean).map(normalizeColumnName));
+  for (const k of keys) {
+    if (targets.has(normalizeColumnName(k)) && row[k] !== undefined && row[k] !== '') return row[k];
   }
   return '';
 }
@@ -327,7 +346,7 @@ module.exports = async function handler(req, res) {
     if (buffers.pac && buffers.pac.length) {
       const rows = parseCsvBuffer(buffers.pac);
       const data = processKibanaBprksPac(rows, picName, reportDate, fallbackAlarmTime);
-      if (data.length) sheets.push({ name: 'PAC', data, centerCols: EOD_CENTER_COLS });
+      if (data.length) sheets.push({ name: 'PAC', data, columns: PAC_COLUMNS, centerCols: EOD_CENTER_COLS });
     }
   } catch (e) {
     res.setHeader('Content-Type', 'application/json');
